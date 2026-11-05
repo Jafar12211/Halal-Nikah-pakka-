@@ -1,0 +1,6 @@
+{
+  "name": "Nikah Pakka - Genuine Muslim Matrimony",
+  "description": "A community-focused, affordable Muslim matrimony platform with local connections, family involvement, and genuine intentions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

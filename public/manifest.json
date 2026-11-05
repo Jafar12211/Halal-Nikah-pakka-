@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "Nikah Pakka - Godavari & Yanam Matrimony",
+  "short_name": "Nikah Pakka",
+  "description": "Genuine, community-focused Muslim matrimony for Yanam and Godavari districts of Andhra Pradesh, India.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#064e3b",
+  "background_color": "#fdfbf7",
+  "categories": ["lifestyle", "social"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

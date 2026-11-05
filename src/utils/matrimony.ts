@@ -1,0 +1,246 @@
+import { MatrimonyProfile, FilterState } from '../types/matrimony';
+
+export const OFFICIAL_REGISTRATION_URL = 'https://site-75bd7eafe06f4ebf8c6d057f860920dd.freebuff.page/profile';
+
+/**
+ * Filters a list of matrimony profiles based on user criteria.
+ */
+export function filterProfiles(profiles: MatrimonyProfile[], filters: FilterState): MatrimonyProfile[] {
+  return profiles.filter((profile) => {
+    // Gender filter
+    if (filters.gender !== 'all' && profile.gender !== filters.gender) {
+      return false;
+    }
+
+    // Age range
+    if (profile.age < filters.minAge || profile.age > filters.maxAge) {
+      return false;
+    }
+
+    // City filter
+    if (filters.city && filters.city !== 'All Cities') {
+      if (!profile.city.toLowerCase().includes(filters.city.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Sect filter
+    if (filters.sect && filters.sect !== 'All Sects') {
+      if (!profile.sect.toLowerCase().includes(filters.sect.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Marital Status
+    if (filters.maritalStatus && filters.maritalStatus !== 'All') {
+      if (profile.maritalStatus !== filters.maritalStatus) {
+        return false;
+      }
+    }
+
+    // Education filter
+    if (filters.education && filters.education !== 'All') {
+      if (!profile.education.toLowerCase().includes(filters.education.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Free text search
+    if (filters.searchQuery.trim()) {
+      const q = filters.searchQuery.toLowerCase().trim();
+      const match =
+        profile.candidateName.toLowerCase().includes(q) ||
+        profile.profession.toLowerCase().includes(q) ||
+        profile.education.toLowerCase().includes(q) ||
+        profile.city.toLowerCase().includes(q) ||
+        profile.motherTongue.toLowerCase().includes(q) ||
+        profile.aboutCandidate.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+
+    return true;
+  });
+}
+
+/**
+ * Calculates a religious and lifestyle compatibility percentage between two candidates or preferences.
+ */
+export function calculateCompatibilityScore(
+  candidate: MatrimonyProfile,
+  preferences?: Partial<MatrimonyProfile['partnerPreferences']>
+): { score: number; highlights: string[] } {
+  const highlights: string[] = [];
+  let score = 70; // baseline community alignment
+
+  if (candidate.isVerified) {
+    score += 10;
+    highlights.push('Manually verified family background');
+  }
+
+  if (candidate.religiousPractice.salah === '5 times daily') {
+    score += 10;
+    highlights.push('Punctual with 5 daily Salah');
+  } else if (candidate.religiousPractice.salah === 'Regularly') {
+    score += 5;
+    highlights.push('Regular Salah practitioner');
+  }
+
+  if (candidate.religiousPractice.halalDiet) {
+    score += 5;
+    highlights.push('Strict Halal lifestyle');
+  }
+
+  if (candidate.guardianWaliContact.name && candidate.guardianWaliContact.phone) {
+    score += 5;
+    highlights.push('Family / Wali actively involved');
+  }
+
+  if (preferences?.minAge && preferences?.maxAge) {
+    if (candidate.age >= preferences.minAge && candidate.age <= preferences.maxAge) {
+      highlights.push('Within preferred age range');
+    }
+  }
+
+  // Cap between 0 and 100
+  const finalScore = Math.min(100, Math.max(50, score));
+  return { score: finalScore, highlights };
+}
+
+/**
+ * Validates registration input data.
+ */
+export interface RegistrationInput {
+  registeredBy: string;
+  registrantName: string;
+  candidateName: string;
+  gender: string;
+  age: number | string;
+  height: string;
+  maritalStatus: string;
+  city: string;
+  motherTongue: string;
+  sect: string;
+  salah: string;
+  education: string;
+  profession: string;
+  annualIncomeRange: string;
+  guardianName: string;
+  guardianRelation: string;
+  guardianPhone: string;
+  consentConfirmed: boolean;
+}
+
+export function validateRegistrationForm(data: RegistrationInput): { isValid: boolean; errors: Record<string, string> } {
+  const errors: Record<string, string> = {};
+
+  if (!data.candidateName?.trim()) {
+    errors.candidateName = 'Candidate name is required.';
+  }
+
+  if (!data.gender || !['groom', 'bride'].includes(data.gender)) {
+    errors.gender = 'Please select Groom or Bride.';
+  }
+
+  const ageNum = Number(data.age);
+  if (isNaN(ageNum) || ageNum < 18 || ageNum > 80) {
+    errors.age = 'Age must be between 18 and 80.';
+  }
+
+  if (!data.city?.trim()) {
+    errors.city = 'City / Location is required.';
+  }
+
+  if (!data.education?.trim()) {
+    errors.education = 'Education qualification is required.';
+  }
+
+  if (!data.profession?.trim()) {
+    errors.profession = 'Occupation / Profession is required.';
+  }
+
+  if (!data.guardianName?.trim()) {
+    errors.guardianName = 'Parent or Guardian (Wali) name is required for genuine matchmaking.';
+  }
+
+  if (!data.guardianPhone?.trim()) {
+    errors.guardianPhone = 'Guardian phone number is required.';
+  } else {
+    // Basic phone validation (allowing international formats and Indian 10-digit)
+    const cleanPhone = data.guardianPhone.replace(/[\s\-\(\)\+]/g, '');
+    if (cleanPhone.length < 8 || cleanPhone.length > 15) {
+      errors.guardianPhone = 'Please provide a valid 10-15 digit phone number.';
+    }
+  }
+
+  if (!data.consentConfirmed) {
+    errors.consentConfirmed = 'Confirmation of candidate consent and genuine intentions is required.';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  };
+}
+
+/**
+ * Generates formatted WhatsApp share message for community outreach.
+ */
+export function generateWhatsAppShareMessage(targetProfileName?: string): string {
+  if (targetProfileName) {
+    return encodeURIComponent(
+      `🌙 Assalamu Alaikum! Found a verified profile on Nikah Pakka for *${targetProfileName}*. A genuine Muslim matrimony platform with family involvement and zero expensive subscriptions. Check details here: ${OFFICIAL_REGISTRATION_URL} ❤️`
+    );
+  }
+
+  return encodeURIComponent(
+    `🌙 Assalamu Alaikum! ❤️\n\nIntroducing *NIKAH PAKKA* – A New Beginning for Genuine Muslim Matrimony!\n\nFinding a life partner should not put financial pressure on families through expensive subscriptions.\n\n✨ Easy registration\n✨ Affordable matchmaking\n✨ Local Muslim community connections\n✨ Family-assisted registration (Wali involvement)\n✨ Manual profile verification\n\n🤝 *Our Small Request:*\n1. Register if searching for a partner.\n2. Help an unmarried brother, sister or relative register.\n3. Share Nikah Pakka with 3 friends or families.\n\nYour one share could help someone find their life partner! 🤲\n\n🔗 Register here: ${OFFICIAL_REGISTRATION_URL}\n\nNikah Pakka ❤️ Your Community. Your Connection. Your Nikah.`
+  );
+}
+
+/**
+ * Generates clean text biodata to copy for family circulation.
+ */
+export function generateBiodataText(profile: MatrimonyProfile): string {
+  return `
+بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+*NIKAH PAKKA - VERIFIED MATRIMONIAL BIODATA*
+Ref ID: #${profile.id.toUpperCase()}
+------------------------------------
+Candidate: ${profile.candidateName} (${profile.gender === 'bride' ? 'Bride' : 'Groom'})
+Age & Height: ${profile.age} Years · ${profile.height}
+Marital Status: ${profile.maritalStatus}
+Location: ${profile.city}, ${profile.stateCountry}
+Mother Tongue: ${profile.motherTongue}
+Sect/Maslak: ${profile.sect}
+
+DEEN & LIFESTYLE:
+· Salah: ${profile.religiousPractice.salah}
+· Dress / Appearance: ${profile.religiousPractice.hijabOrBeard}
+· Halal Diet: ${profile.religiousPractice.halalDiet ? 'Strict Halal' : 'Halal'}
+
+EDUCATION & CAREER:
+· Qualification: ${profile.education}
+· Profession: ${profile.profession} (${profile.employedIn})
+· Annual Package: ${profile.annualIncomeRange}
+
+FAMILY BACKGROUND:
+· Father: ${profile.familyDetails.fatherNameAndOcc}
+· Mother: ${profile.familyDetails.motherNameAndOcc}
+· Siblings: ${profile.familyDetails.brothersCount} Brothers (${profile.familyDetails.brothersMarried} Married) · ${profile.familyDetails.sistersCount} Sisters (${profile.familyDetails.sistersMarried} Married)
+· Native Place: ${profile.familyDetails.nativePlace}
+· Family Values: ${profile.familyDetails.familyValues}
+
+PARTNER PREFERENCES:
+· Age Range: ${profile.partnerPreferences.minAge} - ${profile.partnerPreferences.maxAge} Years
+· Education: ${profile.partnerPreferences.educationPreference || 'Graduate or equivalent'}
+· Location: ${profile.partnerPreferences.locationPreference.join(', ')}
+
+GUARDIAN (WALI) CONTACT:
+· Contact Person: ${profile.guardianWaliContact.name} (${profile.guardianWaliContact.relationship})
+· Phone: ${profile.guardianWaliContact.phone}
+· Preferred Time: ${profile.guardianWaliContact.preferredCallTime}
+
+Verified by Nikah Pakka Community Registry
+Registration Portal: ${OFFICIAL_REGISTRATION_URL}
+  `.trim();
+}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#064e3b"/>
+      <stop offset="100%" stop-color="#022c22"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#emeraldGrad)"/>
+  <!-- Gold outer circle ring -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#goldGrad)" stroke-width="8" opacity="0.4"/>
+  <!-- Islamic Crescent -->
+  <path d="M 285 140 A 130 130 0 1 0 355 350 A 110 110 0 1 1 285 140 Z" fill="url(#goldGrad)"/>
+  <!-- Central Heart representing Nikah & Love in Halal union -->
+  <path d="M 330 210 C 315 190, 285 190, 270 210 C 255 190, 225 190, 210 210 C 190 235, 200 270, 270 320 C 340 270, 350 235, 330 210 Z" fill="#f43f5e" opacity="0.95"/>
+</svg>
