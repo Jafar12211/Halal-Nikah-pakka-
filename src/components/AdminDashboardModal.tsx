@@ -53,20 +53,29 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
   if (!isOpen) return null;
 
-  const allProfiles = storageService.getProfiles();
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAllRegistrations().then((data) => {
+      setProfiles(data);
+      setLoading(false);
+    });
+  }, []);
+
   const auditLogs = storageService.getAuditLogs();
 
-  const pendingProfiles = allProfiles.filter((p) => p.approvalStatus === 'pending');
-  const approvedProfiles = allProfiles.filter((p) => p.approvalStatus === 'approved');
-  const rejectedProfiles = allProfiles.filter((p) => p.approvalStatus === 'rejected');
-  const suspendedProfiles = allProfiles.filter((p) => p.approvalStatus === 'suspended');
+  const pendingProfiles = profiles.filter((p) => p.approvalStatus === 'pending');
+  const approvedProfiles = profiles.filter((p) => p.approvalStatus === 'approved');
+  const rejectedProfiles = profiles.filter((p) => p.approvalStatus === 'rejected');
+  const suspendedProfiles = profiles.filter((p) => p.approvalStatus === 'suspended');
 
   const getFilteredList = () => {
     let list: UserProfile[] = [];
     if (activeTab === 'pending') list = pendingProfiles;
     else if (activeTab === 'approved') list = approvedProfiles;
     else if (activeTab === 'rejected') list = [...rejectedProfiles, ...suspendedProfiles];
-    else list = allProfiles;
+    else list = profiles;
 
     if (!searchQuery.trim()) return list;
 
@@ -82,7 +91,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
   const filteredList = getFilteredList();
 
-  const handleUpdateStatus = (
+  const handleUpdateStatus = async (
     profileId: string,
     status: 'approved' | 'rejected' | 'suspended',
     customNote?: string
@@ -97,15 +106,23 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         ? selectedRejectionReason
         : 'Profile suspended by admin.');
 
-    storageService.setProfileApprovalStatus(profileId, status, reviewer, noteToRecord);
+    const profileToUpdate = profiles.find(p => p.id === profileId);
+    if (!profileToUpdate) return;
+
+    await updateProfileApprovalStatusFirestore(profileId, profileToUpdate.userId, status, reviewer, noteToRecord);
+    
     setActionNotes('');
     setShowRejectDrawer(false);
     setStatusMessage(`Profile ${status === 'approved' ? 'APPROVED' : status === 'rejected' ? 'REJECTED' : 'SUSPENDED'} successfully.`);
     setTimeout(() => setStatusMessage(null), 3500);
+    
+    // Refresh local list
+    const updatedProfiles = await fetchAllRegistrations();
+    setProfiles(updatedProfiles);
     onProfileStatusChanged();
 
     // Update selected profile view if open
-    const updated = storageService.getProfileById(profileId);
+    const updated = updatedProfiles.find(p => p.id === profileId);
     if (updated) {
       setSelectedProfile(updated);
     }
