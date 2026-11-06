@@ -226,23 +226,53 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                     <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-stone-100 text-xs text-stone-500">
                       <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>Aadhaar Verified</span>
+                        <span>
+                          {profile.documents && profile.documents.length > 0
+                            ? `${profile.documents[0].type} Verified`
+                            : 'Govt ID Verified'}
+                        </span>
                       </div>
-                      <span className="font-medium text-stone-600 bg-stone-100 px-2 py-0.5 rounded text-[11px]">
-                        📍 {profile.district}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {profile.photos && profile.photos.length > 1 && (
+                          <span className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px]">
+                            📷 {profile.photos.length}
+                          </span>
+                        )}
+                        <span className="font-medium text-stone-600 bg-stone-100 px-2 py-0.5 rounded text-[11px]">
+                          📍 {profile.district}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Candidate Identity Section */}
                     <div className="p-5 pb-3">
                       <div className="flex items-start gap-4">
-                        {/* Avatar */}
-                        <div
-                          className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-serif font-bold text-lg shadow-xs shrink-0"
-                          style={{ backgroundColor: profile.avatarBgColor || '#047857' }}
-                        >
-                          {profile.avatarInitials}
-                        </div>
+                        {/* Avatar or Uploaded Photo */}
+                        {profile.photos && profile.photos.length > 0 ? (
+                          <div className="w-14 h-14 rounded-2xl overflow-hidden border border-emerald-700/30 shadow-xs shrink-0 relative">
+                            <img
+                              src={profile.photos[0]}
+                              alt={profile.candidateName}
+                              className={`w-full h-full object-cover transition-all ${
+                                profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest
+                                  ? 'blur-xs scale-105'
+                                  : ''
+                              }`}
+                            />
+                            {profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest && (
+                              <div className="absolute inset-0 bg-stone-900/25 flex items-center justify-center">
+                                <Lock className="w-3.5 h-3.5 text-white drop-shadow" />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div
+                            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-serif font-bold text-lg shadow-xs shrink-0"
+                            style={{ backgroundColor: profile.avatarBgColor || '#047857' }}
+                          >
+                            {profile.avatarInitials}
+                          </div>
+                        )}
 
                         {/* Name & Basic Details */}
                         <div className="min-w-0 flex-1">

@@ -107,6 +107,22 @@ export function calculateCompatibilityScore(
 }
 
 /**
+ * Supported government identity documents strictly limited to Aadhaar, PAN, Passport, and Driving Licence.
+ */
+export const VALID_GOVT_DOC_TYPES = [
+  'Aadhaar Card',
+  'PAN Card',
+  'Passport',
+  'Driving Licence',
+] as const;
+
+export type ValidGovtDoc = (typeof VALID_GOVT_DOC_TYPES)[number];
+
+export function isValidGovtDocType(type: string): boolean {
+  return VALID_GOVT_DOC_TYPES.includes(type as ValidGovtDoc);
+}
+
+/**
  * Validates registration input data.
  */
 export interface RegistrationInput {
@@ -128,6 +144,52 @@ export interface RegistrationInput {
   guardianRelation: string;
   guardianPhone: string;
   consentConfirmed: boolean;
+  photoFile?: string;
+  photos?: string[];
+  photoPrivacy?: 'blurred_until_request' | 'visible' | 'avatar_only';
+  govtIdType?: ValidGovtDoc | string;
+  govtIdNumber?: string;
+  govtIdFileName?: string;
+  govtIdFile?: string;
+}
+
+/**
+ * Mask government ID number to protect UIDAI and identity privacy (e.g. XXXX-XXXX-7860)
+ * strictly supporting Aadhaar Card, PAN Card, Passport, Driving Licence
+ */
+export function maskGovtIdNumber(rawId: string, idType: string = 'Aadhaar Card'): string {
+  const clean = rawId.replace(/[\s\-]/g, '');
+  if (!clean) return 'XXXX-XXXX-7860';
+
+  const typeLower = idType.toLowerCase();
+
+  if (typeLower.includes('aadhaar') || typeLower.includes('aadhar')) {
+    const last4 = clean.slice(-4) || '7860';
+    return `XXXX-XXXX-${last4}`;
+  }
+
+  if (typeLower.includes('pan')) {
+    const last4 = clean.slice(-4) || '1234';
+    return `XXXX-XX-${last4.toUpperCase()}`;
+  }
+
+  if (typeLower.includes('passport')) {
+    const last4 = clean.slice(-4) || '9876';
+    return `PASS-XXXX-${last4.toUpperCase()}`;
+  }
+
+  if (typeLower.includes('driving') || typeLower.includes('license') || typeLower.includes('licence')) {
+    const last4 = clean.slice(-4) || '5432';
+    return `DL-XXXX-${last4.toUpperCase()}`;
+  }
+
+  if (clean.length > 4) {
+    const last4 = clean.slice(-4);
+    const maskedPrefix = 'X'.repeat(Math.max(4, clean.length - 4));
+    return `${maskedPrefix}-${last4}`;
+  }
+
+  return `XXXX-${clean}`;
 }
 
 export function validateRegistrationForm(data: RegistrationInput): { isValid: boolean; errors: Record<string, string> } {

@@ -90,7 +90,11 @@ const SEED_PROFILES: UserProfile[] = [
       includeInMessaging: true,
       visibility: 'verified_families_only',
     },
-    photos: [],
+    photos: [
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=600',
+    ],
     photoPrivacy: 'blurred_until_request',
     avatarInitials: 'AB',
     avatarBgColor: '#047857',
@@ -175,16 +179,21 @@ const SEED_PROFILES: UserProfile[] = [
       includeInMessaging: true,
       visibility: 'visible',
     },
-    photos: [],
+    photos: [
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=600',
+    ],
     photoPrivacy: 'visible',
     avatarInitials: 'MR',
     avatarBgColor: '#0369a1',
     documents: [
       {
         id: 'doc-2',
-        type: 'Aadhaar Card',
-        fileName: 'Aadhaar_Rayan_Yanam.pdf',
-        maskedId: 'XXXX-XXXX-8114',
+        type: 'PAN Card',
+        fileName: 'PAN_Rayan_Masked.pdf',
+        maskedId: 'XXXX-XX-8114',
         uploadedAt: '2026-03-02',
         verified: true,
         verifiedBy: DEFAULT_ADMIN_EMAIL,
@@ -260,16 +269,19 @@ const SEED_PROFILES: UserProfile[] = [
       includeInMessaging: true,
       visibility: 'verified_families_only',
     },
-    photos: [],
-    photoPrivacy: 'avatar_only',
+    photos: [
+      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=600',
+    ],
+    photoPrivacy: 'blurred_until_request',
     avatarInitials: 'FS',
     avatarBgColor: '#7c3aed',
     documents: [
       {
         id: 'doc-3',
-        type: 'Aadhaar Card',
-        fileName: 'Aadhaar_Faiza_Rajahmundry.pdf',
-        maskedId: 'XXXX-XXXX-6290',
+        type: 'Passport',
+        fileName: 'Passport_Faiza_Masked.pdf',
+        maskedId: 'PASS-XXXX-6290',
         uploadedAt: '2026-03-02',
         verified: true,
         verifiedBy: DEFAULT_ADMIN_EMAIL,
@@ -344,16 +356,20 @@ const SEED_PROFILES: UserProfile[] = [
       includeInMessaging: true,
       visibility: 'visible',
     },
-    photos: [],
+    photos: [
+      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=600',
+    ],
     photoPrivacy: 'visible',
     avatarInitials: 'ZA',
     avatarBgColor: '#059669',
     documents: [
       {
         id: 'doc-4',
-        type: 'Aadhaar Card',
-        fileName: 'Aadhaar_Zayd_Amalapuram.pdf',
-        maskedId: 'XXXX-XXXX-3341',
+        type: 'Driving Licence',
+        fileName: 'DrivingLicence_Zayd_AP05.pdf',
+        maskedId: 'DL-XXXX-3341',
         uploadedAt: '2026-03-03',
         verified: true,
         verifiedBy: DEFAULT_ADMIN_EMAIL,
@@ -429,7 +445,11 @@ const SEED_PROFILES: UserProfile[] = [
       includeInMessaging: true,
       visibility: 'verified_families_only',
     },
-    photos: [],
+    photos: [
+      'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&q=80&w=600',
+    ],
     photoPrivacy: 'blurred_until_request',
     avatarInitials: 'SK',
     avatarBgColor: '#d97706',
@@ -440,17 +460,104 @@ const SEED_PROFILES: UserProfile[] = [
         fileName: 'Aadhaar_Samina_Bhimavaram.pdf',
         maskedId: 'XXXX-XXXX-9023',
         uploadedAt: '2026-03-03',
-        verified: true,
-        verifiedBy: DEFAULT_ADMIN_EMAIL,
+        verified: false,
         isRestricted: true,
       },
     ],
-    isVerified: true,
-    approvalStatus: 'approved',
+    isVerified: false,
+    approvalStatus: 'pending',
+    approvalNotes: 'Awaiting Admin review of candidate photos (3 attached) & Aadhaar identity document.',
     createdAt: '2026-03-03',
     updatedAt: '2026-03-03',
     favoritesCount: 19,
     interestsReceivedCount: 14,
+  },
+  {
+    id: 'prof-godavari-106',
+    userId: 'usr-imran-106',
+    candidateName: 'Er. Mohammed Imran',
+    gender: 'groom',
+    dob: '1997-04-15',
+    age: 28,
+    height: `5'10"`,
+    maritalStatus: 'Never Married',
+    religion: {
+      sect: 'Sunni Hanafi',
+      salah: '5 times daily',
+      hijabOrBeard: 'Trimmed Beard',
+      quranRecitation: 'Daily',
+      fastingRamadan: true,
+      halalDiet: true,
+    },
+    education: 'B.Tech Mechanical, PMP Certified',
+    profession: 'Senior Project Engineer (L&T Marine)',
+    employedIn: 'Private Sector',
+    annualIncomeRange: '₹14 - 18 Lakhs',
+    district: 'Kakinada District',
+    mandalCity: 'Kakinada Port & Smart City',
+    motherTongue: 'Telugu & Urdu',
+    familyDetails: {
+      fatherNameAndOcc: 'Mohammed Ghouse (Retd. Port Trust Officer)',
+      motherNameAndOcc: 'Noorjahan Begum (Homemaker)',
+      brothersCount: 1,
+      brothersMarried: 1,
+      sistersCount: 0,
+      sistersMarried: 0,
+      nativePlace: 'Kakinada Town',
+      familyStatus: 'Upper Middle Class',
+      familyValues: 'Traditional & Practicing',
+    },
+    partnerPreferences: {
+      minAge: 22,
+      maxAge: 26,
+      preferredDistricts: ['Kakinada District', 'East Godavari (Rajahmundry)', 'Yanam (Puducherry)'],
+      educationPreference: 'Any Graduate / Professional Degree',
+      maritalStatusPreference: ['Never Married'],
+      religiosityPreference: 'Observes regular prayer, modest, family oriented',
+    },
+    mustHaves: [
+      'Regular Salah practice',
+      'Kind and respectful towards family',
+      'Willingness to settle in Godavari / Hyderabad',
+    ],
+    dealBreakers: [
+      'Smoking or addictions',
+      'Disrespect towards parents',
+    ],
+    aboutCandidate: 'Dedicated marine engineer working on seaport infrastructure projects. Calm, deen-conscious, and values family closeness.',
+    guardianWaliContact: {
+      name: 'Mohammed Ghouse',
+      relationship: 'Father',
+      phone: '+91 98481 44556',
+      preferredCallTime: '6:00 PM - 9:00 PM',
+      includeInMessaging: true,
+      visibility: 'visible',
+    },
+    photos: [
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=600',
+    ],
+    photoPrivacy: 'visible',
+    avatarInitials: 'MI',
+    avatarBgColor: '#0284c7',
+    documents: [
+      {
+        id: 'doc-6',
+        type: 'PAN Card',
+        fileName: 'PAN_Card_Imran_Kakinada.pdf',
+        maskedId: 'XXXX-XX-4456',
+        uploadedAt: '2026-03-04',
+        verified: false,
+        isRestricted: true,
+      },
+    ],
+    isVerified: false,
+    approvalStatus: 'pending',
+    approvalNotes: 'Pending Admin review of uploaded candidate photos & PAN Card verification.',
+    createdAt: '2026-03-04',
+    updatedAt: '2026-03-04',
+    favoritesCount: 8,
+    interestsReceivedCount: 5,
   },
 ];
 
@@ -830,13 +937,31 @@ class StorageService {
     if (index >= 0) {
       profiles[index].approvalStatus = status;
       profiles[index].approvalNotes = notes;
+      if (status === 'approved') {
+        profiles[index].isVerified = true;
+        if (profiles[index].documents) {
+          profiles[index].documents = profiles[index].documents.map((d) => ({
+            ...d,
+            verified: true,
+            verifiedBy: reviewerEmail,
+          }));
+        }
+      } else if (status === 'rejected') {
+        profiles[index].isVerified = false;
+        if (profiles[index].documents) {
+          profiles[index].documents = profiles[index].documents.map((d) => ({
+            ...d,
+            verified: false,
+          }));
+        }
+      }
       localStorage.setItem(this.profilesKey, JSON.stringify(profiles));
 
       this.recordAuditLog(
         status === 'approved' ? 'PROFILE_APPROVED' : status === 'rejected' ? 'PROFILE_REJECTED' : 'PROFILE_SUSPENDED',
         reviewerEmail,
         profileId,
-        `Profile marked as ${status}. Notes: ${notes || 'Verified through standard review.'}`
+        `Profile marked as ${status.toUpperCase()} by Admin based on Photo & Identity Verification. Notes: ${notes || 'Verified through standard review.'}`
       );
     }
   }

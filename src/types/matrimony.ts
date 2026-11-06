@@ -63,11 +63,21 @@ export interface MatrimonyProfile {
   isVerified: boolean;
   verificationBadge: 'Family Reference Verified' | 'Phone & ID Checked' | 'Community Elder Verified';
   photoUrl?: string;
+  photos?: string[];
   photoPrivacy: 'blurred_until_request' | 'visible' | 'avatar_only';
   avatarInitials: string;
   avatarBgColor: string;
   createdAt: string;
   interestsCount: number;
+  documents?: {
+    id: string;
+    type: 'Aadhaar Card' | 'PAN Card' | 'Passport' | 'Driving Licence';
+    fileName: string;
+    maskedId: string;
+    uploadedAt: string;
+    verified: boolean;
+    isRestricted: boolean;
+  }[];
 }
 
 export interface FilterState {

@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   Lock,
   BadgeCheck,
-  Briefcase
+  Briefcase,
+  Camera
 } from 'lucide-react';
 import { UserProfile, LanguageCode } from '../types/database';
 import { generateWhatsAppShareMessage } from '../utils/matrimony';
@@ -38,6 +39,7 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   language,
   onStartChat,
 }) => {
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [copiedBiodata, setCopiedBiodata] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
 
@@ -99,11 +101,32 @@ Verified through Nikah Pakka Community Matrimony.`;
           {/* Candidate Top Banner */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-stone-200">
             <div className="flex items-center gap-4">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-serif font-bold text-2xl shadow-xs shrink-0"
-                style={{ backgroundColor: profile.avatarBgColor || '#047857' }}
-              >
-                {profile.avatarInitials}
+              <div className="relative">
+                {profile.photos && profile.photos.length > 0 ? (
+                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-emerald-700/40 shadow-sm shrink-0 relative bg-stone-900">
+                    <img
+                      src={profile.photos[selectedPhotoIndex] || profile.photos[0]}
+                      alt={profile.candidateName}
+                      className={`w-full h-full object-cover transition-all ${
+                        profile.photoPrivacy === 'blurred_until_request' && !isInterested
+                          ? 'blur-xs scale-105'
+                          : ''
+                      }`}
+                    />
+                    {profile.photoPrivacy === 'blurred_until_request' && !isInterested && (
+                      <div className="absolute inset-0 bg-stone-950/30 backdrop-blur-[2px] flex items-center justify-center" title="Photo blurred for modesty until interest accepted">
+                        <Lock className="w-4 h-4 text-white drop-shadow" />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-white font-serif font-bold text-2xl shadow-xs shrink-0"
+                    style={{ backgroundColor: profile.avatarBgColor || '#047857' }}
+                  >
+                    {profile.avatarInitials}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -114,6 +137,17 @@ Verified through Nikah Pakka Community Matrimony.`;
                   <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-900">
                     {profile.gender === 'bride' ? 'Bride / Dulhan' : 'Groom / Dulha'}
                   </span>
+                  {profile.photos && profile.photos.length > 1 && (
+                    <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                      <Camera className="w-3 h-3 text-emerald-700" />
+                      {profile.photos.length} Photos
+                    </span>
+                  )}
+                  {profile.photos && profile.photos.length > 0 && profile.photoPrivacy === 'blurred_until_request' && !isInterested && (
+                    <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded border border-stone-200">
+                      Modesty Protected Photo
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-xs text-stone-600 mt-1">
@@ -139,13 +173,66 @@ Verified through Nikah Pakka Community Matrimony.`;
             <div className="text-right flex flex-col items-start sm:items-end">
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                <span>Govt ID & Family Verified</span>
+                <span>
+                  {profile.documents && profile.documents.length > 0
+                    ? `${profile.documents[0].type} Verified`
+                    : 'Govt ID & Family Verified'}
+                </span>
               </div>
-              <span className="text-[11px] text-stone-500 mt-1">
-                UIDAI Masked ID · Zero Data Leakage
+              <span className="text-[11px] text-stone-500 mt-1 font-mono">
+                {profile.documents && profile.documents.length > 0
+                  ? `Masked ID: ${profile.documents[0].maskedId}`
+                  : 'UIDAI Masked ID · Zero Data Leakage'}
               </span>
             </div>
           </div>
+
+          {/* Multi-Photo Gallery Strip if > 1 photo */}
+          {profile.photos && profile.photos.length > 1 && (
+            <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-stone-800 flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5 text-emerald-800" />
+                  Candidate Photo Gallery ({profile.photos.length} Pictures)
+                </span>
+                <span className="text-[11px] text-stone-500 font-mono">
+                  Showing Photo #{selectedPhotoIndex + 1} of {profile.photos.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
+                {profile.photos.map((picUrl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedPhotoIndex(idx)}
+                    className={`relative rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
+                      selectedPhotoIndex === idx
+                        ? 'border-emerald-700 ring-2 ring-emerald-500/40 shadow-sm scale-105'
+                        : 'border-stone-200 opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={picUrl}
+                      alt={`Candidate picture ${idx + 1}`}
+                      className={`w-14 h-14 sm:w-16 sm:h-16 object-cover ${
+                        profile.photoPrivacy === 'blurred_until_request' && !isInterested
+                          ? 'blur-[1.5px]'
+                          : ''
+                      }`}
+                    />
+                    {idx === 0 && (
+                      <span className="absolute bottom-0 inset-x-0 bg-emerald-950/85 text-[8px] text-amber-300 font-bold text-center py-0.5">
+                        Cover
+                      </span>
+                    )}
+                    <span className="absolute top-0.5 left-0.5 bg-stone-950/60 text-white text-[8px] px-1 rounded font-mono">
+                      #{idx + 1}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* About Statement */}
           <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">

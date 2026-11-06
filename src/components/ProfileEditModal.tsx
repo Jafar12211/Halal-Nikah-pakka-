@@ -9,10 +9,14 @@ import {
   Trash2,
   FileText,
   Upload,
-  AlertCircle
+  AlertCircle,
+  Star,
+  Camera,
+  Sparkles
 } from 'lucide-react';
-import { UserProfile, UserAccount, DistrictAP } from '../types/database';
+import { UserProfile, UserAccount, DistrictAP, ValidGovtDocType } from '../types/database';
 import { storageService, GODAVARI_DISTRICTS } from '../services/storageService';
+import { maskGovtIdNumber } from '../utils/matrimony';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -82,9 +86,10 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   const [guardianRelationship, setGuardianRelationship] = useState('Father');
   const [guardianPhone, setGuardianPhone] = useState('');
   const [photoPrivacy, setPhotoPrivacy] = useState<UserProfile['photoPrivacy']>('blurred_until_request');
+  const [photos, setPhotos] = useState<string[]>([]);
 
   // Document Record
-  const [docType, setDocType] = useState<'Aadhaar Card' | 'Passport' | 'Voter ID'>('Aadhaar Card');
+  const [docType, setDocType] = useState<ValidGovtDocType>('Aadhaar Card');
   const [docLast4, setDocLast4] = useState('');
   const [hasDocAttached, setHasDocAttached] = useState(false);
 
@@ -125,9 +130,11 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         setGuardianRelationship(myProfile.guardianWaliContact?.relationship || 'Father');
         setGuardianPhone(myProfile.guardianWaliContact?.phone || '');
         setPhotoPrivacy(myProfile.photoPrivacy || 'blurred_until_request');
+        setPhotos(myProfile.photos || []);
         if (myProfile.documents && myProfile.documents.length > 0) {
           setHasDocAttached(true);
-          setDocLast4(myProfile.documents[0].maskedId.replace('XXXX-XXXX-', ''));
+          setDocType((myProfile.documents[0].type as ValidGovtDocType) || 'Aadhaar Card');
+          setDocLast4(myProfile.documents[0].maskedId.slice(-4));
         }
       } else {
         // Pre-fill user name
@@ -135,6 +142,41 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       }
     }
   }, [currentUser, isOpen]);
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 5 - photos.length;
+    if (remainingSlots <= 0) return;
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots);
+
+    const readers = filesToUpload.map((f) => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => resolve(ev.target?.result as string);
+        reader.readAsDataURL(f);
+      });
+    });
+
+    Promise.all(readers).then((newPics) => {
+      setPhotos((prev) => [...prev, ...newPics].slice(0, 5));
+    });
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = (idx: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSetPrimaryPhoto = (idx: number) => {
+    setPhotos((prev) => {
+      const selected = prev[idx];
+      const rest = prev.filter((_, i) => i !== idx);
+      return [selected, ...rest];
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -180,7 +222,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
             id: `doc-${Date.now()}`,
             type: docType,
             fileName: `${docType.replace(/\s+/g, '_')}_Masked.pdf`,
-            maskedId: `XXXX-XXXX-${docLast4.slice(-4)}`,
+            maskedId: maskGovtIdNumber(docLast4, docType),
             uploadedAt: new Date().toISOString().split('T')[0],
             verified: true,
             isRestricted: true,
@@ -244,7 +286,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         includeInMessaging: true,
         visibility: 'verified_families_only',
       },
-      photos: existingProfile?.photos || [],
+      photos: photos.slice(0, 5),
       photoPrivacy,
       avatarInitials: initials,
       avatarBgColor: gender === 'bride' ? '#047857' : '#0284c7',
@@ -822,39 +864,130 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                 </div>
               </div>
 
+              {/* Section 1: Candidate Photographs (Up to 5 pictures) */}
               <div className="border border-stone-200 rounded-xl p-4 space-y-3 bg-white">
-                <span className="font-semibold text-stone-900 block">Identity Document Record:</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-emerald-800" />
+                    <span className="font-semibold text-stone-900 block">
+                      Candidate Photographs (Up to 5 Pictures):
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    {photos.length}/5 Photos Added
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-500">
+                  Manage up to 5 photos for your biodata. The first photo is your primary cover picture.
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
+                  {Array.from({ length: 5 }).map((_, slotIndex) => {
+                    const photoUrl = photos[slotIndex];
+                    const isPrimary = slotIndex === 0;
+
+                    if (photoUrl) {
+                      return (
+                        <div
+                          key={slotIndex}
+                          className="relative rounded-xl overflow-hidden border-2 border-emerald-700/50 bg-stone-900 aspect-square shadow-xs"
+                        >
+                          <img
+                            src={photoUrl}
+                            alt={`Candidate photo ${slotIndex + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          {isPrimary ? (
+                            <span className="absolute top-1 left-1 bg-emerald-800/90 text-amber-300 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow">
+                              <Star className="w-2.5 h-2.5 fill-amber-300 text-amber-300" />
+                              Cover
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrimaryPhoto(slotIndex)}
+                              className="absolute top-1 left-1 bg-stone-950/70 hover:bg-emerald-800 text-white text-[8px] font-semibold px-1 py-0.5 rounded transition-colors"
+                            >
+                              Make Cover
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePhoto(slotIndex)}
+                            className="absolute top-1 right-1 bg-rose-600/90 hover:bg-rose-700 text-white p-1 rounded-full transition-colors shadow"
+                            title="Remove picture"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <label
+                        key={slotIndex}
+                        className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-stone-300 hover:border-emerald-600 bg-stone-50 hover:bg-emerald-50/50 cursor-pointer aspect-square transition-all p-2 text-center group"
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={handlePhotoUpload}
+                        />
+                        <div className="w-7 h-7 rounded-full bg-stone-200 group-hover:bg-emerald-100 flex items-center justify-center text-stone-500 group-hover:text-emerald-700 mb-1 transition-colors">
+                          <Plus className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-[10px] font-semibold text-stone-600 group-hover:text-emerald-900">
+                          {slotIndex === 0 ? 'Primary' : `Photo ${slotIndex + 1}`}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Section 2: Identity Document Record */}
+              <div className="border border-stone-200 rounded-xl p-4 space-y-3 bg-white">
+                <span className="font-semibold text-stone-900 block">Valid Government ID Document Record:</span>
+                <p className="text-[11px] text-stone-500">
+                  Valid identity documents are strictly limited to <strong>Aadhaar Card</strong>, <strong>PAN Card</strong>, <strong>Passport</strong>, or <strong>Driving Licence</strong>.
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-stone-700 mb-1">Document Type</label>
+                    <label className="block text-stone-700 mb-1">Document Type *</label>
                     <select
                       value={docType}
                       onChange={(e) => setDocType(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
+                      className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 font-medium"
                     >
-                      <option value="Aadhaar Card">Aadhaar Card (Masked)</option>
-                      <option value="Passport">Passport</option>
-                      <option value="Voter ID">Voter ID</option>
+                      <option value="Aadhaar Card">Aadhaar Card (UIDAI Masked)</option>
+                      <option value="PAN Card">PAN Card (Income Tax Dept)</option>
+                      <option value="Passport">Passport (Govt of India)</option>
+                      <option value="Driving Licence">Driving Licence (Transport Dept)</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-stone-700 mb-1">Last 4 Digits of ID *</label>
+                    <label className="block text-stone-700 mb-1">Masked ID / Last 4 Digits *</label>
                     <input
                       type="text"
-                      maxLength={4}
-                      placeholder="e.g. 4921"
+                      maxLength={15}
+                      placeholder="e.g. 7860 or XXXX-XXXX-7860"
                       value={docLast4}
-                      onChange={(e) => setDocLast4(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => setDocLast4(e.target.value)}
                       className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 font-mono font-bold"
                     />
                   </div>
                 </div>
                 <div className="text-[11px] text-stone-500">
-                  Document ID preview: <span className="font-mono font-bold text-emerald-800">XXXX-XXXX-{docLast4 || 'XXXX'}</span>
+                  Document ID preview:{' '}
+                  <span className="font-mono font-bold text-emerald-800">
+                    {maskGovtIdNumber(docLast4 || 'XXXX', docType)}
+                  </span>
                 </div>
               </div>
 
-              {/* Photo Privacy */}
+              {/* Section 3: Photo Privacy */}
               <div className="border border-stone-200 rounded-xl p-4 space-y-2 bg-white">
                 <span className="font-semibold text-stone-900 block">Photo Display & Modesty Preference:</span>
                 <div className="space-y-2">

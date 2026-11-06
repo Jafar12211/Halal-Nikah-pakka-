@@ -188,3 +188,25 @@ test('generateBiodataText produces complete structured biodata with Wali contact
   assert.ok(text.includes('Mohammed Abdul Raheem'));
   assert.ok(text.includes('5 times daily'));
 });
+
+test('VALID_GOVT_DOC_TYPES strictly accepts only Aadhaar, PAN, Passport, and Driving Licence', async () => {
+  const { VALID_GOVT_DOC_TYPES, isValidGovtDocType, maskGovtIdNumber } = await import('./matrimony');
+
+  assert.deepEqual([...VALID_GOVT_DOC_TYPES], ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence']);
+  assert.equal(isValidGovtDocType('Aadhaar Card'), true);
+  assert.equal(isValidGovtDocType('PAN Card'), true);
+  assert.equal(isValidGovtDocType('Passport'), true);
+  assert.equal(isValidGovtDocType('Driving Licence'), true);
+
+  // Rejects other document types
+  assert.equal(isValidGovtDocType('Voter ID'), false);
+  assert.equal(isValidGovtDocType('Ration Card'), false);
+  assert.equal(isValidGovtDocType('College ID'), false);
+
+  // Test masking
+  assert.equal(maskGovtIdNumber('123456787860', 'Aadhaar Card'), 'XXXX-XXXX-7860');
+  assert.equal(maskGovtIdNumber('ABCDE1234F', 'PAN Card'), 'XXXX-XX-234F');
+  assert.equal(maskGovtIdNumber('M1234567', 'Passport'), 'PASS-XXXX-4567');
+  assert.equal(maskGovtIdNumber('AP0420210009876', 'Driving Licence'), 'DL-XXXX-9876');
+});
+

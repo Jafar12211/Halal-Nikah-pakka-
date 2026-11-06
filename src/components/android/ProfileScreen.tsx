@@ -170,13 +170,33 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </div>
               )}
 
-              {/* Masked Aadhaar info */}
-              <div className="flex items-center justify-between text-xs text-stone-500 bg-stone-50 px-3 py-2 rounded-lg border border-stone-200/60">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>UIDAI Aadhaar Document</span>
-                </span>
-                <span className="font-mono text-[11px] font-semibold text-stone-700">XXXX-XXXX-7860</span>
+              {/* Valid Government ID & Photo Count */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center justify-between text-stone-700 bg-stone-50 px-3 py-2 rounded-lg border border-stone-200/70">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>
+                      {myProfile.documents && myProfile.documents.length > 0
+                        ? `${myProfile.documents[0].type}`
+                        : 'Govt ID Document'}
+                    </span>
+                  </span>
+                  <span className="font-mono text-[11px] font-bold text-emerald-900">
+                    {myProfile.documents && myProfile.documents.length > 0
+                      ? myProfile.documents[0].maskedId
+                      : 'XXXX-XXXX-7860'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-stone-700 bg-stone-50 px-3 py-2 rounded-lg border border-stone-200/70">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Candidate Photos</span>
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    📷 {myProfile.photos?.length || 0}/5 Photos
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
@@ -198,30 +218,31 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </div>
       )}
 
-      {/* Admin verification button if admin */}
-      {isAdmin && (
-        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <ShieldCheck className="w-5 h-5 text-amber-800" />
-              <div>
-                <h2 className="text-sm font-bold text-amber-950">
-                  {isTelugu ? 'అడ్మినిస్ట్రేటర్ కన్సోల్' : 'Admin Verification Console'}
-                </h2>
-                <p className="text-[11px] text-amber-800">
-                  {isTelugu ? 'కొత్త ప్రొఫైల్స్ మరియు ఆధార్ ధృవీకరణలను సమీక్షించండి' : 'Review pending profiles and Aadhaar IDs'}
-                </p>
-              </div>
+      {/* Admin verification button */}
+      <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="w-5 h-5 text-amber-800" />
+            <div>
+              <h2 className="text-sm font-bold text-amber-950 flex items-center gap-2">
+                <span>{isTelugu ? 'అడ్మినిస్ట్రేటర్ కన్సోల్' : 'Admin Verification Console'}</span>
+                <span className="text-[10px] bg-amber-200 text-amber-950 font-mono px-1.5 py-0.2 rounded font-bold">
+                  jafarmd0007
+                </span>
+              </h2>
+              <p className="text-[11px] text-amber-800">
+                {isTelugu ? 'కొత్త ప్రొఫైల్స్, ఫోటోలు మరియు ప్రభుత్వ IDలను ఆమోదించండి లేదా తిరస్కరించండి' : 'Full rights to Approve or Reject profiles based on photo & identity'}
+              </p>
             </div>
-            <button
-              onClick={onOpenAdmin}
-              className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs rounded-lg transition-colors shadow-xs"
-            >
-              Open
-            </button>
           </div>
+          <button
+            onClick={onOpenAdmin}
+            className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs rounded-lg transition-colors shadow-xs cursor-pointer shrink-0"
+          >
+            Open Console
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Quick Settings & App Tools */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-xs divide-y divide-stone-100 overflow-hidden text-xs">

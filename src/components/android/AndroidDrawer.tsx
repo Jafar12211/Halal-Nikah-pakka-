@@ -180,25 +180,23 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
           </div>
 
           {/* Admin Area */}
-          {isAdmin && (
-            <div className="py-2 bg-amber-50/50">
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenAdmin();
-                }}
-                className="w-full px-5 py-3 text-left hover:bg-amber-100/70 flex items-center justify-between text-amber-950 font-bold transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-4 h-4 text-amber-800" />
-                  <span>{isTelugu ? 'అడ్మిన్ వెరిఫికేషన్ కన్సోల్' : 'Admin Verification Console'}</span>
-                </div>
-                <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-mono">
-                  Review
-                </span>
-              </button>
-            </div>
-          )}
+          <div className="py-2 bg-amber-50/60 border-y border-amber-200/60">
+            <button
+              onClick={() => {
+                onClose();
+                onOpenAdmin();
+              }}
+              className="w-full px-5 py-3 text-left hover:bg-amber-100/70 flex items-center justify-between text-amber-950 font-bold transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-4 h-4 text-amber-800" />
+                <span>{isTelugu ? 'అడ్మిన్ వెరిఫికేషన్ కన్సోల్' : 'Admin Verification Console'}</span>
+              </div>
+              <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">
+                jafarmd0007
+              </span>
+            </button>
+          </div>
 
           {/* Secondary Community Sections */}
           <div className="py-2">

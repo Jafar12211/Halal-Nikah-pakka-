@@ -14,7 +14,6 @@ import { DuaSection } from './components/DuaSection';
 import { Footer } from './components/Footer';
 
 // Android App Shell Components
-import { AndroidStatusBar } from './components/android/AndroidStatusBar';
 import { AndroidTopBar } from './components/android/AndroidTopBar';
 import { AndroidBottomNav, AndroidTab } from './components/android/AndroidBottomNav';
 import { AndroidDrawer } from './components/android/AndroidDrawer';
@@ -184,23 +183,31 @@ export default function App() {
         includeInMessaging: true,
         visibility: 'verified_families_only',
       },
-      photos: [],
-      photoPrivacy: 'blurred_until_request',
+      photos:
+        matrimonyProf.photos && matrimonyProf.photos.length > 0
+          ? matrimonyProf.photos
+          : matrimonyProf.photoUrl
+          ? [matrimonyProf.photoUrl]
+          : [],
+      photoPrivacy: matrimonyProf.photoPrivacy || 'blurred_until_request',
       avatarInitials: matrimonyProf.avatarInitials,
       avatarBgColor: matrimonyProf.avatarBgColor,
-      documents: [
-        {
-          id: `doc-${Date.now()}`,
-          type: 'Aadhaar Card',
-          fileName: 'Aadhaar_Masked.pdf',
-          maskedId: 'XXXX-XXXX-7860',
-          uploadedAt: new Date().toISOString().split('T')[0],
-          verified: true,
-          isRestricted: true,
-        },
-      ],
-      isVerified: true,
-      approvalStatus: 'approved',
+      documents: matrimonyProf.documents && matrimonyProf.documents.length > 0
+        ? (matrimonyProf.documents as any)
+        : [
+            {
+              id: `doc-${Date.now()}`,
+              type: 'Aadhaar Card',
+              fileName: 'Aadhaar_Masked.pdf',
+              maskedId: 'XXXX-XXXX-7860',
+              uploadedAt: new Date().toISOString().split('T')[0],
+              verified: false,
+              isRestricted: true,
+            },
+          ],
+      isVerified: false,
+      approvalStatus: 'pending',
+      approvalNotes: 'Awaiting Admin review of candidate photos & identity document proof.',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       favoritesCount: 0,
@@ -211,8 +218,8 @@ export default function App() {
     refreshProfiles();
     showToast(
       language === 'te'
-        ? `అల్హందులిల్లాహ్! ${adaptedProfile.candidateName} ప్రొఫైల్ విజయవంతంగా నమోదైంది.`
-        : `Alhamdulillah! Profile for ${adaptedProfile.candidateName} registered and verified.`
+        ? `అల్హందులిల్లాహ్! ${adaptedProfile.candidateName} ప్రొఫైల్ నమోదైంది. అడ్మిన్ ఆమోదం కోసం సమర్పించబడింది.`
+        : `Alhamdulillah! Profile for ${adaptedProfile.candidateName} registered. Submitted for Admin Photo & Identity review.`
     );
 
     setActiveTab('matches');
@@ -309,9 +316,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fdfbf7] text-stone-900 antialiased selection:bg-emerald-100 selection:text-emerald-900 font-sans pb-16">
-      {/* Android Native Status Bar Simulation */}
-      <AndroidStatusBar />
-
       {/* Android Material 3 Top App Bar */}
       <AndroidTopBar
         language={language}
