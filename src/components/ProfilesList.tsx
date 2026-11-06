@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, LanguageCode, DistrictAP } from '../types/database';
 import { FilterState } from '../types/matrimony';
-import { generateWhatsAppShareMessage } from '../utils/matrimony';
+import { generateWhatsAppShareMessage, getProfileDistanceKm } from '../utils/matrimony';
 import { translations } from '../utils/translations';
 import { GODAVARI_DISTRICTS } from '../services/storageService';
 
@@ -170,12 +170,48 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                     maxAge: 60,
                     education: 'All',
                     searchQuery: '',
+                    userCity: 'All Cities',
+                    radiusKm: 0,
                   })
                 }
                 className="w-full py-2 px-3 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors text-center"
               >
                 {language === 'te' ? 'ఫిల్టర్లు రీసెట్' : 'Reset Filters'}
               </button>
+            </div>
+          </div>
+
+          {/* Kilometer Radius Filter Row */}
+          <div className="pt-3 border-t border-stone-100 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-stone-700">📍 Search within radius from:</span>
+              <select
+                value={filters.userCity || 'All Cities'}
+                onChange={(e) => setFilters((prev) => ({ ...prev, userCity: e.target.value }))}
+                className="px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:ring-1 focus:ring-emerald-700"
+              >
+                <option value="All Cities">Select My Location / District</option>
+                {GODAVARI_DISTRICTS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-stone-700">Max Distance:</span>
+              <select
+                value={filters.radiusKm || 0}
+                onChange={(e) => setFilters((prev) => ({ ...prev, radiusKm: Number(e.target.value) }))}
+                className="px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:ring-1 focus:ring-emerald-700"
+              >
+                <option value={0}>Any Distance (No limit)</option>
+                <option value={25}>Within 25 km</option>
+                <option value={50}>Within 50 km</option>
+                <option value={100}>Within 100 km</option>
+                <option value={200}>Within 200 km</option>
+              </select>
             </div>
           </div>
         </div>
@@ -203,6 +239,8 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                   maxAge: 60,
                   education: 'All',
                   searchQuery: '',
+                  userCity: 'All Cities',
+                  radiusKm: 0,
                 })
               }
               className="px-4 py-2 bg-emerald-800 text-white text-xs font-semibold rounded-lg hover:bg-emerald-900 transition-colors"
@@ -233,6 +271,11 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
+                        {filters.userCity && filters.userCity !== 'All Cities' && (
+                          <span className="font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px]">
+                            ~{getProfileDistanceKm(profile.district, filters.userCity)} km
+                          </span>
+                        )}
                         {profile.photos && profile.photos.length > 1 && (
                           <span className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px]">
                             📷 {profile.photos.length}

@@ -1003,7 +1003,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       <div>
                         <p className="font-bold">Govt ID & Photo Confidentiality Guarantee:</p>
                         <p className="text-[10px] text-amber-900/90 mt-0.5 leading-relaxed">
-                          Identity documents and uploaded pictures are reviewed strictly by authorized matrimony administrators (<strong>jafarmd0007@gmail.com</strong>). Full ID documents are NEVER revealed to other users or public visitors.
+                          Identity documents and uploaded pictures are reviewed strictly by authorized matrimony administrators. Full ID documents are NEVER revealed to other users or public visitors.
                         </p>
                       </div>
                     </div>

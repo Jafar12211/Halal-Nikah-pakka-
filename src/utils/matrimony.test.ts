@@ -90,7 +90,9 @@ test('filterProfiles filters correctly by gender and age', () => {
     minAge: 20,
     maxAge: 30,
     education: 'All',
-    searchQuery: ''
+    searchQuery: '',
+    userCity: 'All Cities',
+    radiusKm: 0,
   };
 
   const results = filterProfiles(profiles, filterBride);

@@ -89,4 +89,6 @@ export interface FilterState {
   maxAge: number;
   education: string;
   searchQuery: string;
+  userCity: string;
+  radiusKm: number;
 }

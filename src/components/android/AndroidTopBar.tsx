@@ -114,7 +114,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
               onOpenAdmin();
             }}
             className="px-2.5 py-1 text-[11px] font-bold bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-stone-950 rounded-full transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
-            title="Administrator Photo & ID Verification Console (jafarmd0007@gmail.com)"
+            title="Administrator Photo & ID Verification Console"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-stone-950" />
             <span>Admin</span>

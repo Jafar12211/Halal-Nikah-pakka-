@@ -54,6 +54,8 @@ export default function App() {
     maxAge: 60,
     education: 'All',
     searchQuery: '',
+    userCity: 'All Cities',
+    radiusKm: 0,
   });
 
   const [activeTab, setActiveTab] = useState<AndroidTab>('home');

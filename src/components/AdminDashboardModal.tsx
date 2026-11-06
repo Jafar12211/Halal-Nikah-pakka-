@@ -141,7 +141,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
               <h2 className="text-base sm:text-lg font-serif font-bold text-white flex items-center gap-2">
                 <span>Nikah Pakka Admin & Verification Console</span>
                 <span className="text-[10px] bg-emerald-800 text-amber-300 px-2.5 py-0.5 rounded font-mono font-medium">
-                  {currentUser?.email || 'jafarmd0007@gmail.com'}
+                  Authorized Administrator
                 </span>
               </h2>
               <p className="text-xs text-stone-300">
@@ -866,7 +866,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
               {/* Action Buttons Footer */}
               <div className="p-4 bg-stone-50 border-t border-stone-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div className="text-[11px] text-stone-500">
-                  Reviewer: <strong className="font-mono text-emerald-900">{currentUser?.email || 'jafarmd0007@gmail.com'}</strong>
+                  Reviewer: <strong className="font-mono text-emerald-900">Authorized Administrator</strong>
                 </div>
 
                 <div className="flex items-center gap-2">

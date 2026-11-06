@@ -2,6 +2,42 @@ import { MatrimonyProfile, FilterState } from '../types/matrimony';
 
 export const OFFICIAL_REGISTRATION_URL = 'https://site-75bd7eafe06f4ebf8c6d057f860920dd.freebuff.page/profile';
 
+export const GODAVARI_COORDINATES: Record<string, { lat: number; lng: number }> = {
+  'Yanam (Puducherry)': { lat: 16.7333, lng: 82.2167 },
+  'Kakinada District': { lat: 16.9891, lng: 82.2475 },
+  'Kakinada': { lat: 16.9891, lng: 82.2475 },
+  'Dr. B.R. Ambedkar Konaseema': { lat: 16.5795, lng: 82.0079 },
+  'Amalapuram': { lat: 16.5795, lng: 82.0079 },
+  'East Godavari (Rajahmundry)': { lat: 17.0005, lng: 81.8040 },
+  'Rajahmundry': { lat: 17.0005, lng: 81.8040 },
+  'West Godavari (Bhimavaram)': { lat: 16.5448, lng: 81.5212 },
+  'Bhimavaram': { lat: 16.5448, lng: 81.5212 },
+  'Eluru District': { lat: 16.7107, lng: 81.0952 },
+  'Eluru': { lat: 16.7107, lng: 81.0952 },
+  'Visakhapatnam': { lat: 17.6868, lng: 83.2185 },
+  'Vijayawada / Krishna': { lat: 16.5062, lng: 80.6480 },
+  'Guntur': { lat: 16.3067, lng: 80.4365 },
+  'Hyderabad (Telangana)': { lat: 17.3850, lng: 78.4867 },
+  'Gulf / Overseas NRI (Godavari Roots)': { lat: 25.2769, lng: 55.2962 },
+};
+
+export function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export function getProfileDistanceKm(profileDistrict: string, userCity: string): number {
+  const loc1 = GODAVARI_COORDINATES[profileDistrict] || GODAVARI_COORDINATES['Kakinada District'];
+  const loc2 = GODAVARI_COORDINATES[userCity] || GODAVARI_COORDINATES['Yanam (Puducherry)'];
+  return Math.round(calculateDistanceKm(loc1.lat, loc1.lng, loc2.lat, loc2.lng));
+}
+
 /**
  * Filters a list of matrimony profiles based on user criteria.
  */
@@ -20,6 +56,14 @@ export function filterProfiles(profiles: MatrimonyProfile[], filters: FilterStat
     // City filter
     if (filters.city && filters.city !== 'All Cities') {
       if (!profile.city.toLowerCase().includes(filters.city.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Radius / Distance filter
+    if (filters.radiusKm && filters.radiusKm > 0 && filters.userCity && filters.userCity !== 'All Cities') {
+      const distance = getProfileDistanceKm(profile.city, filters.userCity);
+      if (distance > filters.radiusKm) {
         return false;
       }
     }
