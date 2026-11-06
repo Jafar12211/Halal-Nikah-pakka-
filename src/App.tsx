@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { MissionBanner } from './components/MissionBanner';
 import { ProfilesList } from './components/ProfilesList';
@@ -13,6 +12,16 @@ import { FAQSection } from './components/FAQSection';
 import { ShareCampaignSection } from './components/ShareCampaignSection';
 import { DuaSection } from './components/DuaSection';
 import { Footer } from './components/Footer';
+
+// Android App Shell Components
+import { AndroidStatusBar } from './components/android/AndroidStatusBar';
+import { AndroidTopBar } from './components/android/AndroidTopBar';
+import { AndroidBottomNav, AndroidTab } from './components/android/AndroidBottomNav';
+import { AndroidDrawer } from './components/android/AndroidDrawer';
+import { AndroidFab } from './components/android/AndroidFab';
+import { InterestsScreen } from './components/android/InterestsScreen';
+import { ProfileScreen } from './components/android/ProfileScreen';
+
 import { UserProfile, UserAccount, LanguageCode, DistrictAP } from './types/database';
 import { FilterState, MatrimonyProfile } from './types/matrimony';
 import { storageService } from './services/storageService';
@@ -48,7 +57,8 @@ export default function App() {
     searchQuery: '',
   });
 
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState<AndroidTab>('home');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
 
   // Modal open states
@@ -205,8 +215,7 @@ export default function App() {
         : `Alhamdulillah! Profile for ${adaptedProfile.candidateName} registered and verified.`
     );
 
-    const el = document.getElementById('matches-section');
-    el?.scrollIntoView({ behavior: 'smooth' });
+    setActiveTab('matches');
   };
 
   const handleExpressInterest = (profileId: string) => {
@@ -254,13 +263,15 @@ export default function App() {
   };
 
   const handleOpenShare = () => {
-    const el = document.getElementById('share-section');
-    el?.scrollIntoView({ behavior: 'smooth' });
+    setActiveTab('home');
+    setTimeout(() => {
+      const el = document.getElementById('share-section');
+      el?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const handleSearchClick = () => {
-    const el = document.getElementById('matches-section');
-    el?.scrollIntoView({ behavior: 'smooth' });
+    setActiveTab('matches');
   };
 
   // Filter profiles
@@ -282,81 +293,182 @@ export default function App() {
     return true;
   });
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#fdfbf7] text-stone-900 antialiased selection:bg-emerald-100 selection:text-emerald-900 font-sans">
-      {/* Top Banner announcing community launch & Telugu localization */}
-      <div className="bg-emerald-950 text-white py-2 px-4 text-center text-xs font-medium border-b border-emerald-900/60">
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-2">
-          <span>
-            {language === 'te'
-              ? '🌙 అస్సలాము అలైకుమ్! నికాహ్ పక్కా – యానాం & గోదావరి ముస్లిం మ్యాట్రిమోనీ'
-              : '🌙 Assalamu Alaikum! Welcome to Nikah Pakka – Yanam & Godavari Muslim Matrimony'}
-          </span>
-          <span aria-hidden="true" className="hidden sm:inline text-emerald-600">·</span>
-          <span className="hidden sm:inline text-amber-300">
-            {language === 'te'
-              ? 'ఖరీదైన సబ్‌స్క్రిప్షన్ల భారం లేదు · నేరుగా కుటుంబ పెద్దలతో సంప్రదింపులు'
-              : 'Zero expensive subscriptions · Direct guardian communication'}
-          </span>
-        </div>
-      </div>
+  // Calculate unread messages
+  const unreadMessagesCount = currentUser
+    ? storageService.getConversations(currentUser.id).reduce((acc, c) => acc + (c.unreadCount || 0), 0)
+    : 0;
 
-      {/* Main Navbar */}
-      <Navbar
+  const handleTabChange = (tab: AndroidTab) => {
+    if (tab === 'messages') {
+      setIsMessagingOpen(true);
+    } else {
+      setActiveTab(tab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#fdfbf7] text-stone-900 antialiased selection:bg-emerald-100 selection:text-emerald-900 font-sans pb-16">
+      {/* Android Native Status Bar Simulation */}
+      <AndroidStatusBar />
+
+      {/* Android Material 3 Top App Bar */}
+      <AndroidTopBar
         language={language}
         onToggleLanguage={handleToggleLanguage}
         currentUser={currentUser}
-        onOpenAuth={() => setIsAuthOpen(true)}
-        onOpenProfileEdit={() => setIsProfileEditOpen(true)}
-        onOpenMessaging={() => setIsMessagingOpen(true)}
+        onOpenDrawer={() => setIsDrawerOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onSignOut={handleSignOut}
-        onOpenRegister={() => setIsRegisterOpen(true)}
-        onOpenShare={handleOpenShare}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        activeScreen={activeTab}
+        onNavigateHome={() => handleTabChange('home')}
       />
 
-      <main className="flex-1">
-        {/* Hero Section */}
-        <HeroSection
-          language={language}
-          filters={filters}
-          setFilters={setFilters}
-          onOpenRegister={() => setIsRegisterOpen(true)}
-          onOpenShare={handleOpenShare}
-          onSearchClick={handleSearchClick}
-        />
-
-        {/* Mission Banner: The problem with expensive matrimony & our community solution */}
-        <MissionBanner onOpenRegister={() => setIsRegisterOpen(true)} />
-
-        {/* Profiles Matchmaking Directory */}
-        <ProfilesList
-          profiles={filteredProfiles}
-          filters={filters}
-          setFilters={setFilters}
-          onSelectProfile={(p) => setSelectedProfile(p)}
-          onExpressInterest={handleExpressInterest}
-          userInterests={userInterests}
-          language={language}
-          onStartChat={handleStartChatWithProfile}
-        />
-
-        {/* FAQ Section */}
-        <FAQSection language={language} onOpenRegister={() => setIsRegisterOpen(true)} />
-
-        {/* The 3-Step Request & Share Campaign */}
-        <ShareCampaignSection onOpenRegister={() => setIsRegisterOpen(true)} />
-
-        {/* Du'as & Sunnah guidance */}
-        <DuaSection />
-      </main>
-
-      {/* Footer */}
-      <Footer
+      {/* Android Sliding Navigation Drawer */}
+      <AndroidDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        currentUser={currentUser}
+        language={language}
+        onNavigateTab={(tab) => handleTabChange(tab)}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenRegister={() => setIsRegisterOpen(true)}
         onOpenShare={handleOpenShare}
+        onSignOut={handleSignOut}
+      />
+
+      {/* Main Dynamic View Area based on Android Tab */}
+      <main className="flex-1">
+        {/* Home Tab */}
+        {activeTab === 'home' && (
+          <div>
+            {/* Top notification pill */}
+            <div className="bg-emerald-950 text-white py-2 px-4 text-center text-xs font-medium border-b border-emerald-900/60">
+              <div className="max-w-7xl mx-auto flex items-center justify-center gap-2">
+                <span>
+                  {language === 'te'
+                    ? '🌙 అస్సలాము అలైకుమ్! నికాహ్ పక్కా – యానాం & గోదావరి ముస్లిం మ్యాట్రిమోనీ'
+                    : '🌙 Assalamu Alaikum! Welcome to Nikah Pakka – Yanam & Godavari Muslim Matrimony'}
+                </span>
+                <span aria-hidden="true" className="hidden sm:inline text-emerald-600">·</span>
+                <span className="hidden sm:inline text-amber-300">
+                  {language === 'te'
+                    ? 'ఖరీదైన సబ్‌స్క్రిప్షన్ల భారం లేదు · నేరుగా కుటుంబ పెద్దలతో సంప్రదింపులు'
+                    : 'Zero expensive subscriptions · Direct guardian communication'}
+                </span>
+              </div>
+            </div>
+
+            {/* Hero Section */}
+            <HeroSection
+              language={language}
+              filters={filters}
+              setFilters={setFilters}
+              onOpenRegister={() => setIsRegisterOpen(true)}
+              onOpenShare={handleOpenShare}
+              onSearchClick={handleSearchClick}
+            />
+
+            {/* Mission Banner: The problem with expensive matrimony & our community solution */}
+            <div id="mission-section">
+              <MissionBanner onOpenRegister={() => setIsRegisterOpen(true)} />
+            </div>
+
+            {/* Profiles Matchmaking Directory preview */}
+            <div id="matches-section">
+              <ProfilesList
+                profiles={filteredProfiles}
+                filters={filters}
+                setFilters={setFilters}
+                onSelectProfile={(p) => setSelectedProfile(p)}
+                onExpressInterest={handleExpressInterest}
+                userInterests={userInterests}
+                language={language}
+                onStartChat={handleStartChatWithProfile}
+              />
+            </div>
+
+            {/* FAQ Section */}
+            <div id="faqs-section">
+              <FAQSection language={language} onOpenRegister={() => setIsRegisterOpen(true)} />
+            </div>
+
+            {/* The 3-Step Request & Share Campaign */}
+            <div id="share-section">
+              <ShareCampaignSection onOpenRegister={() => setIsRegisterOpen(true)} />
+            </div>
+
+            {/* Du'as & Sunnah guidance */}
+            <div id="duas-section">
+              <DuaSection />
+            </div>
+
+            {/* Footer */}
+            <Footer
+              onOpenRegister={() => setIsRegisterOpen(true)}
+              onOpenShare={handleOpenShare}
+            />
+          </div>
+        )}
+
+        {/* Matches Tab */}
+        {activeTab === 'matches' && (
+          <div className="py-2">
+            <ProfilesList
+              profiles={filteredProfiles}
+              filters={filters}
+              setFilters={setFilters}
+              onSelectProfile={(p) => setSelectedProfile(p)}
+              onExpressInterest={handleExpressInterest}
+              userInterests={userInterests}
+              language={language}
+              onStartChat={handleStartChatWithProfile}
+            />
+          </div>
+        )}
+
+        {/* Interests Tab */}
+        {activeTab === 'interests' && (
+          <InterestsScreen
+            language={language}
+            allProfiles={profiles}
+            userInterests={userInterests}
+            onSelectProfile={(p) => setSelectedProfile(p)}
+            onRemoveInterest={handleExpressInterest}
+            onStartChat={handleStartChatWithProfile}
+            onNavigateToMatches={() => setActiveTab('matches')}
+          />
+        )}
+
+        {/* Profile Tab */}
+        {activeTab === 'profile' && (
+          <ProfileScreen
+            currentUser={currentUser}
+            language={language}
+            onToggleLanguage={handleToggleLanguage}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenRegister={() => setIsRegisterOpen(true)}
+            onOpenProfileEdit={() => setIsProfileEditOpen(true)}
+            onOpenAdmin={() => setIsAdminOpen(true)}
+            onOpenShare={handleOpenShare}
+            onSignOut={handleSignOut}
+          />
+        )}
+      </main>
+
+      {/* Android Floating Action Button (1-Tap Registration) */}
+      <AndroidFab
+        onClick={() => setIsRegisterOpen(true)}
+        language={language}
+      />
+
+      {/* Android Material 3 Bottom Navigation Bar */}
+      <AndroidBottomNav
+        activeTab={activeTab}
+        onChangeTab={handleTabChange}
+        language={language}
+        unreadMessagesCount={unreadMessagesCount}
+        interestsCount={userInterests.size}
       />
 
       {/* Profile Detail Biodata Modal */}
@@ -431,7 +543,7 @@ export default function App() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-stone-900 text-white text-xs sm:text-sm px-4 py-3 rounded-xl shadow-2xl border border-stone-800 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 z-50 bg-stone-900 text-white text-xs sm:text-sm px-4 py-3 rounded-xl shadow-2xl border border-stone-800 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>

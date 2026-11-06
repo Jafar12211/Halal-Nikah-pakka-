@@ -8,8 +8,31 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#064e3b",
-  "background_color": "#fdfbf7",
+  "background_color": "#064e3b",
   "categories": ["lifestyle", "social"],
+  "shortcuts": [
+    {
+      "name": "Browse Matches",
+      "short_name": "Matches",
+      "description": "Find verified Godavari & Yanam Muslim profiles",
+      "url": "/#matches",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Family Chat",
+      "short_name": "Messages",
+      "description": "Chaperoned family messaging",
+      "url": "/#messages",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Register Candidate",
+      "short_name": "Register",
+      "description": "Register free matrimonial profile",
+      "url": "/#register",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icon.svg",
