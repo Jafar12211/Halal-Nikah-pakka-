@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   ShieldCheck,
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
 import { storageService } from '../services/storageService';
+import { fetchAllRegistrations, updateProfileApprovalStatusFirestore } from '../services/firestoreService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
 interface AdminDashboardModalProps {

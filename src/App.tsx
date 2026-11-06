@@ -24,6 +24,7 @@ import { ProfileScreen } from './components/android/ProfileScreen';
 import { UserProfile, UserAccount, LanguageCode, DistrictAP } from './types/database';
 import { FilterState, MatrimonyProfile } from './types/matrimony';
 import { storageService } from './services/storageService';
+import { saveProfileToFirestore, fetchAllRegistrations } from './services/firestoreService';
 import { translations } from './utils/translations';
 import { CheckCircle2 } from 'lucide-react';
 

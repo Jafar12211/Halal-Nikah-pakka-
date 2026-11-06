@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Registration": {
+      "title": "Registration",
+      "description": "User matrimony registration profile stored in Firestore registrations collection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Profile ID" },
+        "userId": { "type": "string", "description": "Authenticated Firebase UID" },
+        "candidateName": { "type": "string", "maxLength": 100 },
+        "gender": { "type": "string", "enum": ["groom", "bride"] },
+        "age": { "type": "number", "minimum": 18, "maximum": 100 },
+        "height": { "type": "string" },
+        "maritalStatus": { "type": "string" },
+        "city": { "type": "string", "maxLength": 100 },
+        "stateCountry": { "type": "string" },
+        "motherTongue": { "type": "string" },
+        "sect": { "type": "string" },
+        "education": { "type": "string" },
+        "profession": { "type": "string" },
+        "employedIn": { "type": "string" },
+        "annualIncomeRange": { "type": "string" },
+        "aboutCandidate": { "type": "string", "maxLength": 1000 },
+        "isVerified": { "type": "boolean" },
+        "approvalStatus": { "type": "string", "enum": ["pending", "approved", "rejected", "suspended"] },
+        "verificationStatus": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "candidateName", "gender", "age", "city", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/registrations/{userId}": {
+      "schema": { "$ref": "#/entities/Registration" },
+      "description": "User profile registrations keyed by Firebase UID"
+    }
+  }
+}

@@ -12,6 +12,7 @@ import {
   Key
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
+import { signInWithGoogleAccount } from '../services/firestoreService';
 import { UserAccount } from '../types/database';
 
 interface AuthModalProps {
@@ -40,9 +41,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     try {
-      const user = storageService.loginWithGoogle();
+      setError(null);
+      const user = await signInWithGoogleAccount();
+      storageService.setCurrentUser(user);
       onAuthSuccess(user);
       onClose();
     } catch (err: any) {
