@@ -1,4 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
+
 import { HeroSection } from './components/HeroSection';
 import { MissionBanner } from './components/MissionBanner';
 import { ProfilesList } from './components/ProfilesList';
@@ -23,8 +26,15 @@ import { ProfileScreen } from './components/android/ProfileScreen';
 
 import { UserProfile, UserAccount, LanguageCode, DistrictAP } from './types/database';
 import { FilterState, MatrimonyProfile } from './types/matrimony';
+
 import { storageService } from './services/storageService';
-import { saveProfileToFirestore, fetchAllRegistrations } from './services/firestoreService';
+import { auth } from './services/firebase';
+import {
+  logoutFirebaseUser,
+  saveProfileToFirestore,
+  fetchAllRegistrations,
+} from './services/firestoreService';
+
 import { translations } from './utils/translations';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -38,9 +48,8 @@ export default function App() {
     }
   });
 
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    return storageService.getCurrentUser();
-  });
+  // Firebase authentication session
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
 
   const [profiles, setProfiles] = useState<UserProfile[]>(() => {
     return storageService.getApprovedProfiles();
@@ -78,7 +87,7 @@ export default function App() {
         return new Set(JSON.parse(saved));
       }
     } catch {
-      // fallback
+      // Fallback
     }
     return new Set<string>();
   });
@@ -87,26 +96,73 @@ export default function App() {
 
   const t = translations[language];
 
+  // Listen for Firebase login/logout changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        return;
+      }
+
+      void (async () => {
+        try {
+          const token = await getIdTokenResult(firebaseUser, true);
+          const isAdmin = token.claims.admin === true;
+
+          const user: UserAccount = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            phone: firebaseUser.phoneNumber || '',
+            name: firebaseUser.displayName || '',
+            role: isAdmin ? 'admin' : 'member',
+            emailVerified: firebaseUser.emailVerified,
+            phoneVerified: Boolean(firebaseUser.phoneNumber),
+            authProvider:
+              firebaseUser.providerData[0]?.providerId === 'google.com'
+                ? 'google'
+                : 'email',
+            createdAt:
+              firebaseUser.metadata.creationTime || new Date().toISOString(),
+            lastLoginAt:
+              firebaseUser.metadata.lastSignInTime || new Date().toISOString(),
+            status: 'active',
+          };
+
+          setCurrentUser(user);
+        } catch (error) {
+          console.error('Firebase session error:', error);
+          setCurrentUser(null);
+        }
+      })();
+    });
+
+    return unsubscribe;
+  }, []);
+
   // Save language preference
   useEffect(() => {
     try {
       localStorage.setItem('nikah_godavari_language', language);
     } catch {
-      // ignore
+      // Ignore
     }
   }, [language]);
 
-  // Sync interests
+  // Sync interests locally (Firestore migration will follow)
   useEffect(() => {
     try {
-      localStorage.setItem('nikah_pakka_interests', JSON.stringify(Array.from(userInterests)));
-    } catch (e) {
-      console.error('Failed to save interests', e);
+      localStorage.setItem(
+        'nikah_pakka_interests',
+        JSON.stringify(Array.from(userInterests))
+      );
+    } catch (error) {
+      console.error('Failed to save interests', error);
     }
   }, [userInterests]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
+
     setTimeout(() => {
       setToastMessage(null);
     }, 3800);
@@ -114,40 +170,66 @@ export default function App() {
 
   const handleToggleLanguage = () => {
     const nextLang: LanguageCode = language === 'en' ? 'te' : 'en';
+
     setLanguage(nextLang);
-    showToast(nextLang === 'te' ? 'భాష తెలుగులోకి మార్చబడింది' : 'Language set to English');
+
+    showToast(
+      nextLang === 'te'
+        ? 'భాష తెలుగులోకి మార్చబడింది'
+        : 'Language set to English'
+    );
   };
 
   const refreshProfiles = () => {
+    // Temporary local profile loading.
+    // Firestore profile discovery will be connected in the next migration step.
     setProfiles(storageService.getApprovedProfiles());
   };
 
-  const handleProfileCreated = (matrimonyProf: MatrimonyProfile) => {
-    // Adapt to full UserProfile and persist in storageService
+  // Create profile
+  const handleProfileCreated = async (matrimonyProf: MatrimonyProfile) => {
+    if (!currentUser) {
+      showToast(
+        language === 'te'
+          ? 'దయచేసి మొదట లాగిన్ అవ్వండి.'
+          : 'Please sign in before registering a profile.'
+      );
+
+      setIsAuthOpen(true);
+      return;
+    }
+
     const adaptedProfile: UserProfile = {
       id: matrimonyProf.id,
-      userId: currentUser?.id || `usr-${Date.now()}`,
+      userId: currentUser.id,
       candidateName: matrimonyProf.candidateName,
       gender: matrimonyProf.gender,
-      dob: '2000-01-01',
+
+      // These fields are retained from the existing application model.
+      // They should be collected from the user rather than fabricated.
+      dob: '',
       age: matrimonyProf.age,
       height: matrimonyProf.height,
       maritalStatus: matrimonyProf.maritalStatus as any,
+
       religion: {
         sect: matrimonyProf.sect,
         salah: matrimonyProf.religiousPractice.salah as any,
         hijabOrBeard: matrimonyProf.religiousPractice.hijabOrBeard as any,
-        quranRecitation: 'Daily',
-        fastingRamadan: true,
-        halalDiet: true,
+        quranRecitation: '',
+        fastingRamadan: false,
+        halalDiet: false,
       },
+
       education: matrimonyProf.education,
       profession: matrimonyProf.profession,
       employedIn: matrimonyProf.employedIn as any,
       annualIncomeRange: matrimonyProf.annualIncomeRange,
+
       district: (matrimonyProf.city as DistrictAP) || 'Kakinada District',
       mandalCity: matrimonyProf.city,
       motherTongue: matrimonyProf.motherTongue,
+
       familyDetails: {
         fatherNameAndOcc: matrimonyProf.familyDetails.fatherNameAndOcc,
         motherNameAndOcc: matrimonyProf.familyDetails.motherNameAndOcc,
@@ -156,28 +238,29 @@ export default function App() {
         sistersCount: matrimonyProf.familyDetails.sistersCount,
         sistersMarried: matrimonyProf.familyDetails.sistersMarried,
         nativePlace: matrimonyProf.familyDetails.nativePlace,
-        familyStatus: 'Upper Middle Class',
+        familyStatus: '',
         familyValues: matrimonyProf.familyDetails.familyValues as any,
       },
+
       partnerPreferences: {
         minAge: matrimonyProf.partnerPreferences.minAge,
         maxAge: matrimonyProf.partnerPreferences.maxAge,
-        preferredDistricts: [(matrimonyProf.city as DistrictAP) || 'Kakinada District'],
-        educationPreference: matrimonyProf.partnerPreferences.educationPreference || 'Graduate',
-        maritalStatusPreference: matrimonyProf.partnerPreferences.maritalStatusPreference,
-        religiosityPreference: matrimonyProf.partnerPreferences.religiosityPreference || 'Practicing',
+        preferredDistricts: [
+          (matrimonyProf.city as DistrictAP) || 'Kakinada District',
+        ],
+        educationPreference:
+          matrimonyProf.partnerPreferences.educationPreference || '',
+        maritalStatusPreference:
+          matrimonyProf.partnerPreferences.maritalStatusPreference,
+        religiosityPreference:
+          matrimonyProf.partnerPreferences.religiosityPreference || '',
       },
-      mustHaves: [
-        'Observes 5 daily Salah',
-        'Halal livelihood & clean habits',
-        'Respectful of parents and elders',
-      ],
-      dealBreakers: [
-        'Demand for dowry / Jahez',
-        'Smoking, tobacco, or alcohol',
-        'Lack of prayer or casual Deen attitude',
-      ],
+
+      mustHaves: [],
+      dealBreakers: [],
+
       aboutCandidate: matrimonyProf.aboutCandidate,
+
       guardianWaliContact: {
         name: matrimonyProf.guardianWaliContact.name,
         relationship: matrimonyProf.guardianWaliContact.relationship,
@@ -186,78 +269,115 @@ export default function App() {
         includeInMessaging: true,
         visibility: 'verified_families_only',
       },
-      photos:
-        matrimonyProf.photos && matrimonyProf.photos.length > 0
-          ? matrimonyProf.photos
-          : matrimonyProf.photoUrl
-          ? [matrimonyProf.photoUrl]
-          : [],
+
+      // Firebase Storage is not enabled on the current Spark plan.
+      // Do not save Base64 images or identity documents in Firestore.
+      photos: (matrimonyProf.photos || []).filter(
+        (photo) => typeof photo === 'string' && !photo.startsWith('data:')
+      ),
+
       photoPrivacy: matrimonyProf.photoPrivacy || 'blurred_until_request',
       avatarInitials: matrimonyProf.avatarInitials,
       avatarBgColor: matrimonyProf.avatarBgColor,
-      documents: matrimonyProf.documents && matrimonyProf.documents.length > 0
-        ? (matrimonyProf.documents as any)
-        : [
-            {
-              id: `doc-${Date.now()}`,
-              type: 'Aadhaar Card',
-              fileName: 'Aadhaar_Masked.pdf',
-              maskedId: 'XXXX-XXXX-7860',
-              uploadedAt: new Date().toISOString().split('T')[0],
-              verified: false,
-              isRestricted: true,
-            },
-          ],
+
+      // Do not fabricate identity documents.
+      documents: [],
+
       isVerified: false,
       approvalStatus: 'pending',
-      approvalNotes: 'Awaiting Admin review of candidate photos & identity document proof.',
+      approvalNotes: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       favoritesCount: 0,
       interestsReceivedCount: 0,
     };
 
-    storageService.saveProfile(adaptedProfile);
-    refreshProfiles();
-    showToast(
-      language === 'te'
-        ? `అల్హందులిల్లాహ్! ${adaptedProfile.candidateName} ప్రొఫైల్ నమోదైంది. అడ్మిన్ ఆమోదం కోసం సమర్పించబడింది.`
-        : `Alhamdulillah! Profile for ${adaptedProfile.candidateName} registered. Submitted for Admin Photo & Identity review.`
-    );
+    try {
+      await saveProfileToFirestore(adaptedProfile);
 
-    setActiveTab('matches');
+      showToast(
+        language === 'te'
+          ? `అల్హందులిల్లాహ్! ${adaptedProfile.candidateName} ప్రొఫైల్ సమర్పించబడింది.`
+          : `Alhamdulillah! Profile for ${adaptedProfile.candidateName} submitted for admin review.`
+      );
+
+      setIsRegisterOpen(false);
+      setActiveTab('profile');
+    } catch (error) {
+      console.error('Profile submission failed:', error);
+
+      showToast(
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit your profile. Please try again.'
+      );
+    }
   };
 
+  // Express interest (still local until interests are migrated)
   const handleExpressInterest = (profileId: string) => {
+    if (!currentUser) {
+      showToast(
+        language === 'te'
+          ? 'దయచేసి మొదట లాగిన్ అవ్వండి.'
+          : 'Please sign in to express interest.'
+      );
+
+      setIsAuthOpen(true);
+      return;
+    }
+
     setUserInterests((prev) => {
       const next = new Set(prev);
       const isCurrentlyInterested = next.has(profileId);
+
       if (isCurrentlyInterested) {
         next.delete(profileId);
-        showToast(language === 'te' ? 'ఆసక్తి తొలగించబడింది.' : 'Proposal interest removed.');
-      } else {
-        next.add(profileId);
+
         showToast(
           language === 'te'
-            ? 'అల్హందులిల్లాహ్! కుటుంబానికి ఆసక్తి సందేశం (ఖబర్) పంపబడింది.'
-            : 'Proposal interest (Khabar) recorded for guardian communication. May Allah bless it!'
+            ? 'ఆసక్తి తొలగించబడింది.'
+            : 'Proposal interest removed.'
+        );
+      } else {
+        next.add(profileId);
+
+        showToast(
+          language === 'te'
+            ? 'ఆసక్తి సందేశం నమోదు చేయబడింది.'
+            : 'Your proposal interest has been recorded.'
         );
       }
+
       return next;
     });
   };
 
   const handleStartChatWithProfile = (targetProfile: UserProfile) => {
     if (!currentUser) {
-      showToast(language === 'te' ? 'దయచేసి మొదట లాగిన్ అవ్వండి.' : 'Please sign in to start family chat.');
+      showToast(
+        language === 'te'
+          ? 'దయచేసి మొదట లాగిన్ అవ్వండి.'
+          : 'Please sign in to start family chat.'
+      );
+
       setIsAuthOpen(true);
       return;
     }
 
-    const myProfile = storageService.getMyProfile(currentUser.id) || profiles[0];
+    const myProfile = storageService.getMyProfile(currentUser.id);
+
+    if (!myProfile) {
+      showToast(
+        'Please complete your profile before starting a conversation.'
+      );
+      setIsRegisterOpen(true);
+      return;
+    }
+
     const conversation = storageService.createOrGetConversation(
       currentUser.id,
-      targetProfile.userId || `usr-${targetProfile.id}`,
+      targetProfile.userId,
       myProfile,
       targetProfile
     );
@@ -266,14 +386,29 @@ export default function App() {
     setIsMessagingOpen(true);
   };
 
-  const handleSignOut = () => {
-    storageService.setCurrentUser(null);
-    setCurrentUser(null);
-    showToast(language === 'te' ? 'విజయవంతంగా లాగౌట్ అయ్యారు.' : 'Signed out successfully.');
+  // Firebase sign-out
+  const handleSignOut = async () => {
+    try {
+      await logoutFirebaseUser();
+
+      setCurrentUser(null);
+      setIsMessagingOpen(false);
+      setIsAdminOpen(false);
+
+      showToast(
+        language === 'te'
+          ? 'విజయవంతంగా లాగౌట్ అయ్యారు.'
+          : 'Signed out successfully.'
+      );
+    } catch (error) {
+      console.error('Sign-out failed:', error);
+      showToast('Unable to sign out. Please try again.');
+    }
   };
 
   const handleOpenShare = () => {
     setActiveTab('home');
+
     setTimeout(() => {
       const el = document.getElementById('share-section');
       el?.scrollIntoView({ behavior: 'smooth' });
@@ -286,30 +421,60 @@ export default function App() {
 
   // Filter profiles
   const filteredProfiles = profiles.filter((p) => {
-    if (filters.gender !== 'all' && p.gender !== filters.gender) return false;
-    if (filters.city !== 'All Cities' && p.district !== filters.city && p.mandalCity !== filters.city) return false;
-    if (filters.sect !== 'All Sects' && p.religion.sect !== filters.sect) return false;
-    if (p.age > filters.maxAge) return false;
+    if (filters.gender !== 'all' && p.gender !== filters.gender) {
+      return false;
+    }
+
+    if (
+      filters.city !== 'All Cities' &&
+      p.district !== filters.city &&
+      p.mandalCity !== filters.city
+    ) {
+      return false;
+    }
+
+    if (filters.sect !== 'All Sects' && p.religion.sect !== filters.sect) {
+      return false;
+    }
+
+    if (p.age > filters.maxAge || p.age < filters.minAge) {
+      return false;
+    }
+
     if (filters.searchQuery.trim()) {
       const q = filters.searchQuery.toLowerCase();
+
       const match =
         p.candidateName.toLowerCase().includes(q) ||
         p.profession.toLowerCase().includes(q) ||
         p.education.toLowerCase().includes(q) ||
         p.district.toLowerCase().includes(q) ||
         p.mandalCity.toLowerCase().includes(q);
+
       if (!match) return false;
     }
+
     return true;
   });
 
-  // Calculate unread messages
+  // Unread message count
+  // Messaging is still using the existing local service at this stage.
   const unreadMessagesCount = currentUser
-    ? storageService.getConversations(currentUser.id).reduce((acc, c) => acc + (c.unreadCount || 0), 0)
+    ? storageService
+        .getConversations(currentUser.id)
+        .reduce((acc, conversation) => {
+          return acc + (conversation.unreadCount || 0);
+        }, 0)
     : 0;
 
   const handleTabChange = (tab: AndroidTab) => {
     if (tab === 'messages') {
+      if (!currentUser) {
+        setIsAuthOpen(true);
+        showToast('Please sign in to access messages.');
+        return;
+      }
+
       setIsMessagingOpen(true);
     } else {
       setActiveTab(tab);
@@ -319,6 +484,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fdfbf7] text-stone-900 antialiased selection:bg-emerald-100 selection:text-emerald-900 font-sans pb-16">
+
       {/* Android Material 3 Top App Bar */}
       <AndroidTopBar
         language={language}
@@ -339,17 +505,23 @@ export default function App() {
         onNavigateTab={(tab) => handleTabChange(tab)}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenRegister={() => setIsRegisterOpen(true)}
+        onOpenRegister={() => {
+          if (!currentUser) {
+            setIsAuthOpen(true);
+          } else {
+            setIsRegisterOpen(true);
+          }
+        }}
         onOpenShare={handleOpenShare}
         onSignOut={handleSignOut}
       />
 
-      {/* Main Dynamic View Area based on Android Tab */}
+      {/* Main Dynamic View Area */}
       <main className="flex-1">
+
         {/* Home Tab */}
         {activeTab === 'home' && (
           <div>
-            {/* Top notification pill */}
             <div className="bg-emerald-950 text-white py-2 px-4 text-center text-xs font-medium border-b border-emerald-900/60">
               <div className="max-w-7xl mx-auto flex items-center justify-center gap-2">
                 <span>
@@ -357,7 +529,14 @@ export default function App() {
                     ? '🌙 అస్సలాము అలైకుమ్! నికాహ్ పక్కా – యానాం & గోదావరి ముస్లిం మ్యాట్రిమోనీ'
                     : '🌙 Assalamu Alaikum! Welcome to Nikah Pakka – Yanam & Godavari Muslim Matrimony'}
                 </span>
-                <span aria-hidden="true" className="hidden sm:inline text-emerald-600">·</span>
+
+                <span
+                  aria-hidden="true"
+                  className="hidden sm:inline text-emerald-600"
+                >
+                  ·
+                </span>
+
                 <span className="hidden sm:inline text-amber-300">
                   {language === 'te'
                     ? 'ఖరీదైన సబ్‌స్క్రిప్షన్ల భారం లేదు · నేరుగా కుటుంబ పెద్దలతో సంప్రదింపులు'
@@ -366,28 +545,39 @@ export default function App() {
               </div>
             </div>
 
-            {/* Hero Section */}
             <HeroSection
               language={language}
               filters={filters}
               setFilters={setFilters}
-              onOpenRegister={() => setIsRegisterOpen(true)}
+              onOpenRegister={() => {
+                if (!currentUser) {
+                  setIsAuthOpen(true);
+                } else {
+                  setIsRegisterOpen(true);
+                }
+              }}
               onOpenShare={handleOpenShare}
               onSearchClick={handleSearchClick}
             />
 
-            {/* Mission Banner: The problem with expensive matrimony & our community solution */}
             <div id="mission-section">
-              <MissionBanner onOpenRegister={() => setIsRegisterOpen(true)} />
+              <MissionBanner
+                onOpenRegister={() => {
+                  if (!currentUser) {
+                    setIsAuthOpen(true);
+                  } else {
+                    setIsRegisterOpen(true);
+                  }
+                }}
+              />
             </div>
 
-            {/* Profiles Matchmaking Directory preview */}
             <div id="matches-section">
               <ProfilesList
                 profiles={filteredProfiles}
                 filters={filters}
                 setFilters={setFilters}
-                onSelectProfile={(p) => setSelectedProfile(p)}
+                onSelectProfile={(profile) => setSelectedProfile(profile)}
                 onExpressInterest={handleExpressInterest}
                 userInterests={userInterests}
                 language={language}
@@ -395,24 +585,43 @@ export default function App() {
               />
             </div>
 
-            {/* FAQ Section */}
             <div id="faqs-section">
-              <FAQSection language={language} onOpenRegister={() => setIsRegisterOpen(true)} />
+              <FAQSection
+                language={language}
+                onOpenRegister={() => {
+                  if (!currentUser) {
+                    setIsAuthOpen(true);
+                  } else {
+                    setIsRegisterOpen(true);
+                  }
+                }}
+              />
             </div>
 
-            {/* The 3-Step Request & Share Campaign */}
             <div id="share-section">
-              <ShareCampaignSection onOpenRegister={() => setIsRegisterOpen(true)} />
+              <ShareCampaignSection
+                onOpenRegister={() => {
+                  if (!currentUser) {
+                    setIsAuthOpen(true);
+                  } else {
+                    setIsRegisterOpen(true);
+                  }
+                }}
+              />
             </div>
 
-            {/* Du'as & Sunnah guidance */}
             <div id="duas-section">
               <DuaSection />
             </div>
 
-            {/* Footer */}
             <Footer
-              onOpenRegister={() => setIsRegisterOpen(true)}
+              onOpenRegister={() => {
+                if (!currentUser) {
+                  setIsAuthOpen(true);
+                } else {
+                  setIsRegisterOpen(true);
+                }
+              }}
               onOpenShare={handleOpenShare}
             />
           </div>
@@ -425,7 +634,7 @@ export default function App() {
               profiles={filteredProfiles}
               filters={filters}
               setFilters={setFilters}
-              onSelectProfile={(p) => setSelectedProfile(p)}
+              onSelectProfile={(profile) => setSelectedProfile(profile)}
               onExpressInterest={handleExpressInterest}
               userInterests={userInterests}
               language={language}
@@ -440,7 +649,7 @@ export default function App() {
             language={language}
             allProfiles={profiles}
             userInterests={userInterests}
-            onSelectProfile={(p) => setSelectedProfile(p)}
+            onSelectProfile={(profile) => setSelectedProfile(profile)}
             onRemoveInterest={handleExpressInterest}
             onStartChat={handleStartChatWithProfile}
             onNavigateToMatches={() => setActiveTab('matches')}
@@ -454,7 +663,13 @@ export default function App() {
             language={language}
             onToggleLanguage={handleToggleLanguage}
             onOpenAuth={() => setIsAuthOpen(true)}
-            onOpenRegister={() => setIsRegisterOpen(true)}
+            onOpenRegister={() => {
+              if (!currentUser) {
+                setIsAuthOpen(true);
+              } else {
+                setIsRegisterOpen(true);
+              }
+            }}
             onOpenProfileEdit={() => setIsProfileEditOpen(true)}
             onOpenAdmin={() => setIsAdminOpen(true)}
             onOpenShare={handleOpenShare}
@@ -463,13 +678,19 @@ export default function App() {
         )}
       </main>
 
-      {/* Android Floating Action Button (1-Tap Registration) */}
+      {/* Android Floating Action Button */}
       <AndroidFab
-        onClick={() => setIsRegisterOpen(true)}
+        onClick={() => {
+          if (!currentUser) {
+            setIsAuthOpen(true);
+          } else {
+            setIsRegisterOpen(true);
+          }
+        }}
         language={language}
       />
 
-      {/* Android Material 3 Bottom Navigation Bar */}
+      {/* Android Bottom Navigation */}
       <AndroidBottomNav
         activeTab={activeTab}
         onChangeTab={handleTabChange}
@@ -478,29 +699,34 @@ export default function App() {
         interestsCount={userInterests.size}
       />
 
-      {/* Profile Detail Biodata Modal */}
+      {/* Profile Detail Modal */}
       <ProfileDetailModal
         profile={selectedProfile}
         onClose={() => setSelectedProfile(null)}
         onExpressInterest={handleExpressInterest}
-        isInterested={selectedProfile ? userInterests.has(selectedProfile.id) : false}
+        isInterested={
+          selectedProfile
+            ? userInterests.has(selectedProfile.id)
+            : false
+        }
         language={language}
         onStartChat={handleStartChatWithProfile}
       />
 
-      {/* Candidate Registration Wizard */}
+      {/* Registration Modal */}
       <RegistrationModal
-        isOpen={isRegisterOpen}
+        isOpen={isRegisterOpen && Boolean(currentUser)}
         onClose={() => setIsRegisterOpen(false)}
         onProfileCreated={handleProfileCreated}
       />
 
-      {/* Authentication Modal (Google Sign-In, Email, Phone 6-Digit OTP) */}
+      {/* Authentication Modal */}
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onAuthSuccess={(user: UserAccount) => {
           setCurrentUser(user);
+          setIsAuthOpen(false);
           showToast(`Assalamu Alaikum, ${user.name}!`);
         }}
         language={language}
@@ -508,45 +734,33 @@ export default function App() {
 
       {/* Profile Edit Modal */}
       <ProfileEditModal
-        isOpen={isProfileEditOpen}
+        isOpen={isProfileEditOpen && Boolean(currentUser)}
         onClose={() => setIsProfileEditOpen(false)}
         currentUser={currentUser}
         onProfileUpdated={refreshProfiles}
       />
 
-      {/* Administrator Dashboard & Verification Console */}
+      {/* Admin Dashboard */}
       <AdminDashboardModal
-        isOpen={isAdminOpen}
+        isOpen={isAdminOpen && currentUser?.role === 'admin'}
         onClose={() => setIsAdminOpen(false)}
         currentUser={currentUser}
         onProfileStatusChanged={refreshProfiles}
       />
 
-      {/* Secure In-App Messaging Modal with Family Chaperone */}
-      <MessagingModal
-        isOpen={isMessagingOpen}
-        onClose={() => {
-          setIsMessagingOpen(false);
-          setMessagingTargetConvId(undefined);
-        }}
-        currentUser={
-          currentUser || {
-            id: 'guest-user',
-            name: 'Interested Family',
-            email: 'guest@nikahpakka.in',
-            phone: '+91 98480 00000',
-            role: 'member',
-            emailVerified: true,
-            phoneVerified: true,
-            authProvider: 'phone',
-            createdAt: new Date().toISOString(),
-            lastLoginAt: new Date().toISOString(),
-            status: 'active',
-          }
-        }
-        targetConversationId={messagingTargetConvId}
-        language={language}
-      />
+      {/* Messaging Modal */}
+      {currentUser && (
+        <MessagingModal
+          isOpen={isMessagingOpen}
+          onClose={() => {
+            setIsMessagingOpen(false);
+            setMessagingTargetConvId(undefined);
+          }}
+          currentUser={currentUser}
+          targetConversationId={messagingTargetConvId}
+          language={language}
+        />
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (
