@@ -1,22 +1,26 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import {
   X,
-  User,
   ShieldCheck,
   CheckCircle2,
   Lock,
-  Plus,
-  Trash2,
-  FileText,
-  Upload,
-  AlertCircle,
-  Star,
   Camera,
-  Sparkles
+  Trash2,
+  Plus,
+  AlertCircle,
 } from 'lucide-react';
-import { UserProfile, UserAccount, DistrictAP, ValidGovtDocType } from '../types/database';
-import { storageService, GODAVARI_DISTRICTS } from '../services/storageService';
-import { maskGovtIdNumber } from '../utils/matrimony';
+
+import {
+  UserProfile,
+  UserAccount,
+  DistrictAP,
+} from '../types/database';
+
+import { GODAVARI_DISTRICTS } from '../services/storageService';
+import { db } from '../services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { saveProfileToFirestore } from '../services/firestoreService';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -25,1037 +29,1033 @@ interface ProfileEditModalProps {
   onProfileUpdated: () => void;
 }
 
+type Tab = 'personal' | 'deen' | 'family' | 'preferences' | 'privacy';
+
 export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   isOpen,
   onClose,
   currentUser,
   onProfileUpdated,
 }) => {
-  const [activeTab, setActiveTab] = useState<'personal' | 'deen' | 'family' | 'preferences' | 'privacy'>('personal');
+  const [activeTab, setActiveTab] = useState<Tab>('personal');
   const [saving, setSaving] = useState(false);
-  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
-  // Form State
+  const [existingProfile, setExistingProfile] = useState<UserProfile | null>(null);
+
+  // Personal details
   const [candidateName, setCandidateName] = useState('');
   const [gender, setGender] = useState<'groom' | 'bride'>('bride');
   const [age, setAge] = useState(25);
   const [height, setHeight] = useState(`5'4"`);
-  const [maritalStatus, setMaritalStatus] = useState<'Never Married' | 'Divorced' | 'Widowed'>('Never Married');
+  const [maritalStatus, setMaritalStatus] =
+    useState<UserProfile['maritalStatus']>('Never Married');
   const [district, setDistrict] = useState<DistrictAP>('Kakinada District');
   const [mandalCity, setMandalCity] = useState('');
   const [motherTongue, setMotherTongue] = useState('Urdu & Telugu');
 
-  // Deen & Career
+  // Religious and career details
   const [sect, setSect] = useState('Sunni Hanafi');
-  const [salah, setSalah] = useState<'5 times daily' | 'Regularly' | 'Usually' | 'Striving'>('5 times daily');
-  const [hijabOrBeard, setHijabOrBeard] = useState<'Observes Hijab/Niqab' | 'Full Beard' | 'Trimmed Beard' | 'Modest Dressing' | 'Not strictly'>('Observes Hijab/Niqab');
-  const [quranRecitation, setQuranRecitation] = useState<'Daily' | 'Weekly' | 'Regular'>('Daily');
+  const [salah, setSalah] =
+    useState<UserProfile['religion']['salah']>('5 times daily');
+  const [hijabOrBeard, setHijabOrBeard] =
+    useState<UserProfile['religion']['hijabOrBeard']>('Observes Hijab/Niqab');
+  const [quranRecitation, setQuranRecitation] =
+    useState<UserProfile['religion']['quranRecitation']>('Daily');
   const [education, setEducation] = useState('');
   const [profession, setProfession] = useState('');
-  const [employedIn, setEmployedIn] = useState<UserProfile['employedIn']>('Private Sector');
-  const [annualIncomeRange, setAnnualIncomeRange] = useState('₹12 - 18 Lakhs');
+  const [employedIn, setEmployedIn] =
+    useState<UserProfile['employedIn']>('Private Sector');
+  const [annualIncomeRange, setAnnualIncomeRange] = useState('');
 
-  // Family Background
+  // Family
   const [fatherNameAndOcc, setFatherNameAndOcc] = useState('');
   const [motherNameAndOcc, setMotherNameAndOcc] = useState('');
-  const [brothersCount, setBrothersCount] = useState(1);
-  const [sistersCount, setSistersCount] = useState(1);
+  const [brothersCount, setBrothersCount] = useState(0);
+  const [brothersMarried, setBrothersMarried] = useState(0);
+  const [sistersCount, setSistersCount] = useState(0);
+  const [sistersMarried, setSistersMarried] = useState(0);
   const [nativePlace, setNativePlace] = useState('');
-  const [familyStatus, setFamilyStatus] = useState<UserProfile['familyDetails']['familyStatus']>('Upper Middle Class');
-  const [familyValues, setFamilyValues] = useState<UserProfile['familyDetails']['familyValues']>('Traditional & Practicing');
+  const [familyStatus, setFamilyStatus] =
+    useState<UserProfile['familyDetails']['familyStatus']>('Upper Middle Class');
+  const [familyValues, setFamilyValues] =
+    useState<UserProfile['familyDetails']['familyValues']>('Traditional & Practicing');
 
-  // Partner Preferences, Must-Haves & Deal-Breakers
+  // Partner preferences
   const [minAgePref, setMinAgePref] = useState(24);
   const [maxAgePref, setMaxAgePref] = useState(30);
-  const [mustHaves, setMustHaves] = useState<string[]>([
-    'Observes 5 daily Salah',
-    'Halal livelihood & clean habits',
-    'Respectful of parents and elders',
-  ]);
-  const [dealBreakers, setDealBreakers] = useState<string[]>([
-    'Demand for dowry / Jahez',
-    'Smoking, tobacco, or alcohol',
-    'Lack of prayer or casual Deen attitude',
-  ]);
+  const [mustHaves, setMustHaves] = useState<string[]>([]);
+  const [dealBreakers, setDealBreakers] = useState<string[]>([]);
   const [newMustHave, setNewMustHave] = useState('');
   const [newDealBreaker, setNewDealBreaker] = useState('');
   const [aboutCandidate, setAboutCandidate] = useState('');
 
-  // Guardian Contact
+  // Guardian contact
   const [guardianName, setGuardianName] = useState('');
   const [guardianRelationship, setGuardianRelationship] = useState('Father');
   const [guardianPhone, setGuardianPhone] = useState('');
-  const [photoPrivacy, setPhotoPrivacy] = useState<UserProfile['photoPrivacy']>('blurred_until_request');
+  const [photoPrivacy, setPhotoPrivacy] =
+    useState<UserProfile['photoPrivacy']>('blurred_until_request');
+
+  // Only existing image URLs can be retained.
+  // Base64 photos cannot be uploaded without Firebase Storage.
   const [photos, setPhotos] = useState<string[]>([]);
 
-  // Document Record
-  const [docType, setDocType] = useState<ValidGovtDocType>('Aadhaar Card');
-  const [docLast4, setDocLast4] = useState('');
-  const [hasDocAttached, setHasDocAttached] = useState(false);
-
-  // Load existing profile on open
+  // Load the signed-in user's private Firestore registration.
   useEffect(() => {
-    if (currentUser) {
-      const myProfile = storageService.getMyProfile(currentUser.id);
-      if (myProfile) {
-        setCandidateName(myProfile.candidateName || '');
-        setGender(myProfile.gender || 'bride');
-        setAge(myProfile.age || 25);
-        setHeight(myProfile.height || `5'4"`);
-        setMaritalStatus(myProfile.maritalStatus || 'Never Married');
-        setDistrict(myProfile.district || 'Kakinada District');
-        setMandalCity(myProfile.mandalCity || '');
-        setMotherTongue(myProfile.motherTongue || 'Urdu & Telugu');
-        setSect(myProfile.religion?.sect || 'Sunni Hanafi');
-        setSalah(myProfile.religion?.salah || '5 times daily');
-        setHijabOrBeard(myProfile.religion?.hijabOrBeard || 'Observes Hijab/Niqab');
-        setQuranRecitation(myProfile.religion?.quranRecitation || 'Daily');
-        setEducation(myProfile.education || '');
-        setProfession(myProfile.profession || '');
-        setEmployedIn(myProfile.employedIn || 'Private Sector');
-        setAnnualIncomeRange(myProfile.annualIncomeRange || '₹12 - 18 Lakhs');
-        setFatherNameAndOcc(myProfile.familyDetails?.fatherNameAndOcc || '');
-        setMotherNameAndOcc(myProfile.familyDetails?.motherNameAndOcc || '');
-        setBrothersCount(myProfile.familyDetails?.brothersCount || 0);
-        setSistersCount(myProfile.familyDetails?.sistersCount || 0);
-        setNativePlace(myProfile.familyDetails?.nativePlace || '');
-        setFamilyStatus(myProfile.familyDetails?.familyStatus || 'Upper Middle Class');
-        setFamilyValues(myProfile.familyDetails?.familyValues || 'Traditional & Practicing');
-        setMinAgePref(myProfile.partnerPreferences?.minAge || 24);
-        setMaxAgePref(myProfile.partnerPreferences?.maxAge || 30);
-        setMustHaves(myProfile.mustHaves || []);
-        setDealBreakers(myProfile.dealBreakers || []);
-        setAboutCandidate(myProfile.aboutCandidate || '');
-        setGuardianName(myProfile.guardianWaliContact?.name || '');
-        setGuardianRelationship(myProfile.guardianWaliContact?.relationship || 'Father');
-        setGuardianPhone(myProfile.guardianWaliContact?.phone || '');
-        setPhotoPrivacy(myProfile.photoPrivacy || 'blurred_until_request');
-        setPhotos(myProfile.photos || []);
-        if (myProfile.documents && myProfile.documents.length > 0) {
-          setHasDocAttached(true);
-          setDocType((myProfile.documents[0].type as ValidGovtDocType) || 'Aadhaar Card');
-          setDocLast4(myProfile.documents[0].maskedId.slice(-4));
+    if (!isOpen || !currentUser) return;
+
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      setLoading(true);
+      setErrorMsg('');
+      setStatusMsg('');
+
+      try {
+        const profileRef = doc(db, 'registrations', currentUser.id);
+        const snapshot = await getDoc(profileRef);
+
+        if (cancelled) return;
+
+        if (!snapshot.exists()) {
+          setExistingProfile(null);
+          setCandidateName(currentUser.name || '');
+          setErrorMsg('No saved profile was found. You can create your profile using the registration form.');
+          return;
         }
-      } else {
-        // Pre-fill user name
-        setCandidateName(currentUser.name || '');
+
+        const data = {
+          ...snapshot.data(),
+          id: snapshot.id,
+          userId: currentUser.id,
+        } as UserProfile;
+
+        setExistingProfile(data);
+
+        setCandidateName(data.candidateName || '');
+        setGender(data.gender || 'bride');
+        setAge(data.age || 25);
+        setHeight(data.height || `5'4"`);
+        setMaritalStatus(data.maritalStatus || 'Never Married');
+        setDistrict(data.district || 'Kakinada District');
+        setMandalCity(data.mandalCity || '');
+        setMotherTongue(data.motherTongue || '');
+
+        setSect(data.religion?.sect || 'Sunni Hanafi');
+        setSalah(data.religion?.salah || '5 times daily');
+        setHijabOrBeard(data.religion?.hijabOrBeard || 'Observes Hijab/Niqab');
+        setQuranRecitation(data.religion?.quranRecitation || 'Daily');
+
+        setEducation(data.education || '');
+        setProfession(data.profession || '');
+        setEmployedIn(data.employedIn || 'Private Sector');
+        setAnnualIncomeRange(data.annualIncomeRange || '');
+
+        setFatherNameAndOcc(data.familyDetails?.fatherNameAndOcc || '');
+        setMotherNameAndOcc(data.familyDetails?.motherNameAndOcc || '');
+        setBrothersCount(data.familyDetails?.brothersCount || 0);
+        setBrothersMarried(data.familyDetails?.brothersMarried || 0);
+        setSistersCount(data.familyDetails?.sistersCount || 0);
+        setSistersMarried(data.familyDetails?.sistersMarried || 0);
+        setNativePlace(data.familyDetails?.nativePlace || '');
+        setFamilyStatus(data.familyDetails?.familyStatus || 'Upper Middle Class');
+        setFamilyValues(data.familyDetails?.familyValues || 'Traditional & Practicing');
+
+        setMinAgePref(data.partnerPreferences?.minAge || 24);
+        setMaxAgePref(data.partnerPreferences?.maxAge || 30);
+
+        setMustHaves(data.mustHaves || []);
+        setDealBreakers(data.dealBreakers || []);
+        setAboutCandidate(data.aboutCandidate || '');
+
+        setGuardianName(data.guardianWaliContact?.name || '');
+        setGuardianRelationship(data.guardianWaliContact?.relationship || 'Father');
+        setGuardianPhone(data.guardianWaliContact?.phone || '');
+
+        setPhotoPrivacy(data.photoPrivacy || 'blurred_until_request');
+
+        setPhotos(
+          (data.photos || []).filter(
+            (photo) => typeof photo === 'string' && !photo.startsWith('data:')
+          )
+        );
+      } catch (error) {
+        console.error('Could not load Firestore profile:', error);
+        if (!cancelled) {
+          setErrorMsg('Unable to load your profile. Please try again.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    }
-  }, [currentUser, isOpen]);
+    };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    void loadProfile();
 
-    const remainingSlots = 5 - photos.length;
-    if (remainingSlots <= 0) return;
-
-    const filesToUpload = Array.from(files).slice(0, remainingSlots);
-
-    const readers = filesToUpload.map((f) => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target?.result as string);
-        reader.readAsDataURL(f);
-      });
-    });
-
-    Promise.all(readers).then((newPics) => {
-      setPhotos((prev) => [...prev, ...newPics].slice(0, 5));
-    });
-    e.target.value = '';
-  };
-
-  const handleRemovePhoto = (idx: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleSetPrimaryPhoto = (idx: number) => {
-    setPhotos((prev) => {
-      const selected = prev[idx];
-      const rest = prev.filter((_, i) => i !== idx);
-      return [selected, ...rest];
-    });
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, currentUser]);
 
   if (!isOpen) return null;
 
-  const handleAddMustHave = () => {
-    if (newMustHave.trim()) {
-      setMustHaves([...mustHaves, newMustHave.trim()]);
-      setNewMustHave('');
+  const addMustHave = () => {
+    if (!newMustHave.trim()) return;
+    setMustHaves((previous) => [...previous, newMustHave.trim()]);
+    setNewMustHave('');
+  };
+
+  const addDealBreaker = () => {
+    if (!newDealBreaker.trim()) return;
+    setDealBreakers((previous) => [...previous, newDealBreaker.trim()]);
+    setNewDealBreaker('');
+  };
+
+  const handleSaveProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!currentUser) {
+      setErrorMsg('Please sign in before saving your profile.');
+      return;
     }
-  };
 
-  const handleRemoveMustHave = (idx: number) => {
-    setMustHaves(mustHaves.filter((_, i) => i !== idx));
-  };
-
-  const handleAddDealBreaker = () => {
-    if (newDealBreaker.trim()) {
-      setDealBreakers([...dealBreakers, newDealBreaker.trim()]);
-      setNewDealBreaker('');
+    if (!candidateName.trim()) {
+      setErrorMsg('Please enter the candidate name.');
+      setActiveTab('personal');
+      return;
     }
-  };
 
-  const handleRemoveDealBreaker = (idx: number) => {
-    setDealBreakers(dealBreakers.filter((_, i) => i !== idx));
-  };
+    if (!Number.isFinite(age) || age < 18 || age > 100) {
+      setErrorMsg('Candidate age must be between 18 and 100.');
+      setActiveTab('personal');
+      return;
+    }
 
-  const handleSaveProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser) return;
+    if (!education.trim() || !profession.trim()) {
+      setErrorMsg('Please enter education and profession details.');
+      setActiveTab('deen');
+      return;
+    }
+
     setSaving(true);
+    setErrorMsg('');
+    setStatusMsg('');
 
-    const existingProfile = storageService.getMyProfile(currentUser.id);
     const initials = candidateName
-      .split(' ')
-      .map((w) => w[0])
-      .filter(Boolean)
+      .trim()
+      .split(/\s+/)
+      .map((word) => word[0])
       .slice(0, 2)
       .join('')
-      .toUpperCase() || 'NP';
+      .toUpperCase();
 
-    const maskedDocumentRecord = docLast4
-      ? [
-          {
-            id: `doc-${Date.now()}`,
-            type: docType,
-            fileName: `${docType.replace(/\s+/g, '_')}_Masked.pdf`,
-            maskedId: maskGovtIdNumber(docLast4, docType),
-            uploadedAt: new Date().toISOString().split('T')[0],
-            verified: true,
-            isRestricted: true,
-          },
-        ]
-      : existingProfile?.documents || [];
+    const safePhotos = photos
+      .filter((photo) => !photo.startsWith('data:'))
+      .slice(0, 5);
 
     const updatedProfile: UserProfile = {
-      id: existingProfile?.id || `prof-${currentUser.id}`,
+      id: existingProfile?.id || currentUser.id,
       userId: currentUser.id,
-      candidateName,
+
+      candidateName: candidateName.trim(),
       gender,
-      dob: existingProfile?.dob || '1998-05-15',
+      dob: existingProfile?.dob || '',
       age: Number(age),
       height,
       maritalStatus,
+
       religion: {
         sect,
         salah,
         hijabOrBeard,
         quranRecitation,
-        fastingRamadan: true,
-        halalDiet: true,
+        fastingRamadan: existingProfile?.religion?.fastingRamadan ?? false,
+        halalDiet: existingProfile?.religion?.halalDiet ?? false,
       },
-      education,
-      profession,
+
+      education: education.trim(),
+      profession: profession.trim(),
       employedIn,
       annualIncomeRange,
+
       district,
-      mandalCity: mandalCity || district,
+      mandalCity: mandalCity.trim(),
       motherTongue,
+
       familyDetails: {
-        fatherNameAndOcc,
-        motherNameAndOcc,
-        brothersCount,
-        brothersMarried: Math.max(0, brothersCount - 1),
-        sistersCount,
-        sistersMarried: Math.max(0, sistersCount - 1),
-        nativePlace: nativePlace || district,
+        fatherNameAndOcc: fatherNameAndOcc.trim(),
+        motherNameAndOcc: motherNameAndOcc.trim(),
+        brothersCount: Number(brothersCount),
+        brothersMarried: Number(brothersMarried),
+        sistersCount: Number(sistersCount),
+        sistersMarried: Number(sistersMarried),
+        nativePlace: nativePlace.trim(),
         familyStatus,
         familyValues,
       },
+
       partnerPreferences: {
         minAge: Number(minAgePref),
         maxAge: Number(maxAgePref),
-        preferredDistricts: [district],
-        educationPreference: 'Graduate or Professional degree',
-        maritalStatusPreference: [maritalStatus],
-        religiosityPreference: 'Observes 5 daily Salah, honest earnings',
+        preferredDistricts:
+          existingProfile?.partnerPreferences?.preferredDistricts || [district],
+        educationPreference:
+          existingProfile?.partnerPreferences?.educationPreference || '',
+        maritalStatusPreference:
+          existingProfile?.partnerPreferences?.maritalStatusPreference || [],
+        religiosityPreference:
+          existingProfile?.partnerPreferences?.religiosityPreference || '',
       },
+
       mustHaves,
       dealBreakers,
-      aboutCandidate:
-        aboutCandidate ||
-        `Alhamdulillah, practicing and cultured candidate from ${district}. Seeking a deen-conscious life partner with mutual family blessings.`,
+      aboutCandidate: aboutCandidate.trim(),
+
       guardianWaliContact: {
-        name: guardianName || 'Guardian / Father',
+        name: guardianName.trim(),
         relationship: guardianRelationship,
-        phone: guardianPhone || currentUser.phone || '+91 98490 00000',
-        preferredCallTime: '6:00 PM - 9:00 PM',
-        includeInMessaging: true,
-        visibility: 'verified_families_only',
+        phone: guardianPhone.trim(),
+        preferredCallTime:
+          existingProfile?.guardianWaliContact?.preferredCallTime || '',
+        includeInMessaging:
+          existingProfile?.guardianWaliContact?.includeInMessaging ?? false,
+        visibility:
+          existingProfile?.guardianWaliContact?.visibility || 'verified_families_only',
       },
-      photos: photos.slice(0, 5),
+
+      photos: safePhotos,
       photoPrivacy,
-      avatarInitials: initials,
+      avatarInitials: initials || 'NP',
       avatarBgColor: gender === 'bride' ? '#047857' : '#0284c7',
-      documents: maskedDocumentRecord,
-      isVerified: true,
-      approvalStatus: existingProfile?.approvalStatus || 'approved',
+
+      // These are not user-editable verification fields.
+      documents: [],
+      isVerified: false,
+      approvalStatus: existingProfile?.approvalStatus || 'pending',
+      approvalNotes: existingProfile?.approvalNotes || '',
+
       createdAt: existingProfile?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      favoritesCount: existingProfile?.favoritesCount || 1,
+
+      favoritesCount: existingProfile?.favoritesCount || 0,
       interestsReceivedCount: existingProfile?.interestsReceivedCount || 0,
     };
 
-    storageService.saveProfile(updatedProfile);
-    setSaving(false);
-    setStatusMsg('Profile details updated successfully!');
-    setTimeout(() => {
-      setStatusMsg(null);
+    try {
+      await saveProfileToFirestore(updatedProfile);
+
+      setExistingProfile(updatedProfile);
+      setStatusMsg('Your profile has been saved successfully.');
+
       onProfileUpdated();
-      onClose();
-    }, 1200);
+
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+    } catch (error) {
+      console.error('Profile save failed:', error);
+
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : 'Unable to save your profile. Please try again.'
+      );
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const inputClass =
+    'w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 text-sm focus:outline-none focus:border-emerald-700';
+
+  const labelClass = 'block font-semibold text-stone-700 mb-1';
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'personal', label: '1. Personal & Location' },
+    { id: 'deen', label: '2. Deen & Profession' },
+    { id: 'family', label: '3. Family & Wali' },
+    { id: 'preferences', label: '4. Preferences' },
+    { id: 'privacy', label: '5. Photos & Privacy' },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
       <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-stone-200 overflow-hidden my-6 flex flex-col max-h-[90vh]">
+
         {/* Header */}
         <div className="bg-emerald-950 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-900 shrink-0">
           <div>
-            <h2 className="text-base sm:text-lg font-serif font-bold text-white flex items-center gap-2">
-              <span>My Matrimonial Biodata & Privacy Settings</span>
+            <h2 className="text-base sm:text-lg font-serif font-bold flex items-center gap-2">
+              My Matrimonial Biodata & Privacy Settings
               <ShieldCheck className="w-4 h-4 text-amber-300" />
             </h2>
             <p className="text-xs text-stone-300">
-              Only you and verified admins can edit your profile. Other members only see your public biodata.
+              Your private profile is saved to your Firebase account.
             </p>
           </div>
+
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 text-stone-300 hover:text-white hover:bg-emerald-900 rounded-lg transition-colors"
+            className="p-1.5 text-stone-300 hover:text-white hover:bg-emerald-900 rounded-lg"
             aria-label="Close profile editor"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="px-6 border-b border-stone-200 flex gap-4 text-xs font-semibold bg-stone-50 overflow-x-auto shrink-0">
-          <button
-            onClick={() => setActiveTab('personal')}
-            className={`py-3 border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === 'personal'
-                ? 'border-emerald-800 text-emerald-900'
-                : 'border-transparent text-stone-500 hover:text-stone-900'
-            }`}
-          >
-            1. Personal & Location
-          </button>
-          <button
-            onClick={() => setActiveTab('deen')}
-            className={`py-3 border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === 'deen'
-                ? 'border-emerald-800 text-emerald-900'
-                : 'border-transparent text-stone-500 hover:text-stone-900'
-            }`}
-          >
-            2. Deen & Profession
-          </button>
-          <button
-            onClick={() => setActiveTab('family')}
-            className={`py-3 border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === 'family'
-                ? 'border-emerald-800 text-emerald-900'
-                : 'border-transparent text-stone-500 hover:text-stone-900'
-            }`}
-          >
-            3. Family Background & Wali
-          </button>
-          <button
-            onClick={() => setActiveTab('preferences')}
-            className={`py-3 border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === 'preferences'
-                ? 'border-emerald-800 text-emerald-900'
-                : 'border-transparent text-stone-500 hover:text-stone-900'
-            }`}
-          >
-            4. Must-Haves & Deal-Breakers
-          </button>
-          <button
-            onClick={() => setActiveTab('privacy')}
-            className={`py-3 border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === 'privacy'
-                ? 'border-emerald-800 text-emerald-900'
-                : 'border-transparent text-stone-500 hover:text-stone-900'
-            }`}
-          >
-            5. ID Verification & Privacy
-          </button>
+        {/* Tabs */}
+        <div className="px-4 sm:px-6 border-b border-stone-200 flex gap-4 text-xs font-semibold bg-stone-50 overflow-x-auto shrink-0">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-3 border-b-2 whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'border-emerald-800 text-emerald-900'
+                  : 'border-transparent text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {statusMsg && (
-          <div className="bg-emerald-100 text-emerald-900 px-6 py-2.5 text-xs font-semibold flex items-center gap-2 border-b border-emerald-200">
-            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-            <span>{statusMsg}</span>
+          <div className="bg-emerald-100 text-emerald-900 px-6 py-3 text-xs font-semibold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            {statusMsg}
           </div>
         )}
 
-        {/* Form Body */}
-        <form onSubmit={handleSaveProfile} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* TAB 1: Personal & Location */}
-          {activeTab === 'personal' && (
-            <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Candidate Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={candidateName}
-                    onChange={(e) => setCandidateName(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Gender *</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setGender('bride')}
-                      className={`py-2 px-3 rounded-lg border font-semibold text-center ${
-                        gender === 'bride'
-                          ? 'bg-emerald-50 border-emerald-700 text-emerald-900'
-                          : 'bg-white border-stone-300 text-stone-600'
-                      }`}
-                    >
-                      Bride (Dulhan)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setGender('groom')}
-                      className={`py-2 px-3 rounded-lg border font-semibold text-center ${
-                        gender === 'groom'
-                          ? 'bg-emerald-50 border-emerald-700 text-emerald-900'
-                          : 'bg-white border-stone-300 text-stone-600'
-                      }`}
-                    >
-                      Groom (Dulha)
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Age (Years) *</label>
-                  <input
-                    type="number"
-                    min="18"
-                    max="75"
-                    required
-                    value={age}
-                    onChange={(e) => setAge(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Height *</label>
-                  <select
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  >
-                    {[`5'0"`, `5'1"`, `5'2"`, `5'3"`, `5'4"`, `5'5"`, `5'6"`, `5'7"`, `5'8"`, `5'9"`, `5'10"`, `5'11"`, `6'0"`, `6'1"`, `6'2"`].map(
-                      (h) => (
-                        <option key={h} value={h}>{h}</option>
-                      )
-                    )}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Marital Status *</label>
-                  <select
-                    value={maritalStatus}
-                    onChange={(e) => setMaritalStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  >
-                    <option value="Never Married">Never Married</option>
-                    <option value="Divorced">Divorced</option>
-                    <option value="Widowed">Widowed</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Godavari District / Region *</label>
-                  <select
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value as DistrictAP)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 font-medium"
-                  >
-                    {GODAVARI_DISTRICTS.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Mandal / Town / Locality *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Yanam Ferry Road / Danavaipeta / Palakollu"
-                    value={mandalCity}
-                    onChange={(e) => setMandalCity(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1">Mother Tongue / Spoken Languages</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Urdu & Telugu / Telugu & English"
-                  value={motherTongue}
-                  onChange={(e) => setMotherTongue(e.target.value)}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: Deen & Profession */}
-          {activeTab === 'deen' && (
-            <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Sect / Maslak</label>
-                  <select
-                    value={sect}
-                    onChange={(e) => setSect(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  >
-                    <option value="Sunni Hanafi">Sunni Hanafi</option>
-                    <option value="Sunni Shafi'i">Sunni Shafi'i</option>
-                    <option value="Ahl-e-Hadith">Ahl-e-Hadith</option>
-                    <option value="Deen First">Deen First / General Sunni</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Salah (Prayer) Observance *</label>
-                  <select
-                    value={salah}
-                    onChange={(e) => setSalah(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  >
-                    <option value="5 times daily">5 times daily (Strict)</option>
-                    <option value="Regularly">Regularly</option>
-                    <option value="Usually">Usually</option>
-                    <option value="Striving">Striving to improve</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">
-                    {gender === 'bride' ? 'Hijab / Niqab Observance' : 'Sunnah Beard'}
-                  </label>
-                  <select
-                    value={hijabOrBeard}
-                    onChange={(e) => setHijabOrBeard(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  >
-                    {gender === 'bride' ? (
-                      <>
-                        <option value="Observes Hijab/Niqab">Observes Hijab/Niqab</option>
-                        <option value="Modest Dressing">Modest Dressing (Dupatta/Abaya)</option>
-                        <option value="Not strictly">Not strictly</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="Full Beard">Full Beard (Sunnah)</option>
-                        <option value="Trimmed Beard">Trimmed Beard</option>
-                        <option value="Clean Shaven">Clean Shaven</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Quran Recitation Routine</label>
-                  <select
-                    value={quranRecitation}
-                    onChange={(e) => setQuranRecitation(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  >
-                    <option value="Daily">Daily with understanding</option>
-                    <option value="Weekly">Weekly / Jummah regular</option>
-                    <option value="Regular">Occasional / Ramadan regular</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Highest Education *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. MBBS, M.Tech, CA, MCA"
-                    value={education}
-                    onChange={(e) => setEducation(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Current Profession *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Pediatric Doctor, Offshore Engineer, CA"
-                    value={profession}
-                    onChange={(e) => setProfession(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Employment Sector</label>
-                  <select
-                    value={employedIn}
-                    onChange={(e) => setEmployedIn(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  >
-                    <option value="Private Sector">Private Sector / MNC</option>
-                    <option value="Government / PSU">Government / PSU / Bank</option>
-                    <option value="Business / Self-Employed">Business / Self-Employed</option>
-                    <option value="Defense / Healthcare">Healthcare / Hospital</option>
-                    <option value="Overseas / Gulf">Gulf / Overseas NRI</option>
-                    <option value="Homemaker">Homemaker</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Annual Income Range</label>
-                  <select
-                    value={annualIncomeRange}
-                    onChange={(e) => setAnnualIncomeRange(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  >
-                    <option value="₹6 - 10 Lakhs">₹6 - 10 Lakhs</option>
-                    <option value="₹10 - 15 Lakhs">₹10 - 15 Lakhs</option>
-                    <option value="₹15 - 25 Lakhs">₹15 - 25 Lakhs</option>
-                    <option value="₹25 - 40 Lakhs">₹25 - 40 Lakhs</option>
-                    <option value="₹40 Lakhs+ / NRI">₹40 Lakhs+ / NRI</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: Family Background & Wali */}
-          {activeTab === 'family' && (
-            <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Father's Name & Occupation *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Haji Mohammed Abdul Razzaq (Business)"
-                    value={fatherNameAndOcc}
-                    onChange={(e) => setFatherNameAndOcc(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Mother's Name & Occupation</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sultana Begum (Homemaker)"
-                    value={motherNameAndOcc}
-                    onChange={(e) => setMotherNameAndOcc(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Brothers Count</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={brothersCount}
-                    onChange={(e) => setBrothersCount(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Sisters Count</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={sistersCount}
-                    onChange={(e) => setSistersCount(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Native Place in AP / Yanam</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Kakinada, Yanam, Amalapuram"
-                    value={nativePlace}
-                    onChange={(e) => setNativePlace(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
-                  />
-                </div>
-              </div>
-
-              {/* Guardian / Wali Contact */}
-              <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-3">
-                <span className="font-semibold text-emerald-950 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-800" />
-                  Guardian (Wali) Details for Chaperoned Messaging
-                </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block font-medium text-stone-700 mb-1">Guardian Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Haji Abdul Razzaq"
-                      value={guardianName}
-                      onChange={(e) => setGuardianName(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-medium text-stone-700 mb-1">Relationship *</label>
-                    <select
-                      value={guardianRelationship}
-                      onChange={(e) => setGuardianRelationship(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-900"
-                    >
-                      <option value="Father">Father</option>
-                      <option value="Mother">Mother</option>
-                      <option value="Elder Brother">Elder Brother</option>
-                      <option value="Uncle">Uncle</option>
-                      <option value="Self / Candidate">Self (Male Candidate)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-medium text-stone-700 mb-1">Guardian Phone *</label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="e.g. +91 98480 12345"
-                      value={guardianPhone}
-                      onChange={(e) => setGuardianPhone(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-900"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: Must-Haves & Deal-Breakers */}
-          {activeTab === 'preferences' && (
-            <div className="space-y-4 text-xs">
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 leading-relaxed">
-                <strong>Clarity Prevents Heartache:</strong> Stating non-negotiable expectations upfront ensures only genuinely compatible Godavari families initiate contact.
-              </div>
-
-              {/* Must-Haves */}
-              <div className="border border-stone-200 rounded-xl p-4 bg-stone-50/50 space-y-3">
-                <span className="font-semibold text-emerald-950 block">
-                  ✨ Non-Negotiable Must-Haves (What You Require in a Spouse)
-                </span>
-                <div className="space-y-2">
-                  {mustHaves.map((m, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-stone-200">
-                      <span className="text-stone-800 font-medium">✓ {m}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveMustHave(idx)}
-                        className="text-stone-400 hover:text-rose-600 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Add a must-have (e.g. Respects working spouse, values Quran study)..."
-                    value={newMustHave}
-                    onChange={(e) => setNewMustHave(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-900"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddMustHave();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddMustHave}
-                    className="px-3.5 py-2 bg-emerald-800 text-white rounded-lg font-semibold hover:bg-emerald-900"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Deal-Breakers */}
-              <div className="border border-rose-200 rounded-xl p-4 bg-rose-50/30 space-y-3">
-                <span className="font-semibold text-rose-950 block">
-                  🚫 Strict Deal-Breakers (Things You Cannot Accept)
-                </span>
-                <div className="space-y-2">
-                  {dealBreakers.map((d, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-rose-200">
-                      <span className="text-rose-900 font-medium">✕ {d}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDealBreaker(idx)}
-                        className="text-stone-400 hover:text-rose-600 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Add a deal-breaker (e.g. Dowry demands, smoking, bad temper)..."
-                    value={newDealBreaker}
-                    onChange={(e) => setNewDealBreaker(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-900"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddDealBreaker();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddDealBreaker}
-                    className="px-3.5 py-2 bg-rose-700 text-white rounded-lg font-semibold hover:bg-rose-800"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: ID Verification & Privacy */}
-          {activeTab === 'privacy' && (
-            <div className="space-y-4 text-xs">
-              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 flex items-start gap-3">
-                <Lock className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-semibold text-emerald-950">Restricted Identity Verification (UIDAI Compliant)</p>
-                  <p className="text-stone-600 leading-relaxed">
-                    Identity documents are confidential and restricted from other users. We store only masked identifiers (e.g. XXXX-XXXX-4921) to confirm age and Godavari residence.
-                  </p>
-                </div>
-              </div>
-
-              {/* Section 1: Candidate Photographs (Up to 5 pictures) */}
-              <div className="border border-stone-200 rounded-xl p-4 space-y-3 bg-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Camera className="w-4 h-4 text-emerald-800" />
-                    <span className="font-semibold text-stone-900 block">
-                      Candidate Photographs (Up to 5 Pictures):
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
-                    {photos.length}/5 Photos Added
-                  </span>
-                </div>
-                <p className="text-[11px] text-stone-500">
-                  Manage up to 5 photos for your biodata. The first photo is your primary cover picture.
-                </p>
-
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
-                  {Array.from({ length: 5 }).map((_, slotIndex) => {
-                    const photoUrl = photos[slotIndex];
-                    const isPrimary = slotIndex === 0;
-
-                    if (photoUrl) {
-                      return (
-                        <div
-                          key={slotIndex}
-                          className="relative rounded-xl overflow-hidden border-2 border-emerald-700/50 bg-stone-900 aspect-square shadow-xs"
-                        >
-                          <img
-                            src={photoUrl}
-                            alt={`Candidate photo ${slotIndex + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          {isPrimary ? (
-                            <span className="absolute top-1 left-1 bg-emerald-800/90 text-amber-300 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow">
-                              <Star className="w-2.5 h-2.5 fill-amber-300 text-amber-300" />
-                              Cover
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleSetPrimaryPhoto(slotIndex)}
-                              className="absolute top-1 left-1 bg-stone-950/70 hover:bg-emerald-800 text-white text-[8px] font-semibold px-1 py-0.5 rounded transition-colors"
-                            >
-                              Make Cover
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePhoto(slotIndex)}
-                            className="absolute top-1 right-1 bg-rose-600/90 hover:bg-rose-700 text-white p-1 rounded-full transition-colors shadow"
-                            title="Remove picture"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <label
-                        key={slotIndex}
-                        className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-stone-300 hover:border-emerald-600 bg-stone-50 hover:bg-emerald-50/50 cursor-pointer aspect-square transition-all p-2 text-center group"
-                      >
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={handlePhotoUpload}
-                        />
-                        <div className="w-7 h-7 rounded-full bg-stone-200 group-hover:bg-emerald-100 flex items-center justify-center text-stone-500 group-hover:text-emerald-700 mb-1 transition-colors">
-                          <Plus className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="text-[10px] font-semibold text-stone-600 group-hover:text-emerald-900">
-                          {slotIndex === 0 ? 'Primary' : `Photo ${slotIndex + 1}`}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Section 2: Identity Document Record */}
-              <div className="border border-stone-200 rounded-xl p-4 space-y-3 bg-white">
-                <span className="font-semibold text-stone-900 block">Valid Government ID Document Record:</span>
-                <p className="text-[11px] text-stone-500">
-                  Valid identity documents are strictly limited to <strong>Aadhaar Card</strong>, <strong>PAN Card</strong>, <strong>Passport</strong>, or <strong>Driving Licence</strong>.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-stone-700 mb-1">Document Type *</label>
-                    <select
-                      value={docType}
-                      onChange={(e) => setDocType(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 font-medium"
-                    >
-                      <option value="Aadhaar Card">Aadhaar Card (UIDAI Masked)</option>
-                      <option value="PAN Card">PAN Card (Income Tax Dept)</option>
-                      <option value="Passport">Passport (Govt of India)</option>
-                      <option value="Driving Licence">Driving Licence (Transport Dept)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-stone-700 mb-1">Masked ID / Last 4 Digits *</label>
-                    <input
-                      type="text"
-                      maxLength={15}
-                      placeholder="e.g. 7860 or XXXX-XXXX-7860"
-                      value={docLast4}
-                      onChange={(e) => setDocLast4(e.target.value)}
-                      className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 font-mono font-bold"
-                    />
-                  </div>
-                </div>
-                <div className="text-[11px] text-stone-500">
-                  Document ID preview:{' '}
-                  <span className="font-mono font-bold text-emerald-800">
-                    {maskGovtIdNumber(docLast4 || 'XXXX', docType)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Section 3: Photo Privacy */}
-              <div className="border border-stone-200 rounded-xl p-4 space-y-2 bg-white">
-                <span className="font-semibold text-stone-900 block">Photo Display & Modesty Preference:</span>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="photoPrivacy"
-                      checked={photoPrivacy === 'blurred_until_request'}
-                      onChange={() => setPhotoPrivacy('blurred_until_request')}
-                      className="text-emerald-800"
-                    />
-                    <span className="text-stone-800">
-                      <strong>Blurred until mutual family interest</strong> (Recommended for Muslimahs for modesty)
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="photoPrivacy"
-                      checked={photoPrivacy === 'avatar_only'}
-                      onChange={() => setPhotoPrivacy('avatar_only')}
-                      className="text-emerald-800"
-                    />
-                    <span className="text-stone-800">
-                      <strong>Tasteful Monogram Avatar Only</strong> (No photos displayed online)
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="photoPrivacy"
-                      checked={photoPrivacy === 'visible'}
-                      onChange={() => setPhotoPrivacy('visible')}
-                      className="text-emerald-800"
-                    />
-                    <span className="text-stone-800">
-                      <strong>Visible to logged-in verified members</strong>
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Footer Save Button */}
-          <div className="pt-4 border-t border-stone-200 flex items-center justify-between">
-            <span className="text-xs text-stone-500">
-              Updates take effect immediately on your matrimonial biodata.
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-6 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold rounded-lg shadow-xs flex items-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4 text-amber-300" />
-                <span>{saving ? 'Saving...' : 'Save Profile Changes'}</span>
-              </button>
-            </div>
+        {errorMsg && (
+          <div className="bg-amber-50 text-amber-900 px-6 py-3 text-xs flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
           </div>
-        </form>
+        )}
+
+        {loading ? (
+          <div className="p-12 text-center text-stone-600 text-sm">
+            Loading your Firebase profile...
+          </div>
+        ) : (
+          <form
+            onSubmit={handleSaveProfile}
+            className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5"
+          >
+
+            {/* Personal */}
+            {activeTab === 'personal' && (
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Candidate Full Name *</label>
+                    <input
+                      required
+                      value={candidateName}
+                      onChange={(e) => setCandidateName(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Gender *</label>
+                    <select
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value as 'groom' | 'bride')}
+                      className={inputClass}
+                    >
+                      <option value="bride">Bride (Dulhan)</option>
+                      <option value="groom">Groom (Dulha)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelClass}>Age *</label>
+                    <input
+                      type="number"
+                      min="18"
+                      max="100"
+                      required
+                      value={age}
+                      onChange={(e) => setAge(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Height</label>
+                    <select
+                      value={height}
+                      onChange={(e) => setHeight(e.target.value)}
+                      className={inputClass}
+                    >
+                      {[
+                        `4'10"`, `4'11"`, `5'0"`, `5'1"`, `5'2"`,
+                        `5'3"`, `5'4"`, `5'5"`, `5'6"`, `5'7"`,
+                        `5'8"`, `5'9"`, `5'10"`, `5'11"`, `6'0"`,
+                        `6'1"`, `6'2"`, `6'3"`,
+                      ].map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Marital Status</label>
+                    <select
+                      value={maritalStatus}
+                      onChange={(e) => setMaritalStatus(e.target.value as UserProfile['maritalStatus'])}
+                      className={inputClass}
+                    >
+                      <option value="Never Married">Never Married</option>
+                      <option value="Divorced">Divorced</option>
+                      <option value="Widowed">Widowed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>District / Region *</label>
+                    <select
+                      value={district}
+                      onChange={(e) => setDistrict(e.target.value as DistrictAP)}
+                      className={inputClass}
+                    >
+                      {GODAVARI_DISTRICTS.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Mandal / Town / Locality *</label>
+                    <input
+                      required
+                      value={mandalCity}
+                      onChange={(e) => setMandalCity(e.target.value)}
+                      placeholder="Enter your town or locality"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Mother Tongue / Languages</label>
+                  <input
+                    value={motherTongue}
+                    onChange={(e) => setMotherTongue(e.target.value)}
+                    className={inputClass}
+                    placeholder="Urdu, Telugu, English..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Deen and Profession */}
+            {activeTab === 'deen' && (
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Sect / Maslak</label>
+                    <select
+                      value={sect}
+                      onChange={(e) => setSect(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="Sunni Hanafi">Sunni Hanafi</option>
+                      <option value="Sunni Shafi'i">Sunni Shafi'i</option>
+                      <option value="Ahl-e-Hadith">Ahl-e-Hadith</option>
+                      <option value="Deen First">Deen First / General Sunni</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Salah Observance</label>
+                    <select
+                      value={salah}
+                      onChange={(e) => setSalah(e.target.value as UserProfile['religion']['salah'])}
+                      className={inputClass}
+                    >
+                      <option value="5 times daily">5 times daily</option>
+                      <option value="Regularly">Regularly</option>
+                      <option value="Usually">Usually</option>
+                      <option value="Striving">Striving to improve</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>
+                      {gender === 'bride' ? 'Hijab / Niqab' : 'Beard'}
+                    </label>
+                    <select
+                      value={hijabOrBeard}
+                      onChange={(e) => setHijabOrBeard(e.target.value as UserProfile['religion']['hijabOrBeard'])}
+                      className={inputClass}
+                    >
+                      <option value="Observes Hijab/Niqab">Observes Hijab/Niqab</option>
+                      <option value="Full Beard">Full Beard</option>
+                      <option value="Trimmed Beard">Trimmed Beard</option>
+                      <option value="Modest Dressing">Modest Dressing</option>
+                      <option value="Not strictly">Not strictly</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Quran Recitation</label>
+                    <select
+                      value={quranRecitation}
+                      onChange={(e) => setQuranRecitation(e.target.value as UserProfile['religion']['quranRecitation'])}
+                      className={inputClass}
+                    >
+                      <option value="Daily">Daily</option>
+                      <option value="Weekly">Weekly</option>
+                      <option value="Regular">Regular</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Highest Education *</label>
+                    <input
+                      required
+                      value={education}
+                      onChange={(e) => setEducation(e.target.value)}
+                      className={inputClass}
+                      placeholder="e.g. B.Tech, MBBS, MBA"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Current Profession *</label>
+                    <input
+                      required
+                      value={profession}
+                      onChange={(e) => setProfession(e.target.value)}
+                      className={inputClass}
+                      placeholder="Enter profession"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Employment Sector</label>
+                    <select
+                      value={employedIn}
+                      onChange={(e) => setEmployedIn(e.target.value as UserProfile['employedIn'])}
+                      className={inputClass}
+                    >
+                      <option value="Private Sector">Private Sector / MNC</option>
+                      <option value="Government / PSU">Government / PSU / Bank</option>
+                      <option value="Business / Self-Employed">Business / Self-Employed</option>
+                      <option value="Defense / Healthcare">Healthcare / Hospital</option>
+                      <option value="Overseas / Gulf">Gulf / Overseas NRI</option>
+                      <option value="Homemaker">Homemaker</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Annual Income Range</label>
+                    <select
+                      value={annualIncomeRange}
+                      onChange={(e) => setAnnualIncomeRange(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Prefer not to say</option>
+                      <option value="₹6 - 10 Lakhs">₹6 - 10 Lakhs</option>
+                      <option value="₹10 - 15 Lakhs">₹10 - 15 Lakhs</option>
+                      <option value="₹15 - 25 Lakhs">₹15 - 25 Lakhs</option>
+                      <option value="₹25 - 40 Lakhs">₹25 - 40 Lakhs</option>
+                      <option value="₹40 Lakhs+ / NRI">₹40 Lakhs+ / NRI</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Family and Guardian */}
+            {activeTab === 'family' && (
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Father's Name & Occupation</label>
+                    <input
+                      value={fatherNameAndOcc}
+                      onChange={(e) => setFatherNameAndOcc(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Mother's Name & Occupation</label>
+                    <input
+                      value={motherNameAndOcc}
+                      onChange={(e) => setMotherNameAndOcc(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Brothers</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={brothersCount}
+                      onChange={(e) => setBrothersCount(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Married Brothers</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={brothersCount}
+                      value={brothersMarried}
+                      onChange={(e) => setBrothersMarried(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Sisters</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={sistersCount}
+                      onChange={(e) => setSistersCount(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Married Sisters</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={sistersCount}
+                      value={sistersMarried}
+                      onChange={(e) => setSistersMarried(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Native Place</label>
+                    <input
+                      value={nativePlace}
+                      onChange={(e) => setNativePlace(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Family Status</label>
+                    <select
+                      value={familyStatus}
+                      onChange={(e) => setFamilyStatus(e.target.value as UserProfile['familyDetails']['familyStatus'])}
+                      className={inputClass}
+                    >
+                      <option value="Upper Middle Class">Upper Middle Class</option>
+                      <option value="Middle Class">Middle Class</option>
+                      <option value="Affluent">Affluent</option>
+                      <option value="Traditional">Traditional</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Family Values</label>
+                    <select
+                      value={familyValues}
+                      onChange={(e) => setFamilyValues(e.target.value as UserProfile['familyDetails']['familyValues'])}
+                      className={inputClass}
+                    >
+                      <option value="Traditional & Practicing">Traditional & Practicing</option>
+                      <option value="Moderate">Moderate</option>
+                      <option value="Religious">Religious</option>
+                      <option value="Modern">Modern</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-950 font-semibold">
+                    <ShieldCheck className="w-4 h-4" />
+                    Guardian / Wali Contact
+                  </div>
+
+                  <p className="text-stone-600">
+                    These details are stored in your private registration. They are not published as public profile details.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className={labelClass}>Guardian Name</label>
+                      <input
+                        value={guardianName}
+                        onChange={(e) => setGuardianName(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Relationship</label>
+                      <select
+                        value={guardianRelationship}
+                        onChange={(e) => setGuardianRelationship(e.target.value)}
+                        className={inputClass}
+                      >
+                        <option value="Father">Father</option>
+                        <option value="Mother">Mother</option>
+                        <option value="Elder Brother">Elder Brother</option>
+                        <option value="Uncle">Uncle</option>
+                        <option value="Self / Candidate">Self / Candidate</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Guardian Phone</label>
+                      <input
+                        type="tel"
+                        value={guardianPhone}
+                        onChange={(e) => setGuardianPhone(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Preferences */}
+            {activeTab === 'preferences' && (
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Preferred Minimum Age</label>
+                    <input
+                      type="number"
+                      min="18"
+                      max="100"
+                      value={minAgePref}
+                      onChange={(e) => setMinAgePref(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Preferred Maximum Age</label>
+                    <input
+                      type="number"
+                      min="18"
+                      max="100"
+                      value={maxAgePref}
+                      onChange={(e) => setMaxAgePref(Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="border border-stone-200 rounded-xl p-4 space-y-3">
+                  <strong className="text-emerald-950">Must-Haves</strong>
+
+                  {mustHaves.map((item, index) => (
+                    <div key={`${item}-${index}`} className="flex justify-between items-center bg-stone-50 p-2 rounded-lg">
+                      <span>{item}</span>
+                      <button
+                        type="button"
+                        onClick={() => setMustHaves((old) => old.filter((_, i) => i !== index))}
+                        className="text-rose-600"
+                        aria-label="Remove must-have"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="flex gap-2">
+                    <input
+                      value={newMustHave}
+                      onChange={(e) => setNewMustHave(e.target.value)}
+                      className={inputClass}
+                      placeholder="Add a must-have"
+                    />
+                    <button
+                      type="button"
+                      onClick={addMustHave}
+                      className="px-3 bg-emerald-800 text-white rounded-lg"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border border-rose-200 rounded-xl p-4 space-y-3">
+                  <strong className="text-rose-900">Deal-Breakers</strong>
+
+                  {dealBreakers.map((item, index) => (
+                    <div key={`${item}-${index}`} className="flex justify-between items-center bg-rose-50 p-2 rounded-lg">
+                      <span>{item}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDealBreakers((old) => old.filter((_, i) => i !== index))}
+                        className="text-rose-600"
+                        aria-label="Remove deal-breaker"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="flex gap-2">
+                    <input
+                      value={newDealBreaker}
+                      onChange={(e) => setNewDealBreaker(e.target.value)}
+                      className={inputClass}
+                      placeholder="Add a deal-breaker"
+                    />
+                    <button
+                      type="button"
+                      onClick={addDealBreaker}
+                      className="px-3 bg-rose-700 text-white rounded-lg"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>About the Candidate</label>
+                  <textarea
+                    rows={5}
+                    value={aboutCandidate}
+                    onChange={(e) => setAboutCandidate(e.target.value)}
+                    className={inputClass}
+                    placeholder="Write a genuine introduction about the candidate..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Privacy */}
+            {activeTab === 'privacy' && (
+              <div className="space-y-4 text-xs">
+                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 flex gap-3">
+                  <Lock className="w-5 h-5 text-emerald-800 shrink-0" />
+                  <div>
+                    <strong className="text-emerald-950">Your privacy matters</strong>
+                    <p className="text-stone-600 mt-1">
+                      Government ID numbers and identity documents are not collected or verified by this profile editor. Never enter a full Aadhaar, PAN, or passport number here.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border border-stone-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center gap-2 font-semibold text-stone-900">
+                    <Camera className="w-4 h-4 text-emerald-800" />
+                    Profile Photographs
+                  </div>
+
+                  <p className="text-stone-600">
+                    Firebase Storage is not enabled. New photo uploads are temporarily unavailable. Existing web image URLs can be retained or removed.
+                  </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    {photos.map((photo, index) => (
+                      <div key={`${photo}-${index}`} className="relative aspect-square rounded-xl overflow-hidden border border-stone-300">
+                        <img
+                          src={photo}
+                          alt={`Profile photo ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPhotos((old) => old.filter((_, i) => i !== index))}
+                          className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 text-white"
+                          aria-label="Remove photo"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {photos.length === 0 && (
+                    <p className="text-stone-500">No existing web photos saved.</p>
+                  )}
+                </div>
+
+                <div className="border border-stone-200 rounded-xl p-4 space-y-3">
+                  <strong className="text-stone-900">Photo Display Preference</strong>
+
+                  {[
+                    {
+                      value: 'blurred_until_request',
+                      label: 'Blurred until mutual family interest',
+                    },
+                    {
+                      value: 'avatar_only',
+                      label: 'Monogram avatar only',
+                    },
+                    {
+                      value: 'visible',
+                      label: 'Visible to logged-in members',
+                    },
+                  ].map((option) => (
+                    <label key={option.value} className="flex gap-2 items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="photoPrivacy"
+                        value={option.value}
+                        checked={photoPrivacy === option.value}
+                        onChange={() => setPhotoPrivacy(option.value as UserProfile['photoPrivacy'])}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900">
+                  Profile verification and approval can only be performed by an authorized administrator. Saving your profile does not mean it is verified or approved.
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="pt-4 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-xs text-stone-500">
+                Your changes are saved to your private Firebase registration.
+              </span>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving || loading}
+                  className="px-6 py-2 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                  {saving ? 'Saving...' : 'Save Profile Changes'}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

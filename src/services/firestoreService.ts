@@ -1,166 +1,232 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  getDocs, 
-  query,
-  serverTimestamp
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut,
+  getIdTokenResult,
+  type User,
+} from 'firebase/auth';
+
 import { db, auth } from './firebase';
-import { UserProfile, UserAccount } from '../types/database';
+import type { UserAccount, UserProfile } from '../types/database';
 
-export enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
+// --------------------------------------------------
+// AUTHENTICATION HELPERS
+// --------------------------------------------------
+
+async function getIsAdmin(user: User): Promise<boolean> {
+  const token = await getIdTokenResult(user, true);
+  return token.claims.admin === true;
 }
 
-export interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  };
+function createUserAccount(user: User, isAdmin: boolean): UserAccount {
+  return {
+    id: user.uid,
+    email: user.email || '',
+    phone: user.phoneNumber || '',
+    name: user.displayName || '',
+    role: isAdmin ? 'admin' : 'member',
+    emailVerified: user.emailVerified,
+    phoneVerified: Boolean(user.phoneNumber),
+    authProvider: user.providerData[0]?.providerId === 'google.com'
+      ? 'google'
+      : 'email',
+    createdAt: user.metadata.creationTime || new Date().toISOString(),
+    lastLoginAt: user.metadata.lastSignInTime || new Date().toISOString(),
+    status: 'active',
+  } as UserAccount;
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
-
-const DEFAULT_ADMIN_EMAIL = 'jafarmd0007@gmail.com';
+// --------------------------------------------------
+// GOOGLE SIGN-IN
+// --------------------------------------------------
 
 export async function signInWithGoogleAccount(): Promise<UserAccount> {
-  try {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const firebaseUser = result.user;
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
 
-    const email = firebaseUser.email || 'candidate@nikahpakka.org';
-    const isAdmin = email.toLowerCase() === DEFAULT_ADMIN_EMAIL.toLowerCase();
+  const result = await signInWithPopup(auth, provider);
+  const isAdmin = await getIsAdmin(result.user);
 
-    const userAccount: UserAccount = {
-      id: firebaseUser.uid,
-      email,
-      phone: firebaseUser.phoneNumber || '+91 98490 00000',
-      name: firebaseUser.displayName || email.split('@')[0],
-      role: isAdmin ? 'admin' : 'member',
-      emailVerified: firebaseUser.emailVerified,
-      phoneVerified: true,
-      authProvider: 'google',
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-      status: 'active',
-    };
+  return createUserAccount(result.user, isAdmin);
+}
 
-    return userAccount;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'auth');
-    throw error;
-  }
+// --------------------------------------------------
+// EMAIL AND PASSWORD AUTHENTICATION
+// --------------------------------------------------
+
+export async function loginWithEmailPassword(
+  email: string,
+  password: string,
+): Promise<UserAccount> {
+  const result = await signInWithEmailAndPassword(
+    auth,
+    email.trim(),
+    password,
+  );
+
+  const isAdmin = await getIsAdmin(result.user);
+  return createUserAccount(result.user, isAdmin);
+}
+
+export async function registerWithEmailPassword(
+  email: string,
+  password: string,
+): Promise<UserAccount> {
+  const result = await createUserWithEmailAndPassword(
+    auth,
+    email.trim(),
+    password,
+  );
+
+  const isAdmin = await getIsAdmin(result.user);
+  return createUserAccount(result.user, isAdmin);
+}
+
+export async function sendPasswordReset(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email.trim());
 }
 
 export async function logoutFirebaseUser(): Promise<void> {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'auth');
+  await signOut(auth);
+}
+
+// --------------------------------------------------
+// AUTHORIZATION
+// --------------------------------------------------
+
+async function requireSignedInUser(): Promise<User> {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error('Please sign in before performing this action.');
+  }
+
+  return user;
+}
+
+async function requireAdmin(): Promise<User> {
+  const user = await requireSignedInUser();
+
+  if (!(await getIsAdmin(user))) {
+    throw new Error('Administrator permission is required.');
+  }
+
+  return user;
+}
+
+// --------------------------------------------------
+// SAVE A PRIVATE USER REGISTRATION
+// --------------------------------------------------
+
+export async function saveProfileToFirestore(
+  profile: UserProfile,
+): Promise<void> {
+  const user = await requireSignedInUser();
+
+  if (!profile.userId || profile.userId !== user.uid) {
+    throw new Error('You can only save your own profile.');
+  }
+
+  const registrationRef = doc(db, 'registrations', user.uid);
+  const existing = await getDoc(registrationRef);
+
+  // Never accept approval or verification status from a member.
+  const {
+    id,
+    approvalStatus,
+    approvalNotes,
+    isVerified,
+    documents,
+    ...memberFields
+  } = profile as UserProfile & {
+    approvalNotes?: string;
+    documents?: unknown;
+  };
+
+  const safeData = {
+    ...memberFields,
+    userId: user.uid,
+    updatedAt: serverTimestamp(),
+  };
+
+  if (!existing.exists()) {
+    await setDoc(registrationRef, {
+      ...safeData,
+      approvalStatus: 'pending',
+      isVerified: false,
+      createdAt: serverTimestamp(),
+    });
+  } else {
+    await updateDoc(registrationRef, safeData);
   }
 }
 
-export async function saveProfileToFirestore(profile: UserProfile): Promise<void> {
-  const userId = auth.currentUser?.uid || profile.userId;
-  if (!userId) {
-    throw new Error('User not authenticated with Firebase.');
-  }
-
-  const path = `registrations/${userId}`;
-  try {
-    const docRef = doc(db, 'registrations', userId);
-    const existingSnap = await getDoc(docRef);
-    const now = new Date().toISOString();
-
-    const payload = {
-      ...profile,
-      userId,
-      verificationStatus: profile.approvalStatus || 'pending',
-      updatedAt: now,
-      createdAt: existingSnap.exists() ? (existingSnap.data().createdAt || now) : now,
-    };
-
-    await setDoc(docRef, payload, { merge: true });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-    throw error;
-  }
-}
+// --------------------------------------------------
+// ADMIN: FETCH PRIVATE REGISTRATIONS
+// --------------------------------------------------
 
 export async function fetchAllRegistrations(): Promise<UserProfile[]> {
-  const path = 'registrations';
-  try {
-    const q = query(collection(db, path));
-    const snapshot = await getDocs(q);
-    const list: UserProfile[] = [];
-    snapshot.forEach((d) => {
-      list.push(d.data() as UserProfile);
-    });
-    return list;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, path);
-    return [];
-  }
+  await requireAdmin();
+
+  const snapshot = await getDocs(collection(db, 'registrations'));
+
+  return snapshot.docs.map((registration) => {
+    const data = registration.data();
+
+    return {
+      ...data,
+      id: registration.id,
+      userId: registration.id,
+    } as UserProfile;
+  });
 }
+
+// --------------------------------------------------
+// ADMIN: UPDATE PROFILE APPROVAL
+// --------------------------------------------------
 
 export async function updateProfileApprovalStatusFirestore(
   profileId: string,
   userId: string,
-  status: 'approved' | 'rejected' | 'suspended',
-  reviewerEmail: string,
-  notes?: string
+  status: 'pending' | 'approved' | 'rejected' | 'suspended',
+  reviewerEmail?: string,
+  notes?: string,
 ): Promise<void> {
-  const path = `registrations/${userId}`;
-  try {
-    const docRef = doc(db, 'registrations', userId);
-    await updateDoc(docRef, {
-      approvalStatus: status,
-      verificationStatus: status,
-      approvalNotes: notes || '',
-      isVerified: status === 'approved',
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
-    throw error;
+  await requireAdmin();
+
+  if (!userId || userId.length > 128) {
+    throw new Error('Invalid user account ID.');
   }
+
+  const registrationRef = doc(db, 'registrations', userId);
+  const registration = await getDoc(registrationRef);
+
+  if (!registration.exists()) {
+    throw new Error('Registration not found.');
+  }
+
+  // The document ID is the Firebase Auth UID.
+  if (registration.data().userId !== userId) {
+    throw new Error('Registration ownership check failed.');
+  }
+
+  await updateDoc(registrationRef, {
+    approvalStatus: status,
+    approvalNotes: notes || '',
+    updatedAt: serverTimestamp(),
+  });
 }
