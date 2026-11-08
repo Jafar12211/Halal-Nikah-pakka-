@@ -48,9 +48,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
   if (!isOpen) return null;
 
   const isTelugu = language === 'te';
-  const isAdmin =
-    currentUser?.role === 'admin' ||
-    currentUser?.email.toLowerCase() === 'jafarmd0007@gmail.com';
+  const isAdmin = currentUser?.role === 'admin';
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -88,7 +86,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <span>{isTelugu ? 'ధృవీకరించబడిన ఖాతా' : 'Verified Member'}</span>
+                  <span>{isTelugu ? 'ఖాతాలోకి సైన్ ఇన్ చేశారు' : 'Signed in'}</span>
                 </div>
               </div>
             </div>
@@ -180,6 +178,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
           </div>
 
           {/* Admin Area */}
+          {isAdmin && (
           <div className="py-2 bg-amber-50/60 border-y border-amber-200/60">
             <button
               onClick={() => {
@@ -197,6 +196,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
               </span>
             </button>
           </div>
+          )}
 
           {/* Secondary Community Sections */}
           <div className="py-2">
