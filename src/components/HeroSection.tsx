@@ -98,7 +98,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <span aria-hidden="true" className="text-stone-500">·</span>
             <span className="flex items-center gap-1.5 text-amber-200 font-medium">
               <Users className="w-4 h-4 text-amber-300" />
-              {language === 'te' ? 'వలీ / కుటుంబ పర్యవేక్షణ' : 'Wali / Family Chaperoned'}
+              {language === 'te' ? 'వలీ / కుటుంబ పర్యవేక్షణ' : 'Family involvement encouraged'}
             </span>
             <span aria-hidden="true" className="text-stone-500">·</span>
             <span className="text-stone-300 font-medium">
@@ -112,10 +112,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           <div className="text-xs uppercase tracking-wider font-semibold text-emerald-800 mb-3 flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-emerald-700" />
-              {language === 'te' ? 'గోదావరి & యానాం సంబంధాలు వెతకండి' : 'Find Verified Matches Across Godavari & Yanam'}
+              {language === 'te' ? 'గోదావరి & యానాం సంబంధాలు వెతకండి' : 'Browse Approved Profiles Across Godavari & Yanam'}
             </span>
             <span className="text-stone-500 font-normal normal-case hidden sm:inline">
-              {language === 'te' ? '100% నమ్మకమైన సంబంధాలు' : '100% genuine intentions'}
+              {language === 'te' ? '100% నమ్మకమైన సంబంధాలు' : 'Review profile details and confirm them with the family'}
             </span>
           </div>
 
