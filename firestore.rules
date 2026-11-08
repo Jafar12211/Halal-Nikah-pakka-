@@ -22,10 +22,19 @@ service cloud.firestore {
         && request.resource.data.age >= 18 && request.resource.data.age <= 100
         && (!('approvalStatus' in request.resource.data) || request.resource.data.approvalStatus == 'pending')
         && (!('isVerified' in request.resource.data) || request.resource.data.isVerified == false);
-      allow update: if owner(uid)
+      allow update: if (
+        owner(uid)
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasNone(['approvalStatus', 'verificationStatus', 'isVerified', 'approvalNotes', 'documents']);
+          .hasNone(['approvalStatus', 'verificationStatus', 'isVerified', 'approvalNotes', 'documents'])
+      ) || (
+        admin()
+        && resource.data.userId == uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['approvalStatus', 'approvalNotes', 'updatedAt'])
+        && request.resource.data.approvalStatus in ['pending', 'approved', 'rejected', 'suspended']
+      );
       allow delete: if owner(uid) || admin();
     }
 
