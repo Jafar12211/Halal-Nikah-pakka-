@@ -227,7 +227,16 @@ export async function saveProfileToFirestore(
       createdAt: serverTimestamp(),
     });
   } else {
-    await updateDoc(registrationRef, safeData);
+    // Any profile edit invalidates the previous review and removes the public listing.
+    // The candidate must be reviewed again before the profile can reappear.
+    const batch = writeBatch(db);
+    batch.update(registrationRef, {
+      ...safeData,
+      approvalStatus: 'pending',
+      isVerified: false,
+    });
+    batch.delete(doc(db, 'publicProfiles', user.uid));
+    await batch.commit();
   }
 }
 
