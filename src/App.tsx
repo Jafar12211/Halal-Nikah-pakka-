@@ -241,11 +241,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!currentUser) {
-      setProfiles([]);
-      return;
-    }
-
+    // Approved public profiles are browseable without requiring an account.
     void refreshProfiles();
   }, [currentUser?.id]);
 
@@ -381,15 +377,11 @@ export default function App() {
           : 'Your profile has been submitted for admin review.'
       );
 
-      setIsRegisterOpen(false);
       setActiveTab('profile');
     } catch (error) {
       console.error('Profile submission failed:', error);
-      showToast(
-        error instanceof Error
-          ? error.message
-          : 'Unable to submit your profile. Please try again.'
-      );
+      // Let RegistrationModal display the failure and keep the entered form data.
+      throw error;
     }
   };
 
@@ -406,10 +398,10 @@ export default function App() {
 
       if (next.has(profileId)) {
         next.delete(profileId);
-        showToast('Proposal interest removed.');
+        showToast('Interest removed from this device.');
       } else {
         next.add(profileId);
-        showToast('Your proposal interest has been recorded.');
+        showToast('Interest saved on this device only. It has not been sent to the other family.');
       }
 
       return next;
@@ -430,9 +422,7 @@ export default function App() {
       return;
     }
 
-    showToast(
-      'Family messaging migration is not complete yet. Please try again later.'
-    );
+    showToast('Family messaging is not available yet. No message has been sent.');
   };
 
   const handleSignOut = async () => {
@@ -537,7 +527,7 @@ export default function App() {
         return;
       }
 
-      showToast('Messaging migration is not complete yet.');
+      showToast('Family messaging is not available yet. No message has been sent.');
       return;
     }
 
