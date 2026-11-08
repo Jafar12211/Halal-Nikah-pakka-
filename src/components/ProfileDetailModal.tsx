@@ -75,21 +75,27 @@ Deal-Breakers: ${profile.dealBreakers?.join(', ') || 'Dowry, smoking, lack of pr
 Guardian Contact: Shared privately with families when consent is provided.
 Profile listed on Nikah Pakka. Identity documents have not been verified through this public profile.`;
 
-    navigator.clipboard.writeText(text);
-    setCopiedBiodata(true);
-    setTimeout(() => setCopiedBiodata(false), 2500);
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopiedBiodata(true);
+      window.setTimeout(() => setCopiedBiodata(false), 2500);
+    }).catch(() => {
+      window.alert('Your browser did not allow copying. Please select and copy the biodata manually.');
+    });
   };
 
   const handleCopyPhone = () => {
     if (!profile.guardianWaliContact?.phone) return;
-    navigator.clipboard.writeText(profile.guardianWaliContact?.phone || '');
-    setCopiedPhone(true);
-    setTimeout(() => setCopiedPhone(false), 2500);
+    void navigator.clipboard.writeText(profile.guardianWaliContact?.phone || '').then(() => {
+      setCopiedPhone(true);
+      window.setTimeout(() => setCopiedPhone(false), 2500);
+    }).catch(() => {
+      window.alert('Your browser did not allow copying this phone number.');
+    });
   };
 
   const handleWhatsAppShare = () => {
     const encoded = generateWhatsAppShareMessage(profile.candidateName);
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
