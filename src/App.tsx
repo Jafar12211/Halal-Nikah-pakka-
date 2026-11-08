@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
 
 import { HeroSection } from './components/HeroSection';
@@ -95,7 +95,7 @@ export default function App() {
   const [messagingTargetConvId, setMessagingTargetConvId] = useState<string | undefined>();
 
   const [userInterests, setUserInterests] = useState<Set<string>>(() => new Set<string>());
-  const interestsLoadedFor = useRef<string | null>(null);
+  const [interestsOwnerId, setInterestsOwnerId] = useState<string | null>(null);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const t = translations[language];
@@ -180,8 +180,9 @@ export default function App() {
 
   // Keep each account's local shortlist separate on shared devices.
   useEffect(() => {
+    setInterestsOwnerId(null);
+
     if (!currentUser) {
-      interestsLoadedFor.current = null;
       setUserInterests(new Set<string>());
       return;
     }
@@ -194,11 +195,11 @@ export default function App() {
       console.error('Failed to load this account’s saved interests:', error);
       setUserInterests(new Set<string>());
     }
-    interestsLoadedFor.current = currentUser.id;
+    setInterestsOwnerId(currentUser.id);
   }, [currentUser?.id]);
 
   useEffect(() => {
-    if (!currentUser || interestsLoadedFor.current !== currentUser.id) return;
+    if (!currentUser || interestsOwnerId !== currentUser.id) return;
     try {
       localStorage.setItem(
         `nikah_pakka_interests_${currentUser.id}`,
@@ -207,7 +208,7 @@ export default function App() {
     } catch (error) {
       console.error('Failed to save this account’s interests:', error);
     }
-  }, [currentUser?.id, userInterests]);
+  }, [currentUser?.id, interestsOwnerId, userInterests]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
