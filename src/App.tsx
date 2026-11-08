@@ -423,16 +423,10 @@ export default function App() {
   };
 
   // Start a conversation only when both profiles are available
-  const handleStartChatWithProfile = (targetProfile: UserProfile) => {
+  const handleStartChatWithProfile = (_targetProfile: UserProfile) => {
     if (!currentUser) {
-      showToast('Please sign in to start a family conversation.');
+      showToast('Please sign in to continue.');
       setIsAuthOpen(true);
-      return;
-    }
-
-    if (!myProfile) {
-      showToast('Please complete your profile before starting a conversation.');
-      setIsRegisterOpen(true);
       return;
     }
 
@@ -465,6 +459,7 @@ export default function App() {
     } catch (error) {
       console.error('Could not clear the local shortlist after account deletion:', error);
     }
+    setInterestsOwnerId(null);
     setUserInterests(new Set<string>());
     setIsMessagingOpen(false);
     setIsAdminOpen(false);
