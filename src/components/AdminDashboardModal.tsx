@@ -136,17 +136,25 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
     // Never approve a candidate when the required evidence is absent.
     if (status === 'approved') {
-      const hasPhoto = Array.isArray(profileToUpdate.photos) && profileToUpdate.photos.length > 0;
+      const hasPhoto =
+        Array.isArray(profileToUpdate.photos) &&
+        profileToUpdate.photos.some((photo) => typeof photo === 'string' && /^https:\/\//i.test(photo));
       const hasValidDocument =
         Array.isArray(profileToUpdate.documents) &&
         profileToUpdate.documents.some((document) =>
-          VALID_GOVT_DOC_TYPES.includes(document.type) && Boolean(document.fileName)
+          VALID_GOVT_DOC_TYPES.includes(document.type) &&
+          document.verified === true &&
+          document.isRestricted === true &&
+          Boolean(document.fileName) &&
+          Boolean(document.maskedId)
         );
-      if (!hasPhoto || !hasValidDocument) {
+      const isAdult = Number.isInteger(profileToUpdate.age) && profileToUpdate.age >= 18 && profileToUpdate.age <= 100;
+      if (!isAdult || !hasPhoto || !hasValidDocument) {
         setErrorMessage(
           `Approval blocked: missing ${[
+            !isAdult ? 'valid adult age (18+)' : '',
             !hasPhoto ? 'candidate photograph' : '',
-            !hasValidDocument ? 'accepted government ID document' : '',
+            !hasValidDocument ? 'accepted and admin-verified government ID document' : '',
           ].filter(Boolean).join(' and ')}.`
         );
         return;
