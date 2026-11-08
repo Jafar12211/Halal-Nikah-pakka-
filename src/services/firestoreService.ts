@@ -126,6 +126,11 @@ export async function loginWithEmailPassword(
     password,
   );
 
+  if (!result.user.emailVerified) {
+    await signOut(auth);
+    throw new Error('Please verify your email using the link we sent before signing in.');
+  }
+
   const isAdmin = await getIsAdmin(result.user);
 
   return createUserAccount(result.user, isAdmin);
