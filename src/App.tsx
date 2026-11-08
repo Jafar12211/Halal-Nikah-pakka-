@@ -239,8 +239,13 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!currentUser) {
+      setProfiles([]);
+      return;
+    }
+
     void refreshProfiles();
-  }, []);
+  }, [currentUser?.id]);
 
   // Load the signed-in user's profile
   const refreshMyProfile = async () => {
