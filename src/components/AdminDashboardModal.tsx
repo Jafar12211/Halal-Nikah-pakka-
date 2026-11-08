@@ -639,7 +639,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                     : 'bg-amber-100 text-amber-800'
                                 }`}
                               >
-                                {doc.verified ? 'Verified' : 'Pending Verification'}
+                                {doc.verified ? 'Admin reviewed' : 'Pending admin review'}
                               </span>
                             </div>
                           ) : (
@@ -857,7 +857,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                   : 'bg-amber-100 text-amber-900 border border-amber-300'
                               }`}
                             >
-                              {doc.verified ? '✓ ID Verified' : '⏳ Pending Review'}
+                              {doc.verified ? '✓ Admin reviewed' : '⏳ Pending admin review'}
                             </span>
                           </div>
                         </div>
