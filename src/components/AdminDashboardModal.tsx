@@ -143,6 +143,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         Array.isArray(profileToUpdate.documents) &&
         profileToUpdate.documents.some((document) =>
           VALID_GOVT_DOC_TYPES.includes(document.type) &&
+          typeof document.storagePath === 'string' &&
+          document.storagePath.startsWith(`identityDocuments/${profileToUpdate.userId}/`) &&
           document.verified === true &&
           document.isRestricted === true &&
           Boolean(document.fileName) &&
@@ -828,7 +830,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               File: {doc.fileName} · Uploaded: {doc.uploadedAt}
                             </p>
                             <p className="text-[11px] text-stone-600">
-                              Storage: <strong>Encrypted AES-256 (UIDAI Compliant)</strong> · Access: <strong>Admin Only</strong>
+                              Storage: <strong>{doc.storagePath ? 'Private storage reference attached' : 'No secure file attached — verification unavailable'}</strong> · Access: <strong>Admin review required</strong>
                             </p>
                           </div>
 
