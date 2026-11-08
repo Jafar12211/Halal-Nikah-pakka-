@@ -326,7 +326,7 @@ export async function updateProfileApprovalStatusFirestore(
 
     if (!hasAdultAge || !hasCandidatePhoto || !hasVerifiedGovernmentId) {
       throw new Error(
-        'Approval blocked. The candidate must be 18+, have a valid HTTPS photograph, and have an accepted government ID that an administrator has actually verified.'
+        'Approval blocked. The candidate must be 18+, have a Firebase Storage photograph, and have an accepted government ID file in private storage that an administrator has actually reviewed.'
       );
     }
   }
