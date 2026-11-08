@@ -72,7 +72,7 @@ Deen: ${profile.religion?.sect || 'Not provided'} · Salah: ${profile.religion?.
 Family: ${profile.familyDetails?.fatherNameAndOcc || 'Not shared publicly'} (Father) · Native: ${profile.familyDetails?.nativePlace || 'Not shared publicly'}
 Must-Haves: ${profile.mustHaves?.join(', ') || 'Practicing Deen, good character'}
 Deal-Breakers: ${profile.dealBreakers?.join(', ') || 'Dowry, smoking, lack of prayer'}
-Guardian Contact: Shared privately with families when consent is provided.
+Guardian Contact: Not displayed in this public biodata. Families should use contact details they have independently verified.
 Profile listed on Nikah Pakka. Identity documents have not been verified through this public profile.`;
 
     if (!navigator.clipboard?.writeText) {
