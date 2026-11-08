@@ -174,15 +174,17 @@ Verified through Nikah Pakka Community Matrimony.`;
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
                 <span>
-                  {profile.documents && profile.documents.length > 0
-                    ? `${profile.documents[0].type} Verified`
-                    : 'Govt ID & Family Verified'}
+                  {profile.isVerified
+                    ? 'Profile Verified'
+                    : profile.documents && profile.documents.length > 0
+                      ? 'Document Submitted · Review Pending'
+                      : 'Not Document Verified'}
                 </span>
               </div>
               <span className="text-[11px] text-stone-500 mt-1 font-mono">
-                {profile.documents && profile.documents.length > 0
+                {profile.documents && profile.documents.length > 0 && profile.documents[0].maskedId
                   ? `Masked ID: ${profile.documents[0].maskedId}`
-                  : 'UIDAI Masked ID · Zero Data Leakage'}
+                  : 'No government ID details available'}
               </span>
             </div>
           </div>
