@@ -32,7 +32,6 @@ import {
 
 import { FilterState, MatrimonyProfile } from './types/matrimony';
 
-import { storageService } from './services/storageService';
 import { auth, db } from './services/firebase';
 
 import {
@@ -522,16 +521,8 @@ export default function App() {
     return true;
   });
 
-  // Local messaging data is retained temporarily for unread count only
-  const unreadMessagesCount = currentUser
-    ? storageService
-        .getConversations(currentUser.id)
-        .reduce(
-          (total, conversation) =>
-            total + (conversation.unreadCount || 0),
-          0
-        )
-    : 0;
+  // Messaging is not enabled; do not read legacy local demo conversations.
+  const unreadMessagesCount = 0;
 
   const handleTabChange = (tab: AndroidTab) => {
     if (tab === 'messages') {
