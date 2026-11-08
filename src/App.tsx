@@ -51,6 +51,7 @@ import {
 
 import { translations } from './utils/translations';
 import { CheckCircle2 } from 'lucide-react';
+import { isAdminUser } from './utils/admin';
 
 export default function App() {
   const [language, setLanguage] = useState<LanguageCode>(() => {
@@ -543,7 +544,7 @@ export default function App() {
         currentUser={currentUser}
         onOpenDrawer={() => setIsDrawerOpen(true)}
         onOpenAdmin={() => {
-          if (currentUser?.role === 'admin') setIsAdminOpen(true);
+          if (isAdminUser(currentUser)) setIsAdminOpen(true);
           else showToast('Administrator access is required.');
         }}
         activeScreen={activeTab}
@@ -760,7 +761,7 @@ export default function App() {
       />
 
       <AdminDashboardModal
-        isOpen={isAdminOpen && currentUser?.role === 'admin'}
+        isOpen={isAdminOpen && isAdminUser(currentUser)}
         onClose={() => setIsAdminOpen(false)}
         currentUser={currentUser}
         onProfileStatusChanged={() => {
