@@ -217,7 +217,8 @@ export default function App() {
     try {
       const profilesQuery = query(
         collection(db, 'publicProfiles'),
-        where('approvalStatus', '==', 'approved')
+        where('approvalStatus', '==', 'approved'),
+        where('isVerified', '==', true)
       );
 
       const snapshot = await getDocs(profilesQuery);
