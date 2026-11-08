@@ -309,16 +309,16 @@ export default function App() {
 
       religion: {
         sect: matrimonyProf.sect,
-        salah: matrimonyProf.religiousPractice.salah as any,
-        hijabOrBeard: matrimonyProf.religiousPractice.hijabOrBeard as any,
-        quranRecitation: '',
+        salah: (matrimonyProf.religiousPractice.salah || 'Not specified') as any,
+        hijabOrBeard: (matrimonyProf.religiousPractice.hijabOrBeard || 'Not specified') as any,
+        quranRecitation: 'Not specified',
         fastingRamadan: false,
         halalDiet: false,
       },
 
       education: matrimonyProf.education,
       profession: matrimonyProf.profession,
-      employedIn: matrimonyProf.employedIn as any,
+      employedIn: (matrimonyProf.employedIn || 'Not specified') as any,
       annualIncomeRange: matrimonyProf.annualIncomeRange,
 
       district: (matrimonyProf.city as DistrictAP) || 'Kakinada District',
@@ -333,8 +333,8 @@ export default function App() {
         sistersCount: matrimonyProf.familyDetails.sistersCount,
         sistersMarried: matrimonyProf.familyDetails.sistersMarried,
         nativePlace: matrimonyProf.familyDetails.nativePlace,
-        familyStatus: '',
-        familyValues: matrimonyProf.familyDetails.familyValues as any,
+        familyStatus: 'Not specified',
+        familyValues: (matrimonyProf.familyDetails.familyValues || 'Not specified') as any,
       },
 
       partnerPreferences: {
@@ -711,6 +711,7 @@ export default function App() {
         {activeTab === 'profile' && (
           <ProfileScreen
             currentUser={currentUser}
+            myProfile={myProfile}
             language={language}
             onToggleLanguage={handleToggleLanguage}
             onOpenAuth={() => setIsAuthOpen(true)}
