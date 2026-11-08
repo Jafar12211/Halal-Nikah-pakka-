@@ -49,7 +49,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
   const handleShareProfile = (profile: UserProfile, e: React.MouseEvent) => {
     e.stopPropagation();
     const encoded = generateWhatsAppShareMessage(profile.candidateName);
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
