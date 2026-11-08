@@ -19,6 +19,7 @@ import {
 import { UserAccount, LanguageCode } from '../../types/database';
 import { translations } from '../../utils/translations';
 import { OFFICIAL_REGISTRATION_URL } from '../../utils/matrimony';
+import { isAdminUser } from '../../utils/admin';
 
 interface AndroidDrawerProps {
   isOpen: boolean;
@@ -48,7 +49,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
   if (!isOpen) return null;
 
   const isTelugu = language === 'te';
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = isAdminUser(currentUser);
 
   return (
     <div className="fixed inset-0 z-50 flex">
