@@ -66,12 +66,14 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
           )}
 
           {/* App Wordmark */}
-          <div
+          <button
+            type="button"
             onClick={() => {
               triggerHaptic();
               onNavigateHome();
             }}
-            className="flex items-center gap-2 cursor-pointer select-none"
+            className="flex items-center gap-2 cursor-pointer select-none text-left"
+            aria-label="Go to Nikah Pakka home"
           >
             <div className="w-8 h-8 rounded-lg bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-sm shadow-xs border border-emerald-700">
               🌙
@@ -85,7 +87,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
                 {isTelugu ? 'యానాం & గోదావరి' : 'Yanam & Godavari'}
               </span>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Right Actions */}
