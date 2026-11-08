@@ -17,12 +17,15 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.keys().hasAll(['userId', 'candidateName', 'age', 'candidateConsentConfirmed', 'candidateConsentAt'])
         && request.resource.data.candidateName is string
+        && request.resource.data.candidateName.size() > 0
         && request.resource.data.candidateName.size() <= 100
         && request.resource.data.age is number
         && request.resource.data.age >= 18 && request.resource.data.age <= 100
         && request.resource.data.candidateConsentConfirmed == true
         && request.resource.data.candidateConsentAt is string
         && request.resource.data.candidateConsentAt.size() > 0
+        && request.resource.data.gender in ['bride', 'groom']
+        && request.resource.data.maritalStatus in ['Never Married', 'Divorced', 'Widowed']
         && (!('approvalStatus' in request.resource.data) || request.resource.data.approvalStatus == 'pending')
         && (!('isVerified' in request.resource.data) || request.resource.data.isVerified == false);
       allow update: if (
