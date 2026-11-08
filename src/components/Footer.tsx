@@ -1,6 +1,5 @@
 import React from 'react';
-import { Heart, ExternalLink, ShieldCheck } from 'lucide-react';
-import { OFFICIAL_REGISTRATION_URL } from '../utils/matrimony';
+import { Heart, ShieldCheck } from 'lucide-react';
 
 interface FooterProps {
   onOpenRegister: () => void;
@@ -67,15 +66,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenRegister, onOpenShare }) =
                 Share with Friends
               </button>
             </div>
-            <a
-              href={OFFICIAL_REGISTRATION_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-amber-300 hover:text-amber-200 mt-2 underline"
-            >
-              <span>Visit External Profile Link</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+
           </div>
         </div>
 
