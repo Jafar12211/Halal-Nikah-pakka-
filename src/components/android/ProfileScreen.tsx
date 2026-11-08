@@ -284,7 +284,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 {isTelugu ? 'ఆండ్రాయిడ్ యాప్ ఇన్‌స్టాల్' : 'Android App Install'}
               </p>
               <p className="text-[11px] text-stone-500">
-                {isTelugu ? 'హోమ్ స్క్రీన్‌కు నేరుగా జోడించండి' : 'Fast, offline-ready Android PWA'}
+                {isTelugu ? 'మద్దతు ఉన్న బ్రౌజర్‌లో హోమ్ స్క్రీన్‌కు జోడించండి' : 'Add this website to your home screen when supported'}
               </p>
             </div>
           </div>
