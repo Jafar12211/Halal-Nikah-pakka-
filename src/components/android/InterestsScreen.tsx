@@ -115,7 +115,7 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
                     </div>
                     <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>{isTelugu ? 'ధృవీకరించబడింది' : 'UIDAI Verified'}</span>
+                      <span>{isTelugu ? 'అడ్మిన్ సమీక్షించారు' : 'Admin Reviewed'}</span>
                     </div>
                   </div>
 
