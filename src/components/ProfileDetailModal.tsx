@@ -100,7 +100,7 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
           <div className="flex items-center gap-2">
             <span className="font-arabic text-amber-300 text-lg">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span>
             <span className="text-stone-300 text-xs hidden sm:inline">
-              · {t.bismillahHeader || 'Verified Matrimonial Biodata'}
+              · {t.bismillahHeader || 'Candidate Matrimonial Biodata'}
             </span>
           </div>
           <button
@@ -191,10 +191,10 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
                 <span>
                   {profile.isVerified
-                    ? 'Profile Verified'
+                    ? 'Admin-reviewed profile'
                     : profile.documents && profile.documents.length > 0
-                      ? 'Document Submitted · Review Pending'
-                      : 'Not Document Verified'}
+                      ? 'Document review pending'
+                      : 'Not yet reviewed'}
                 </span>
               </div>
               <span className="text-[11px] text-stone-500 mt-1 font-mono">
