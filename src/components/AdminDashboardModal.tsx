@@ -138,7 +138,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     if (status === 'approved') {
       const hasPhoto =
         Array.isArray(profileToUpdate.photos) &&
-        profileToUpdate.photos.some((photo) => typeof photo === 'string' && /^https:\/\//i.test(photo));
+        profileToUpdate.photos.some((photo) => typeof photo === 'string' && /^https:\/\/(firebasestorage\\.googleapis\\.com|firebasestorage\\.app)\\//i.test(photo));
       const hasValidDocument =
         Array.isArray(profileToUpdate.documents) &&
         profileToUpdate.documents.some((document) =>
