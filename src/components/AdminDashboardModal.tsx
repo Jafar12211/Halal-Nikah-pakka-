@@ -182,8 +182,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         noteToRecord
       );
 
-      const updatedProfiles = await fetchAllRegistrations();
+      const [updatedProfiles, updatedAuditLogs] = await Promise.all([
+        fetchAllRegistrations(),
+        fetchAdminAuditLogs(),
+      ]);
       setProfiles(updatedProfiles);
+      setAuditLogs(updatedAuditLogs);
       setActionNotes('');
       setShowRejectDrawer(false);
       setStatusMessage(
