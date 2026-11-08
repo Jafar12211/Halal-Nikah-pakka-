@@ -25,9 +25,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
 }) => {
   const t = translations[language];
   const isTelugu = language === 'te';
-  const isAdmin =
-    currentUser?.role === 'admin' ||
-    currentUser?.email.toLowerCase() === 'jafarmd0007@gmail.com';
+  const isAdmin = currentUser?.role === 'admin';
 
   const isSubScreen = activeScreen !== 'home';
 
@@ -108,6 +106,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
           </button>
 
           {/* Admin badge button */}
+          {isAdmin && (
           <button
             onClick={() => {
               triggerHaptic();
@@ -119,6 +118,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
             <ShieldCheck className="w-3.5 h-3.5 text-stone-950" />
             <span>Admin</span>
           </button>
+          )}
         </div>
       </div>
     </header>
