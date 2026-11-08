@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Phone,
@@ -42,6 +42,21 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [copiedBiodata, setCopiedBiodata] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
+
+  useEffect(() => {
+    setSelectedPhotoIndex(0);
+  }, [profile?.id]);
+
+  useEffect(() => {
+    const photoCount = profile?.photos?.length || 0;
+    if (photoCount < 2) return undefined;
+
+    const timer = window.setInterval(() => {
+      setSelectedPhotoIndex((current) => (current + 1) % photoCount);
+    }, 4000);
+
+    return () => window.clearInterval(timer);
+  }, [profile?.id, profile?.photos?.length]);
 
   if (!profile) return null;
   const t = translations[language];
