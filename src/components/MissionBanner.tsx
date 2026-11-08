@@ -148,11 +148,11 @@ export const MissionBanner: React.FC<MissionBannerProps> = ({ onOpenRegister }) 
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                  <span><strong>Guardian (Wali) phone visibility</strong> for respectful direct family communication.</span>
+                  <span><strong>Guardian privacy</strong> is respected; guardian contact details are not displayed in the public directory.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                  <span><strong>Manual profile verification</strong> via family references & phone checks.</span>
+                  <span><strong>Administrator review</strong> is required before a profile can appear in the approved directory.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
