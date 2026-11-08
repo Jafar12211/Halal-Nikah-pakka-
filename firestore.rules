@@ -27,6 +27,14 @@ service cloud.firestore {
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasNone(['verificationStatus', 'approvalNotes', 'documents'])
+        && request.resource.data.candidateName is string
+        && request.resource.data.candidateName.size() > 0
+        && request.resource.data.candidateName.size() <= 100
+        && request.resource.data.age is number
+        && request.resource.data.age >= 18
+        && request.resource.data.age <= 100
+        && request.resource.data.gender in ['bride', 'groom']
+        && request.resource.data.maritalStatus in ['Never Married', 'Divorced', 'Widowed']
         && request.resource.data.approvalStatus == 'pending'
         && request.resource.data.isVerified == false
       ) || (
