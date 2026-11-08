@@ -28,6 +28,7 @@ import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/d
 import { storageService } from '../services/storageService';
 import { fetchAllRegistrations, updateProfileApprovalStatusFirestore } from '../services/firestoreService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
+import { isAdminUser } from '../utils/admin';
 
 interface AdminDashboardModalProps {
   isOpen: boolean;
@@ -54,7 +55,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isOpen || currentUser?.role !== 'admin') return;
+    if (!isOpen || !isAdminUser(currentUser)) return;
 
     let cancelled = false;
     setLoading(true);
@@ -76,7 +77,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, currentUser?.role]);
+  }, [isOpen, currentUser?.id, currentUser?.role]);
 
   if (!isOpen || currentUser?.role !== 'admin') return null;
 
