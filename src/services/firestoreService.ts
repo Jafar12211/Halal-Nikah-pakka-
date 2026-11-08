@@ -8,6 +8,9 @@ import {
   updateDoc,
   writeBatch,
   serverTimestamp,
+  orderBy,
+  limit,
+  query,
 } from 'firebase/firestore';
 
 import {
@@ -16,13 +19,19 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signOut,
   getIdTokenResult,
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
   type User,
 } from 'firebase/auth';
 
 import { db, auth } from './firebase';
-import type { UserAccount, UserProfile } from '../types/database';
+import type { AuditLog, UserAccount, UserProfile } from '../types/database';
+import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
 // --------------------------------------------------
 // REMOVE UNDEFINED VALUES RECURSIVELY
@@ -118,6 +127,19 @@ export async function loginWithEmailPassword(
     password,
   );
 
+  if (!result.user.emailVerified) {
+    // Give existing accounts a fresh verification email so they are not locked
+    // out without a recovery path. Sign out after sending the message.
+    try {
+      await sendEmailVerification(result.user);
+    } finally {
+      await signOut(auth);
+    }
+    const error = new Error('Your email address is not verified yet. We have sent a new verification link. Open that email, verify your address, then sign in again.') as Error & { code?: string };
+    error.code = 'auth/email-not-verified';
+    throw error;
+  }
+
   const isAdmin = await getIsAdmin(result.user);
 
   return createUserAccount(result.user, isAdmin);
@@ -133,9 +155,9 @@ export async function registerWithEmailPassword(
     password,
   );
 
-  const isAdmin = await getIsAdmin(result.user);
-
-  return createUserAccount(result.user, isAdmin);
+  // A newly created account is always a member. Admin privileges are granted
+  // separately through a trusted Admin SDK custom claim after registration.
+  return createUserAccount(result.user, false);
 }
 
 export async function sendPasswordReset(
@@ -146,6 +168,34 @@ export async function sendPasswordReset(
 
 export async function logoutFirebaseUser(): Promise<void> {
   await signOut(auth);
+}
+
+/**
+ * Permanently deletes the signed-in user's Firebase account and profile records.
+ * Recent authentication is required to prevent an old stolen session deleting an account.
+ */
+export async function deleteOwnAccount(password?: string): Promise<void> {
+  const user = await requireSignedInUser();
+  const providerIds = user.providerData.map((provider) => provider.providerId);
+
+  if (providerIds.includes('password')) {
+    if (!user.email || !password) {
+      throw new Error('Enter your current password to confirm account deletion.');
+    }
+    const credential = EmailAuthProvider.credential(user.email, password);
+    await reauthenticateWithCredential(user, credential);
+  } else if (providerIds.includes('google.com')) {
+    await reauthenticateWithPopup(user, new GoogleAuthProvider());
+  } else {
+    throw new Error('Please sign in again using your original sign-in method, then retry account deletion.');
+  }
+
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'registrations', user.uid));
+  batch.delete(doc(db, 'publicProfiles', user.uid));
+  await batch.commit();
+
+  await deleteUser(user);
 }
 
 // --------------------------------------------------
@@ -226,7 +276,16 @@ export async function saveProfileToFirestore(
       createdAt: serverTimestamp(),
     });
   } else {
-    await updateDoc(registrationRef, safeData);
+    // Any profile edit invalidates the previous review and removes the public listing.
+    // The candidate must be reviewed again before the profile can reappear.
+    const batch = writeBatch(db);
+    batch.update(registrationRef, {
+      ...safeData,
+      approvalStatus: 'pending',
+      isVerified: false,
+    });
+    batch.delete(doc(db, 'publicProfiles', user.uid));
+    await batch.commit();
   }
 }
 
@@ -259,11 +318,11 @@ export async function fetchAllRegistrations(): Promise<UserProfile[]> {
 export async function updateProfileApprovalStatusFirestore(
   profileId: string,
   userId: string,
-  status: 'pending' | 'approved' | 'rejected' | 'suspended',
+  status: 'approved' | 'rejected' | 'suspended',
   reviewerEmail?: string,
   notes?: string,
 ): Promise<void> {
-  await requireAdmin();
+  const adminUser = await requireAdmin();
 
   if (!userId || userId.length > 128) {
     throw new Error('Invalid user account ID.');
@@ -295,11 +354,38 @@ export async function updateProfileApprovalStatusFirestore(
     );
   }
 
+  if (status === 'approved') {
+    const hasAdultAge = Number.isInteger(data.age) && data.age >= 18 && data.age <= 100;
+    const hasCandidatePhoto =
+      Array.isArray(data.photos) &&
+      data.photos.some((photo: unknown) => typeof photo === 'string' && /^https:\/\/(firebasestorage\.googleapis\.com|firebasestorage\.app)\//i.test(photo));
+    const hasVerifiedGovernmentId =
+      Array.isArray(data.documents) &&
+      data.documents.some((document: any) =>
+        VALID_GOVT_DOC_TYPES.includes(document?.type) &&
+        typeof document?.storagePath === 'string' &&
+        document.storagePath.startsWith(`identityDocuments/${userId}/`) &&
+        document?.verified === true &&
+        document?.isRestricted === true &&
+        typeof document?.fileName === 'string' &&
+        document.fileName.trim().length > 0 &&
+        typeof document?.maskedId === 'string' &&
+        document.maskedId.trim().length > 0
+      );
+
+    if (!hasAdultAge || !hasCandidatePhoto || !hasVerifiedGovernmentId) {
+      throw new Error(
+        'Approval blocked. The candidate must be 18+, have a Firebase Storage photograph, and have an accepted government ID file in private storage that an administrator has actually reviewed.'
+      );
+    }
+  }
+
   // Keep approval and publishing changes together.
   const batch = writeBatch(db);
 
   batch.update(registrationRef, {
     approvalStatus: status,
+    isVerified: status === 'approved',
     approvalNotes: notes || '',
     updatedAt: serverTimestamp(),
   });
@@ -326,12 +412,15 @@ export async function updateProfileApprovalStatusFirestore(
       mustHaves: data.mustHaves || [],
       dealBreakers: data.dealBreakers || [],
       aboutCandidate: data.aboutCandidate || '',
-      photos: [],
-      photoPrivacy: 'avatar_only',
+      // Do not expose photos unless the candidate explicitly chose public visibility.
+      photos: data.photoPrivacy === 'visible' && Array.isArray(data.photos)
+        ? data.photos.filter((photo: unknown) => typeof photo === 'string' && /^https:\/\/(firebasestorage\.googleapis\.com|firebasestorage\.app)\//i.test(photo))
+        : [],
+      photoPrivacy: data.photoPrivacy === 'visible' ? 'visible' : 'avatar_only',
       avatarInitials: data.avatarInitials || '',
       avatarBgColor: data.avatarBgColor || '#047857',
       documents: [],
-      isVerified: false,
+      isVerified: true,
       approvalStatus: 'approved',
       createdAt: data.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -345,5 +434,47 @@ export async function updateProfileApprovalStatusFirestore(
     batch.delete(publicProfileRef);
   }
 
+  const auditRef = doc(collection(db, 'auditLogs'));
+  batch.set(auditRef, {
+    action:
+      status === 'approved'
+        ? 'PROFILE_APPROVED'
+        : status === 'rejected'
+          ? 'PROFILE_REJECTED'
+          : 'PROFILE_SUSPENDED',
+    performedBy: reviewerEmail || adminUser.email || adminUser.uid,
+    targetId: userId,
+    details: notes || `Profile status changed to ${status}.`,
+    timestamp: serverTimestamp(),
+  });
+
   await batch.commit();
+}
+
+export async function fetchAdminAuditLogs(): Promise<AuditLog[]> {
+  await requireAdmin();
+
+  const snapshot = await getDocs(
+    query(
+      collection(db, 'auditLogs'),
+      orderBy('timestamp', 'desc'),
+      limit(100),
+    ),
+  );
+
+  return snapshot.docs.map((entry) => {
+    const data = entry.data();
+    const timestamp =
+      data.timestamp && typeof data.timestamp.toDate === 'function'
+        ? data.timestamp.toDate().toISOString()
+        : typeof data.timestamp === 'string'
+          ? data.timestamp
+          : '';
+
+    return {
+      ...data,
+      id: entry.id,
+      timestamp,
+    } as AuditLog;
+  });
 }

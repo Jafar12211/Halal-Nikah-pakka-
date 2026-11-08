@@ -12,13 +12,12 @@ import {
   Smartphone,
   LogOut,
   Sparkles,
-  ExternalLink,
   ChevronRight,
   Lock
 } from 'lucide-react';
 import { UserAccount, LanguageCode } from '../../types/database';
 import { translations } from '../../utils/translations';
-import { OFFICIAL_REGISTRATION_URL } from '../../utils/matrimony';
+import { isAdminUser } from '../../utils/admin';
 
 interface AndroidDrawerProps {
   isOpen: boolean;
@@ -48,9 +47,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
   if (!isOpen) return null;
 
   const isTelugu = language === 'te';
-  const isAdmin =
-    currentUser?.role === 'admin' ||
-    currentUser?.email.toLowerCase() === 'jafarmd0007@gmail.com';
+  const isAdmin = isAdminUser(currentUser);
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -88,7 +85,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <span>{isTelugu ? 'ధృవీకరించబడిన ఖాతా' : 'Verified Member'}</span>
+                  <span>{isTelugu ? 'ఖాతాలోకి సైన్ ఇన్ చేశారు' : 'Signed in'}</span>
                 </div>
               </div>
             </div>
@@ -180,6 +177,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
           </div>
 
           {/* Admin Area */}
+          {isAdmin && (
           <div className="py-2 bg-amber-50/60 border-y border-amber-200/60">
             <button
               onClick={() => {
@@ -197,6 +195,7 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
               </span>
             </button>
           </div>
+          )}
 
           {/* Secondary Community Sections */}
           <div className="py-2">
@@ -248,17 +247,19 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
             </button>
           </div>
 
-          {/* External portal link */}
+          {/* In-app registration action */}
           <div className="py-2 px-5">
-            <a
-              href={OFFICIAL_REGISTRATION_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-stone-500 hover:text-emerald-900 flex items-center gap-1.5 underline"
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenRegister();
+              }}
+              className="text-[11px] text-emerald-800 hover:text-emerald-950 flex items-center gap-1.5 underline"
             >
-              <span>{isTelugu ? 'బాహ్య రిజిస్ట్రేషన్ పోర్టల్' : 'External Web Portal'}</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+              <Sparkles className="w-3 h-3" />
+              <span>{isTelugu ? 'బయోడేటా నమోదు చేయండి' : 'Register Candidate in Nikah Pakka'}</span>
+            </button>
           </div>
         </div>
 

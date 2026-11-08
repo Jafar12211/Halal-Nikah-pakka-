@@ -43,6 +43,8 @@ export interface MatrimonyProfile {
   registeredBy: RegisteredByRole;
   registrantName: string;
   candidateName: string;
+  candidateConsentConfirmed?: boolean;
+  candidateConsentAt?: string;
   gender: 'groom' | 'bride';
   age: number;
   height: string;

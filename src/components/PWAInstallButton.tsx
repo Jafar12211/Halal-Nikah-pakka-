@@ -9,9 +9,7 @@ interface PWAInstallButtonProps {
 export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ language }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
-  const [simulatedInstalled, setSimulatedInstalled] = useState(false);
-
-  if (isInstalled || simulatedInstalled) {
+  if (isInstalled) {
     return null;
   }
 

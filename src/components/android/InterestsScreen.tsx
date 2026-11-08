@@ -36,12 +36,12 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
           </div>
           <div>
             <h1 className="text-lg font-bold font-serif text-white">
-              {isTelugu ? 'ఆసక్తి గల సంబంధాలు (ఖబర్)' : 'My Shortlist & Proposals'}
+              {isTelugu ? 'నేను సేవ్ చేసిన ప్రొఫైళ్లు' : 'My Saved Profiles'}
             </h1>
             <p className="text-xs text-emerald-200 mt-0.5">
               {isTelugu
-                ? `${interestedProfiles.length} ప్రొఫైల్స్ షార్ట్‌లిస్ట్ చేయబడ్డాయి · కుటుంబ పెద్దలతో సంప్రదించండి`
-                : `${interestedProfiles.length} candidate(s) shortlisted · Guardian communication ready`}
+                ? `${interestedProfiles.length} ప్రొఫైల్స్ ఈ పరికరంలో మాత్రమే సేవ్ అయ్యాయి · కుటుంబానికి పంపబడలేదు`
+                : `${interestedProfiles.length} candidate(s) saved on this device only · Not sent to any family`}
             </p>
           </div>
         </div>
@@ -57,8 +57,8 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
           </h2>
           <p className="text-xs text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
             {isTelugu
-              ? 'సంబంధాల జాబితా నుండి నచ్చిన ప్రొఫైల్‌పై గుండె గుర్తుపై క్లిక్ చేసి మీ ఆసక్తిని (ఖబర్) పంపండి.'
-              : 'Browse verified candidates from Yanam, Kakinada & Godavari districts and tap the heart icon to express interest.'}
+              ? 'సంబంధాల జాబితాలో గుండె గుర్తుపై క్లిక్ చేసి ప్రొఫైల్‌ను ఈ పరికరంలో సేవ్ చేయండి. ఇది ఇతర కుటుంబానికి నోటిఫికేషన్ పంపదు.'
+              : 'Browse approved profiles from Yanam, Kakinada & Godavari districts. Tap the heart to save a profile to this device; this does not notify the other family.'}
           </p>
           <button
             onClick={onNavigateToMatches}
@@ -115,7 +115,7 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
                     </div>
                     <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>{isTelugu ? 'ధృవీకరించబడింది' : 'UIDAI Verified'}</span>
+                      <span>{isTelugu ? 'అడ్మిన్ సమీక్షించారు' : 'Admin Reviewed'}</span>
                     </div>
                   </div>
 

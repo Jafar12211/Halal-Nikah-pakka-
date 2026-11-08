@@ -1,6 +1,6 @@
 import { MatrimonyProfile, FilterState } from '../types/matrimony';
 
-export const OFFICIAL_REGISTRATION_URL = 'https://site-75bd7eafe06f4ebf8c6d057f860920dd.freebuff.page/profile';
+export const OFFICIAL_REGISTRATION_URL = typeof window !== 'undefined' ? window.location.origin : '/';
 
 export const GODAVARI_COORDINATES: Record<string, { lat: number; lng: number }> = {
   'Yanam (Puducherry)': { lat: 16.7333, lng: 82.2167 },
