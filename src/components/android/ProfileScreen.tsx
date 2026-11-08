@@ -17,12 +17,12 @@ import {
 } from 'lucide-react';
 import { UserAccount, UserProfile, LanguageCode } from '../../types/database';
 import { translations } from '../../utils/translations';
-import { storageService } from '../../services/storageService';
 import { OFFICIAL_REGISTRATION_URL } from '../../utils/matrimony';
 import { PWAInstallButton } from '../PWAInstallButton';
 
 interface ProfileScreenProps {
   currentUser: UserAccount | null;
+  myProfile: UserProfile | null;
   language: LanguageCode;
   onToggleLanguage: () => void;
   onOpenAuth: () => void;
@@ -35,6 +35,7 @@ interface ProfileScreenProps {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   currentUser,
+  myProfile,
   language,
   onToggleLanguage,
   onOpenAuth,
@@ -47,13 +48,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const isTelugu = language === 'te';
   const t = translations[language];
 
-  const myProfile: UserProfile | undefined = currentUser
-    ? storageService.getMyProfile(currentUser.id)
-    : undefined;
-
-  const isAdmin =
-    currentUser?.role === 'admin' ||
-    currentUser?.email.toLowerCase() === 'jafarmd0007@gmail.com';
+  const isAdmin = currentUser?.role === 'admin';
 
   const triggerHaptic = () => {
     if ('vibrate' in navigator) {
@@ -76,7 +71,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   {currentUser.name}
                 </h1>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-800 text-emerald-200 border border-emerald-700 shrink-0">
-                  {currentUser.role === 'admin' ? 'Admin' : 'Verified'}
+                  {currentUser.role === 'admin' ? 'Admin' : 'Signed in'}
                 </span>
               </div>
               <p className="text-xs text-emerald-300 font-mono truncate mt-0.5">
@@ -91,7 +86,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <div className="mt-4 pt-3.5 border-t border-emerald-800/80 flex items-center justify-between text-xs text-emerald-200">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-amber-300" />
-              <span>{isTelugu ? 'భద్రత & ప్రైవసీ: 100% రక్షితం' : 'UIDAI Verified & Protected'}</span>
+              <span>{isTelugu ? 'ఫైర్‌బేస్ ఖాతాతో సైన్ ఇన్ చేశారు' : 'Signed in with Firebase'}</span>
             </div>
             <span className="text-[10px] bg-emerald-900 text-amber-300 px-2 py-0.5 rounded font-mono">
               Godavari Reg.
@@ -183,8 +178,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   </span>
                   <span className="font-mono text-[11px] font-bold text-emerald-900">
                     {myProfile.documents && myProfile.documents.length > 0
-                      ? myProfile.documents[0].maskedId
-                      : 'XXXX-XXXX-7860'}
+                      ? (myProfile.documents[0].maskedId || 'Submitted')
+                      : 'Not submitted'}
                   </span>
                 </div>
 
@@ -219,6 +214,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       )}
 
       {/* Admin verification button */}
+      {isAdmin && (
       <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -243,6 +239,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </button>
         </div>
       </div>
+      )}
 
       {/* Quick Settings & App Tools */}
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-xs divide-y divide-stone-100 overflow-hidden text-xs">
