@@ -21,6 +21,10 @@ import {
   sendPasswordResetEmail,
   signOut,
   getIdTokenResult,
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
   type User,
 } from 'firebase/auth';
 
@@ -150,6 +154,34 @@ export async function sendPasswordReset(
 
 export async function logoutFirebaseUser(): Promise<void> {
   await signOut(auth);
+}
+
+/**
+ * Permanently deletes the signed-in user's Firebase account and profile records.
+ * Recent authentication is required to prevent an old stolen session deleting an account.
+ */
+export async function deleteOwnAccount(password?: string): Promise<void> {
+  const user = await requireSignedInUser();
+  const providerIds = user.providerData.map((provider) => provider.providerId);
+
+  if (providerIds.includes('password')) {
+    if (!user.email || !password) {
+      throw new Error('Enter your current password to confirm account deletion.');
+    }
+    const credential = EmailAuthProvider.credential(user.email, password);
+    await reauthenticateWithCredential(user, credential);
+  } else if (providerIds.includes('google.com')) {
+    await reauthenticateWithPopup(user, new GoogleAuthProvider());
+  } else {
+    throw new Error('Please sign in again using your original sign-in method, then retry account deletion.');
+  }
+
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'registrations', user.uid));
+  batch.delete(doc(db, 'publicProfiles', user.uid));
+  await batch.commit();
+
+  await deleteUser(user);
 }
 
 // --------------------------------------------------
