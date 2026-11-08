@@ -68,8 +68,7 @@ service cloud.firestore {
 
     // Sanitized profile discovery documents: only trusted backend/admin may publish or modify.
     match /publicProfiles/{uid} {
-      allow read: if signedIn()
-        && resource.data.approvalStatus == 'approved'
+      allow read: if resource.data.approvalStatus == 'approved'
         && resource.data.isVerified == true;
       allow write: if admin();
       allow delete: if admin() || owner(uid);
