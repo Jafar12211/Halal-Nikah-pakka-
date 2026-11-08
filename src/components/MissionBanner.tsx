@@ -156,7 +156,7 @@ export const MissionBanner: React.FC<MissionBannerProps> = ({ onOpenRegister }) 
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                  <span><strong>Islamic modesty compliance:</strong> Photo privacy control, Deen & Salah practice info.</span>
+                  <span><strong>Privacy-conscious profile options:</strong> Photo visibility preference and Deen & Salah information.</span>
                 </li>
               </ul>
             </div>
