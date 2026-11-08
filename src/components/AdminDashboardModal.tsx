@@ -110,10 +110,13 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     const q = searchQuery.toLowerCase().trim();
     return list.filter(
       (p) =>
-        p.candidateName.toLowerCase().includes(q) ||
-        p.district.toLowerCase().includes(q) ||
-        p.profession.toLowerCase().includes(q) ||
-        (p.documents && p.documents.some((d) => d.type.toLowerCase().includes(q) || d.maskedId.toLowerCase().includes(q)))
+        (p.candidateName || '').toLowerCase().includes(q) ||
+        (p.district || '').toLowerCase().includes(q) ||
+        (p.profession || '').toLowerCase().includes(q) ||
+        (p.documents || []).some((d) =>
+          (d.type || '').toLowerCase().includes(q) ||
+          (d.maskedId || '').toLowerCase().includes(q)
+        )
     );
   };
 
@@ -126,7 +129,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   ) => {
     if (isUpdating) return;
 
-    const reviewer = currentUser?.email || 'jafarmd0007@gmail.com';
+    const reviewer = currentUser?.email || currentUser?.id || 'Authorized administrator';
     const noteToRecord =
       customNote ||
       actionNotes ||
