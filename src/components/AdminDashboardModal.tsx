@@ -53,6 +53,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !isAdminUser(currentUser)) return;
@@ -114,6 +116,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     status: 'approved' | 'rejected' | 'suspended',
     customNote?: string
   ) => {
+    if (isUpdating) return;
+
     const reviewer = currentUser?.email || 'jafarmd0007@gmail.com';
     const noteToRecord =
       customNote ||
@@ -124,25 +128,61 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         ? selectedRejectionReason
         : 'Profile suspended by admin.');
 
-    const profileToUpdate = profiles.find(p => p.id === profileId);
-    if (!profileToUpdate) return;
+    const profileToUpdate = profiles.find((p) => p.id === profileId);
+    if (!profileToUpdate) {
+      setErrorMessage('Could not find this registration. Refresh the dashboard and try again.');
+      return;
+    }
 
-    await updateProfileApprovalStatusFirestore(profileId, profileToUpdate.userId, status, reviewer, noteToRecord);
-    
-    setActionNotes('');
-    setShowRejectDrawer(false);
-    setStatusMessage(`Profile ${status === 'approved' ? 'APPROVED' : status === 'rejected' ? 'REJECTED' : 'SUSPENDED'} successfully.`);
-    setTimeout(() => setStatusMessage(null), 3500);
-    
-    // Refresh local list
-    const updatedProfiles = await fetchAllRegistrations();
-    setProfiles(updatedProfiles);
-    onProfileStatusChanged();
+    // Never approve a candidate when the required evidence is absent.
+    if (status === 'approved') {
+      const hasPhoto = Array.isArray(profileToUpdate.photos) && profileToUpdate.photos.length > 0;
+      const hasValidDocument =
+        Array.isArray(profileToUpdate.documents) &&
+        profileToUpdate.documents.some((document) =>
+          VALID_GOVT_DOC_TYPES.includes(document.type) && Boolean(document.fileName)
+        );
+      if (!hasPhoto || !hasValidDocument) {
+        setErrorMessage(
+          `Approval blocked: missing ${[
+            !hasPhoto ? 'candidate photograph' : '',
+            !hasValidDocument ? 'accepted government ID document' : '',
+          ].filter(Boolean).join(' and ')}.`
+        );
+        return;
+      }
+    }
 
-    // Update selected profile view if open
-    const updated = updatedProfiles.find(p => p.id === profileId);
-    if (updated) {
-      setSelectedProfile(updated);
+    setIsUpdating(true);
+    setErrorMessage(null);
+    try {
+      await updateProfileApprovalStatusFirestore(
+        profileId,
+        profileToUpdate.userId,
+        status,
+        reviewer,
+        noteToRecord
+      );
+
+      const updatedProfiles = await fetchAllRegistrations();
+      setProfiles(updatedProfiles);
+      setActionNotes('');
+      setShowRejectDrawer(false);
+      setStatusMessage(
+        `Profile ${status === 'approved' ? 'APPROVED' : status === 'rejected' ? 'REJECTED' : 'SUSPENDED'} successfully.`
+      );
+      window.setTimeout(() => setStatusMessage(null), 3500);
+      onProfileStatusChanged();
+
+      const updated = updatedProfiles.find((p) => p.id === profileId);
+      if (updated) setSelectedProfile(updated);
+      else setSelectedProfile(null);
+    } catch (error) {
+      console.error(`Failed to ${status} profile:`, error);
+      const message = error instanceof Error ? error.message : 'Unknown Firebase error';
+      setErrorMessage(`Could not ${status} profile: ${message}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -251,6 +291,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
             <span className="text-[10px] text-stone-500">All registered profiles</span>
           </button>
         </div>
+
+        {errorMessage && (
+          <div role="alert" className="bg-rose-100 text-rose-950 px-6 py-2.5 text-xs font-semibold border-b border-rose-200">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Status notification */}
         {statusMessage && (
@@ -874,9 +920,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       </button>
                       <button
                         onClick={() => handleUpdateStatus(selectedProfile.id, 'rejected', selectedRejectionReason + (actionNotes ? ` - ${actionNotes}` : ''))}
+                        disabled={isUpdating}
                         className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-xs"
                       >
-                        Confirm Rejection
+                        {isUpdating ? 'Saving...' : 'Confirm Rejection'}
                       </button>
                     </div>
                   </div>
