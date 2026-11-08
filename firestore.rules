@@ -32,7 +32,7 @@ service cloud.firestore {
         owner(uid)
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['verificationStatus', 'approvalNotes', 'documents']) === false
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verificationStatus', 'approvalNotes', 'documents'])
         && request.resource.data.candidateName is string
         && request.resource.data.candidateName.size() > 0
         && request.resource.data.candidateName.size() <= 100
