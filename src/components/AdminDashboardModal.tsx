@@ -50,18 +50,35 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [selectedRejectionReason, setSelectedRejectionReason] = useState('Candidate photo does not meet clarity or modesty guidelines');
   const [showRejectDrawer, setShowRejectDrawer] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-  if (!isOpen) return null;
-
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAllRegistrations().then((data) => {
-      setProfiles(data);
-      setLoading(false);
-    });
-  }, []);
+    if (!isOpen || currentUser?.role !== 'admin') return;
+
+    let cancelled = false;
+    setLoading(true);
+
+    fetchAllRegistrations()
+      .then((data) => {
+        if (!cancelled) setProfiles(data);
+      })
+      .catch((error) => {
+        console.error('Admin registrations could not be loaded:', error);
+        if (!cancelled) {
+          setStatusMessage('Unable to load registrations. Please confirm administrator access and Firestore rules.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, currentUser?.role]);
+
+  if (!isOpen || currentUser?.role !== 'admin') return null;
 
   const auditLogs = storageService.getAuditLogs();
 
