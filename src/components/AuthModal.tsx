@@ -154,7 +154,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       } else if (err?.code === 'auth/invalid-email') {
         setError('Please enter a valid email address.');
       } else {
-        setError(err?.message || 'Registration failed.');
+        const code = typeof err?.code === 'string' ? ` (${err.code})` : '';
+        const message = typeof err?.message === 'string' ? err.message : 'Please try again.';
+        setError(`Registration failed${code}: ${message}`);
       }
     } finally {
       setLoading(false);
