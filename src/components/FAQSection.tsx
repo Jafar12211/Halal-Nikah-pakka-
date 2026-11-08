@@ -33,15 +33,15 @@ const FAQS: FAQItem[] = [
     questionEn: 'Why focus specifically on Yanam and the Godavari districts?',
     questionTe: 'ప్రత్యేకంగా యానాం మరియు గోదావరి జిల్లాలపై ఎందుకు దృష్టి సారించారు?',
     answerEn:
-      'Yanam (Puducherry) and the adjoining districts of Kakinada, Konaseema, East Godavari (Rajahmundry), West Godavari (Bhimavaram), and Eluru have deeply connected Muslim communities with shared Telugu/Urdu cultural ties. Focusing locally ensures reliable family verification, easier in-person visits, and higher marriage success rates.',
+      'Yanam (Puducherry) and the adjoining districts of Kakinada, Konaseema, East Godavari (Rajahmundry), West Godavari (Bhimavaram), and Eluru have deeply connected Muslim communities with shared Telugu/Urdu cultural ties. A local focus can make in-person family introductions easier. Families should still independently confirm each candidate’s identity and details.',
     answerTe:
-      'యానాం (పుదుచ్చేరి) మరియు పక్కనే ఉన్న కాకినాడ, కోనసీమ, రాజమండ్రి, భీమవరం, ఏలూరు ముస్లిం సమాజాలు బలమైన సాంస్కృతిక బంధాలను కలిగి ఉన్నాయి. స్థానిక దృష్టి సారించడం వల్ల కుటుంబ నేపథ్యాలను సులభంగా నిర్ధారించుకోవచ్చు.',
+      'యానాం (పుదుచ్చేరి) మరియు పక్కనే ఉన్న కాకినాడ, కోనసీమ, రాజమండ్రి, భీమవరం, ఏలూరు ముస్లిం సమాజాలు బలమైన సాంస్కృతిక బంధాలను కలిగి ఉన్నాయి. స్థానికంగా దృష్టి పెట్టడం వల్ల కుటుంబాలను వ్యక్తిగతంగా కలవడం సులభం కావచ్చు. ప్రతి అభ్యర్థి గుర్తింపు మరియు వివరాలను కుటుంబాలు స్వయంగా నిర్ధారించుకోవాలి.',
   },
   {
     id: 'faq-3',
     category: 'privacy',
-    questionEn: 'How does Family & Wali-Chaperoned messaging work?',
-    questionTe: 'కుటుంబం మరియు వలీ పర్యవేక్షణలో మెసేజింగ్ ఎలా పనిచేస్తుంది?',
+    questionEn: 'Is family messaging available?',
+    questionTe: 'కుటుంబ మెసేజింగ్ సదుపాయం అందుబాటులో ఉందా?',
     answerEn:
       'Family involvement is encouraged throughout the introduction process. In-app family messaging is not yet enabled, so no messages can currently be sent through Nikah Pakka. Families should arrange introductions through contact details they have independently verified.',
     answerTe:
