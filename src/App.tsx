@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
 
 import { HeroSection } from './components/HeroSection';
@@ -94,14 +94,8 @@ export default function App() {
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
   const [messagingTargetConvId, setMessagingTargetConvId] = useState<string | undefined>();
 
-  const [userInterests, setUserInterests] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('nikah_pakka_interests');
-      return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-    } catch {
-      return new Set<string>();
-    }
-  });
+  const [userInterests, setUserInterests] = useState<Set<string>>(() => new Set<string>());
+  const interestsLoadedFor = useRef<string | null>(null);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const t = translations[language];
@@ -184,17 +178,36 @@ export default function App() {
     }
   }, [language]);
 
-  // Save interests locally temporarily
+  // Keep each account's local shortlist separate on shared devices.
   useEffect(() => {
+    if (!currentUser) {
+      interestsLoadedFor.current = null;
+      setUserInterests(new Set<string>());
+      return;
+    }
+
+    const storageKey = `nikah_pakka_interests_${currentUser.id}`;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      setUserInterests(saved ? new Set<string>(JSON.parse(saved)) : new Set<string>());
+    } catch (error) {
+      console.error('Failed to load this account’s saved interests:', error);
+      setUserInterests(new Set<string>());
+    }
+    interestsLoadedFor.current = currentUser.id;
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser || interestsLoadedFor.current !== currentUser.id) return;
     try {
       localStorage.setItem(
-        'nikah_pakka_interests',
+        `nikah_pakka_interests_${currentUser.id}`,
         JSON.stringify(Array.from(userInterests))
       );
     } catch (error) {
-      console.error('Failed to save interests:', error);
+      console.error('Failed to save this account’s interests:', error);
     }
-  }, [userInterests]);
+  }, [currentUser?.id, userInterests]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -446,6 +459,11 @@ export default function App() {
     setCurrentUser(null);
     setMyProfile(null);
     setProfiles([]);
+    try {
+      localStorage.removeItem(`nikah_pakka_interests_${currentUser?.id || ''}`);
+    } catch (error) {
+      console.error('Could not clear the local shortlist after account deletion:', error);
+    }
     setUserInterests(new Set<string>());
     setIsMessagingOpen(false);
     setIsAdminOpen(false);
