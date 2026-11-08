@@ -60,12 +60,12 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-800 mb-2">
               <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{t.directoryTitle || 'Verified Community Directory'}</span>
+              <span>{t.directoryTitle || 'Approved Community Directory'}</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-serif font-bold text-stone-900 tracking-tight">
               {language === 'te'
                 ? 'యానాం & గోదావరి ముస్లిం సంబంధాలు'
-                : 'Yanam & Godavari Verified Muslim Matches'}
+                : 'Yanam & Godavari Muslim Matrimony Profiles'}
             </h2>
             <p className="text-xs sm:text-sm text-stone-600 mt-1">
               {t.directorySub ||
@@ -266,7 +266,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                       <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-700" />
                         <span>
-                          {profile.isVerified === true ? 'Government ID Verified' : 'Identity Review Pending'}
+                          {profile.isVerified === true ? 'Admin Reviewed' : 'Review Pending'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
