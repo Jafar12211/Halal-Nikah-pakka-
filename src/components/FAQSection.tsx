@@ -25,7 +25,7 @@ const FAQS: FAQItem[] = [
     answerEn:
       'Nikah Pakka is a community matrimony directory for Yanam and the Godavari region. Browsing and profile registration are currently free. Public profiles show only approved information; guardian contact details are not shared through the public directory, and in-app messaging is not yet available.',
     answerTe:
-      'చాలా మ్యాట్రిమోనీ సైట్లు కేవలం ఫోన్ నంబర్లు చూడటానికి ₹3,000 నుండి ₹15,000 వరకు వసూలు చేస్తాయి. నికాహ్ పక్కా యానాం మరియు గోదావరి జిల్లాల ముస్లింల కోసం రూపొందించబడిన ఉచిత సేవా వేదిక. ఎటువంటి ఖరీదైన పేవాల్స్ లేకుండా నేరుగా సంప్రదించవచ్చు.',
+      'నికాహ్ పక్కా యానాం మరియు గోదావరి ప్రాంతాల కోసం రూపొందించిన కమ్యూనిటీ మ్యాట్రిమోనీ డైరెక్టరీ. ప్రస్తుతం ప్రొఫైల్ నమోదు మరియు బ్రౌజింగ్ ఉచితం. పబ్లిక్ ప్రొఫైళ్లలో ఆమోదించిన వివరాలే కనిపిస్తాయి; సంరక్షకుల ఫోన్ నంబర్లు పబ్లిక్‌గా చూపించబడవు, యాప్‌లో మెసేజింగ్ ఇంకా అందుబాటులో లేదు.',
   },
   {
     id: 'faq-2',
@@ -45,7 +45,7 @@ const FAQS: FAQItem[] = [
     answerEn:
       'Family involvement is encouraged throughout the introduction process. In-app family messaging is not yet enabled, so no messages can currently be sent through Nikah Pakka. Families should arrange introductions through contact details they have independently verified.',
     answerTe:
-      'ఇస్లామిక్ పద్ధతిలో ఖల్వా (ఏకాంతం) నివారించడానికి, మా ఇన్-యాప్ మెసేజింగ్‌లో కుటుంబ సంరక్షకులను (వలీ/తల్లిదండ్రులను) చేర్చడం జరుగుతుంది. సంభాషణలు ఎండ్-టు-ఎండ్ ఎన్‌క్రిప్ట్ చేయబడి ఉంటాయి, కుటుంబ పెద్దలకు కూడా పారదర్శకంగా ఉంటాయి.',
+      'కుటుంబ సభ్యుల భాగస్వామ్యంతో పరిచయాలు చేసుకోవాలని ప్రోత్సహిస్తున్నాము. నికాహ్ పక్కాలో ఇన్-యాప్ కుటుంబ మెసేజింగ్ ఇంకా ప్రారంభం కాలేదు; ప్రస్తుతం ఈ వెబ్‌సైట్ ద్వారా సందేశాలు పంపడం సాధ్యం కాదు.',
   },
   {
     id: 'faq-4',
@@ -55,7 +55,7 @@ const FAQS: FAQItem[] = [
     answerEn:
       'Secure photo and identity-document uploads are not currently available on this project. Do not enter Aadhaar, PAN, passport, or driving-licence numbers into profile fields or send sensitive documents through public channels. A profile must not be described as identity-verified until a secure upload and documented administrator review have actually taken place.',
     answerTe:
-      'రిజిస్ట్రేషన్ సమయంలో అప్‌లోడ్ చేసిన గుర్తింపు పత్రాలు అత్యంత గోప్యంగా ఉంటాయి. ఆధార్ నంబర్లు మాస్క్ చేయబడతాయి (ఉదా: XXXX-XXXX-1234) మరియు కేవలం నిర్ధారణ కోసం అడ్మిన్‌కు మాత్రమే కనిపిస్తాయి. పబ్లిక్‌గా ఎవరికీ కనిపించవు.',
+      'ఈ ప్రాజెక్ట్‌లో ప్రస్తుతం సురక్షిత ఫోటో మరియు గుర్తింపు పత్రాల అప్‌లోడ్ సదుపాయం అందుబాటులో లేదు. ఆధార్, PAN, పాస్‌పోర్ట్ లేదా డ్రైవింగ్ లైసెన్స్ నంబర్లను ప్రొఫైల్‌లో నమోదు చేయవద్దు లేదా పబ్లిక్ ఛానళ్లలో పంపవద్దు. సురక్షిత అప్‌లోడ్ మరియు అడ్మిన్ సమీక్ష పూర్తయ్యే వరకు ఏ ప్రొఫైల్‌నూ గుర్తింపు ధృవీకరించబడిందని చెప్పకూడదు.',
   },
   {
     id: 'faq-5',
@@ -75,7 +75,7 @@ const FAQS: FAQItem[] = [
     answerEn:
       'Email/password and Google sign-in are provided through Firebase Authentication. SMS OTP sign-in is not currently configured, and there is no demo OTP. App installation depends on the browser's PWA support. Hosting and native Android app availability should be confirmed from the live deployment before being promised.',
     answerTe:
-      'నికాహ్ పక్కా గూగుల్ క్లౌడ్ ద్వారా నడుస్తుంది. భారతదేశంలో SMS OTP కోసం ట్రాయ్ (TRAI) నిబంధనల ప్రకారం DLT రిజిస్ట్రేషన్ అవసరం. ప్రస్తుతం ఉచిత డెమో OTP (786786) మరియు గూగుల్ సైన్-ఇన్ అందుబాటులో ఉన్నాయి. త్వరలోనే స్థానిక ఆండ్రాయిడ్ APK యాప్ కూడా విడుదల చేయబడుతుంది.',
+      'ఈ వెబ్‌సైట్‌లో ఇమెయిల్/పాస్‌వర్డ్ మరియు Google సైన్-ఇన్ Firebase Authentication ద్వారా పనిచేస్తాయి. SMS OTP ప్రస్తుతం అమలులో లేదు; డెమో OTP కూడా లేదు. యాప్ ఇన్‌స్టాలేషన్ బ్రౌజర్‌లోని PWA మద్దతుపై ఆధారపడి ఉంటుంది. హోస్టింగ్ లేదా ప్రత్యేక Android యాప్ అందుబాటును లైవ్ విడుదలలో నిర్ధారించిన తర్వాత మాత్రమే ప్రకటిస్తాము.',
   },
 ];
 
