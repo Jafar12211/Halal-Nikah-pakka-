@@ -288,6 +288,8 @@ export default function App() {
       id: currentUser.id,
       userId: currentUser.id,
       candidateName: matrimonyProf.candidateName,
+      candidateConsentConfirmed: matrimonyProf.candidateConsentConfirmed === true,
+      candidateConsentAt: matrimonyProf.candidateConsentAt || new Date().toISOString(),
       gender: matrimonyProf.gender,
       dob: '',
       age: matrimonyProf.age,
@@ -453,7 +455,7 @@ export default function App() {
     setCurrentUser(null);
     setMyProfile(null);
     setProfiles([]);
-    setUserInterests(new Set());
+    setUserInterests(new Set<string>());
     setIsMessagingOpen(false);
     setIsAdminOpen(false);
     setSelectedProfile(null);
