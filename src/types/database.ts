@@ -45,6 +45,8 @@ export interface UserProfile {
   id: string;
   userId: string;
   candidateName: string;
+  candidateConsentConfirmed?: boolean;
+  candidateConsentAt?: string;
   gender: 'groom' | 'bride';
   dob: string;
   age: number;
