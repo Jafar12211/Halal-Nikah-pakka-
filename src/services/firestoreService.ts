@@ -6,6 +6,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  writeBatch,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -24,6 +25,36 @@ import { db, auth } from './firebase';
 import type { UserAccount, UserProfile } from '../types/database';
 
 // --------------------------------------------------
+// REMOVE UNDEFINED VALUES RECURSIVELY
+// --------------------------------------------------
+
+function removeUndefined(value: any): any {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => removeUndefined(item));
+  }
+
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    const cleaned: Record<string, any> = {};
+
+    for (const [key, item] of Object.entries(value)) {
+      if (item !== undefined) {
+        cleaned[key] = removeUndefined(item);
+      }
+    }
+
+    return cleaned;
+  }
+
+  return value;
+}
+
+// --------------------------------------------------
 // AUTHENTICATION HELPERS
 // --------------------------------------------------
 
@@ -32,7 +63,10 @@ async function getIsAdmin(user: User): Promise<boolean> {
   return token.claims.admin === true;
 }
 
-function createUserAccount(user: User, isAdmin: boolean): UserAccount {
+function createUserAccount(
+  user: User,
+  isAdmin: boolean,
+): UserAccount {
   return {
     id: user.uid,
     email: user.email || '',
@@ -41,11 +75,14 @@ function createUserAccount(user: User, isAdmin: boolean): UserAccount {
     role: isAdmin ? 'admin' : 'member',
     emailVerified: user.emailVerified,
     phoneVerified: Boolean(user.phoneNumber),
-    authProvider: user.providerData[0]?.providerId === 'google.com'
-      ? 'google'
-      : 'email',
-    createdAt: user.metadata.creationTime || new Date().toISOString(),
-    lastLoginAt: user.metadata.lastSignInTime || new Date().toISOString(),
+    authProvider:
+      user.providerData[0]?.providerId === 'google.com'
+        ? 'google'
+        : 'email',
+    createdAt:
+      user.metadata.creationTime || new Date().toISOString(),
+    lastLoginAt:
+      user.metadata.lastSignInTime || new Date().toISOString(),
     status: 'active',
   } as UserAccount;
 }
@@ -56,7 +93,10 @@ function createUserAccount(user: User, isAdmin: boolean): UserAccount {
 
 export async function signInWithGoogleAccount(): Promise<UserAccount> {
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
+
+  provider.setCustomParameters({
+    prompt: 'select_account',
+  });
 
   const result = await signInWithPopup(auth, provider);
   const isAdmin = await getIsAdmin(result.user);
@@ -79,6 +119,7 @@ export async function loginWithEmailPassword(
   );
 
   const isAdmin = await getIsAdmin(result.user);
+
   return createUserAccount(result.user, isAdmin);
 }
 
@@ -93,10 +134,13 @@ export async function registerWithEmailPassword(
   );
 
   const isAdmin = await getIsAdmin(result.user);
+
   return createUserAccount(result.user, isAdmin);
 }
 
-export async function sendPasswordReset(email: string): Promise<void> {
+export async function sendPasswordReset(
+  email: string,
+): Promise<void> {
   await sendPasswordResetEmail(auth, email.trim());
 }
 
@@ -112,7 +156,9 @@ async function requireSignedInUser(): Promise<User> {
   const user = auth.currentUser;
 
   if (!user) {
-    throw new Error('Please sign in before performing this action.');
+    throw new Error(
+      'Please sign in before performing this action.',
+    );
   }
 
   return user;
@@ -122,7 +168,9 @@ async function requireAdmin(): Promise<User> {
   const user = await requireSignedInUser();
 
   if (!(await getIsAdmin(user))) {
-    throw new Error('Administrator permission is required.');
+    throw new Error(
+      'Administrator permission is required.',
+    );
   }
 
   return user;
@@ -138,13 +186,20 @@ export async function saveProfileToFirestore(
   const user = await requireSignedInUser();
 
   if (!profile.userId || profile.userId !== user.uid) {
-    throw new Error('You can only save your own profile.');
+    throw new Error(
+      'You can only save your own profile.',
+    );
   }
 
-  const registrationRef = doc(db, 'registrations', user.uid);
+  const registrationRef = doc(
+    db,
+    'registrations',
+    user.uid,
+  );
+
   const existing = await getDoc(registrationRef);
 
-  // Never accept approval or verification status from a member.
+  // Members cannot set their own approval or verification status.
   const {
     id,
     approvalStatus,
@@ -157,11 +212,11 @@ export async function saveProfileToFirestore(
     documents?: unknown;
   };
 
-  const safeData = {
+  const safeData = removeUndefined({
     ...memberFields,
     userId: user.uid,
     updatedAt: serverTimestamp(),
-  };
+  });
 
   if (!existing.exists()) {
     await setDoc(registrationRef, {
@@ -182,7 +237,9 @@ export async function saveProfileToFirestore(
 export async function fetchAllRegistrations(): Promise<UserProfile[]> {
   await requireAdmin();
 
-  const snapshot = await getDocs(collection(db, 'registrations'));
+  const snapshot = await getDocs(
+    collection(db, 'registrations'),
+  );
 
   return snapshot.docs.map((registration) => {
     const data = registration.data();
@@ -196,7 +253,7 @@ export async function fetchAllRegistrations(): Promise<UserProfile[]> {
 }
 
 // --------------------------------------------------
-// ADMIN: UPDATE PROFILE APPROVAL
+// ADMIN: APPROVE, REJECT OR SUSPEND PROFILE
 // --------------------------------------------------
 
 export async function updateProfileApprovalStatusFirestore(
@@ -212,21 +269,81 @@ export async function updateProfileApprovalStatusFirestore(
     throw new Error('Invalid user account ID.');
   }
 
-  const registrationRef = doc(db, 'registrations', userId);
+  const registrationRef = doc(
+    db,
+    'registrations',
+    userId,
+  );
+
+  const publicProfileRef = doc(
+    db,
+    'publicProfiles',
+    userId,
+  );
+
   const registration = await getDoc(registrationRef);
 
   if (!registration.exists()) {
     throw new Error('Registration not found.');
   }
 
-  // The document ID is the Firebase Auth UID.
-  if (registration.data().userId !== userId) {
-    throw new Error('Registration ownership check failed.');
+  const data = registration.data();
+
+  if (data.userId !== userId) {
+    throw new Error(
+      'Registration ownership check failed.',
+    );
   }
 
-  await updateDoc(registrationRef, {
+  // Keep approval and publishing changes together.
+  const batch = writeBatch(db);
+
+  batch.update(registrationRef, {
     approvalStatus: status,
     approvalNotes: notes || '',
     updatedAt: serverTimestamp(),
   });
+
+  if (status === 'approved') {
+    // Publish only the fields needed for the candidate listing.
+    // Private guardian and identity-document information is excluded.
+    const publicProfile = removeUndefined({
+      userId,
+      candidateName: data.candidateName || '',
+      gender: data.gender || '',
+      age: data.age || 0,
+      height: data.height || '',
+      maritalStatus: data.maritalStatus || '',
+      religion: data.religion || {},
+      education: data.education || '',
+      profession: data.profession || '',
+      employedIn: data.employedIn || '',
+      annualIncomeRange: data.annualIncomeRange || '',
+      district: data.district || '',
+      mandalCity: data.mandalCity || '',
+      motherTongue: data.motherTongue || '',
+      partnerPreferences: data.partnerPreferences || {},
+      mustHaves: data.mustHaves || [],
+      dealBreakers: data.dealBreakers || [],
+      aboutCandidate: data.aboutCandidate || '',
+      photos: [],
+      photoPrivacy: 'avatar_only',
+      avatarInitials: data.avatarInitials || '',
+      avatarBgColor: data.avatarBgColor || '#047857',
+      documents: [],
+      isVerified: false,
+      approvalStatus: 'approved',
+      createdAt: data.createdAt || serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      favoritesCount: 0,
+      interestsReceivedCount: 0,
+    });
+
+    batch.set(publicProfileRef, publicProfile);
+  } else {
+    // Unpublish profiles that are not approved.
+    batch.delete(publicProfileRef);
+  }
+
+  await batch.commit();
 }
