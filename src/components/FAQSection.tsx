@@ -73,7 +73,7 @@ const FAQS: FAQItem[] = [
     questionEn: 'What are the hosting limits, OTP charges, and native Android plans?',
     questionTe: 'ఉచిత హోస్టింగ్ పరిమితులు, OTP ఛార్జీలు మరియు స్థానిక ఆండ్రాయిడ్ యాప్ ప్రణాళిక ఏమిటి?',
     answerEn:
-      'Email/password and Google sign-in are provided through Firebase Authentication. SMS OTP sign-in is not currently configured, and there is no demo OTP. App installation depends on the browser's PWA support. Hosting and native Android app availability should be confirmed from the live deployment before being promised.',
+      'Email/password and Google sign-in are provided through Firebase Authentication. SMS OTP sign-in is not currently configured, and there is no demo OTP. App installation depends on PWA support in the browser. Hosting and native Android app availability should be confirmed from the live deployment before being promised.',
     answerTe:
       'ఈ వెబ్‌సైట్‌లో ఇమెయిల్/పాస్‌వర్డ్ మరియు Google సైన్-ఇన్ Firebase Authentication ద్వారా పనిచేస్తాయి. SMS OTP ప్రస్తుతం అమలులో లేదు; డెమో OTP కూడా లేదు. యాప్ ఇన్‌స్టాలేషన్ బ్రౌజర్‌లోని PWA మద్దతుపై ఆధారపడి ఉంటుంది. హోస్టింగ్ లేదా ప్రత్యేక Android యాప్ అందుబాటును లైవ్ విడుదలలో నిర్ధారించిన తర్వాత మాత్రమే ప్రకటిస్తాము.',
   },
