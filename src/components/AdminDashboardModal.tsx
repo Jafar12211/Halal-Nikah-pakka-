@@ -79,7 +79,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     };
   }, [isOpen, currentUser?.id, currentUser?.role]);
 
-  if (!isOpen || currentUser?.role !== 'admin') return null;
+  if (!isOpen || !isAdminUser(currentUser)) return null;
 
   const auditLogs = storageService.getAuditLogs();
 
@@ -247,7 +247,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
             }`}
           >
             <span className="text-stone-600 font-bold">Total Directory</span>
-            <p className="text-2xl font-bold text-stone-900 mt-0.5">{allProfiles.length}</p>
+            <p className="text-2xl font-bold text-stone-900 mt-0.5">{profiles.length}</p>
             <span className="text-[10px] text-stone-500">All registered profiles</span>
           </button>
         </div>
@@ -287,7 +287,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   : 'border-transparent text-stone-500 hover:text-stone-900'
               }`}
             >
-              All Profiles ({allProfiles.length})
+              All Profiles ({profiles.length})
             </button>
 
             <button
@@ -531,7 +531,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
               </div>
 
               <div className="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100">
-                {allProfiles.map((p) => {
+                {profiles.map((p) => {
                   const doc = p.documents && p.documents.length > 0 ? p.documents[0] : null;
                   return (
                     <div key={p.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
