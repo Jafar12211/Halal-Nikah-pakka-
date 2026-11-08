@@ -19,6 +19,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signOut,
   getIdTokenResult,
   deleteUser,
@@ -127,8 +128,16 @@ export async function loginWithEmailPassword(
   );
 
   if (!result.user.emailVerified) {
-    await signOut(auth);
-    throw new Error('Please verify your email using the link we sent before signing in.');
+    // Give existing accounts a fresh verification email so they are not locked
+    // out without a recovery path. Sign out after sending the message.
+    try {
+      await sendEmailVerification(result.user);
+    } finally {
+      await signOut(auth);
+    }
+    const error = new Error('Your email address is not verified yet. We have sent a new verification link. Open that email, verify your address, then sign in again.') as Error & { code?: string };
+    error.code = 'auth/email-not-verified';
+    throw error;
   }
 
   const isAdmin = await getIsAdmin(result.user);
