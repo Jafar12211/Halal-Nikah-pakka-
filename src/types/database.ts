@@ -54,15 +54,15 @@ export interface UserProfile {
   maritalStatus: 'Never Married' | 'Divorced' | 'Widowed';
   religion: {
     sect: string;
-    salah: '5 times daily' | 'Regularly' | 'Usually' | 'Striving';
-    hijabOrBeard: 'Observes Hijab/Niqab' | 'Full Beard' | 'Trimmed Beard' | 'Modest Dressing' | 'Not strictly';
-    quranRecitation: 'Daily' | 'Weekly' | 'Regular';
+    salah: '5 times daily' | 'Regularly' | 'Usually' | 'Striving' | 'Not specified';
+    hijabOrBeard: 'Observes Hijab/Niqab' | 'Full Beard' | 'Trimmed Beard' | 'Modest Dressing' | 'Not strictly' | 'Not specified';
+    quranRecitation: 'Daily' | 'Weekly' | 'Regular' | 'Not specified';
     fastingRamadan: boolean;
     halalDiet: boolean;
   };
   education: string;
   profession: string;
-  employedIn: 'Private Sector' | 'Government / PSU' | 'Business / Self-Employed' | 'Defense / Healthcare' | 'Homemaker' | 'Overseas / Gulf';
+  employedIn: 'Private Sector' | 'Government / PSU' | 'Business / Self-Employed' | 'Defense / Healthcare' | 'Homemaker' | 'Overseas / Gulf' | 'Not specified';
   annualIncomeRange: string;
   district: DistrictAP;
   mandalCity: string;
@@ -75,8 +75,8 @@ export interface UserProfile {
     sistersCount: number;
     sistersMarried: number;
     nativePlace: string;
-    familyStatus: 'Affluent' | 'Upper Middle Class' | 'Middle Class';
-    familyValues: 'Traditional & Practicing' | 'Moderate Religious' | 'Modern Religious';
+    familyStatus: 'Affluent' | 'Upper Middle Class' | 'Middle Class' | 'Not specified';
+    familyValues: 'Traditional & Practicing' | 'Moderate Religious' | 'Modern Religious' | 'Not specified';
   };
   partnerPreferences: {
     minAge: number;
