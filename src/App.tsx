@@ -614,7 +614,7 @@ export default function App() {
                 <span className="hidden sm:inline text-amber-300">
                   {language === 'te'
                     ? 'ఖరీదైన సబ్‌స్క్రిప్షన్ల భారం లేదు · నేరుగా కుటుంబ పెద్దలతో సంప్రదింపులు'
-                    : 'Zero expensive subscriptions · Direct guardian communication'}
+                    : 'No paid subscription required · Family-led introductions'}
                 </span>
               </div>
             </div>
