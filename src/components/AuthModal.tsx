@@ -92,12 +92,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       const code = err?.code;
 
-      if (
+      if (code === 'auth/email-not-verified') {
+        setError(err?.message || 'Check your email for a verification link, then sign in again.');
+      } else if (
         code === 'auth/invalid-credential' ||
         code === 'auth/user-not-found' ||
         code === 'auth/wrong-password'
       ) {
-        setError('Incorrect email or password.');
+        setError('Incorrect email or password. If you forgot it, use “Forgot password?” to reset it.');
       } else if (code === 'auth/too-many-requests') {
         setError('Too many attempts. Please try again later.');
       } else {
@@ -148,7 +150,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setEmail(email.trim());
     } catch (err: any) {
       if (err?.code === 'auth/email-already-in-use') {
-        setError('This email is already registered. Please sign in.');
+        // Move directly to the sign-in form and keep the email the user entered.
+        setEmail(email.trim());
+        setPassword('');
+        setMode('login');
+        setError('This email already has an account. Sign in with its existing password, or choose “Forgot password?” if you need to reset it.');
       } else if (err?.code === 'auth/weak-password') {
         setError('Please choose a stronger password.');
       } else if (err?.code === 'auth/invalid-email') {
