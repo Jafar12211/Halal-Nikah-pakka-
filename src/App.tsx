@@ -534,7 +534,10 @@ export default function App() {
         onToggleLanguage={handleToggleLanguage}
         currentUser={currentUser}
         onOpenDrawer={() => setIsDrawerOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAdmin={() => {
+          if (currentUser?.role === 'admin') setIsAdminOpen(true);
+          else showToast('Administrator access is required.');
+        }}
         activeScreen={activeTab}
         onNavigateHome={() => handleTabChange('home')}
       />
@@ -546,7 +549,10 @@ export default function App() {
         language={language}
         onNavigateTab={(tab) => handleTabChange(tab)}
         onOpenAuth={() => setIsAuthOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAdmin={() => {
+          if (currentUser?.role === 'admin') setIsAdminOpen(true);
+          else showToast('Administrator access is required.');
+        }}
         onOpenRegister={() => {
           if (!currentUser) {
             setIsAuthOpen(true);
@@ -674,6 +680,7 @@ export default function App() {
         {activeTab === 'profile' && (
           <ProfileScreen
             currentUser={currentUser}
+            myProfile={myProfile}
             language={language}
             onToggleLanguage={handleToggleLanguage}
             onOpenAuth={() => setIsAuthOpen(true)}
@@ -686,7 +693,10 @@ export default function App() {
               else if (!myProfile) setIsRegisterOpen(true);
               else setIsProfileEditOpen(true);
             }}
-            onOpenAdmin={() => setIsAdminOpen(true)}
+            onOpenAdmin={() => {
+              if (currentUser?.role === 'admin') setIsAdminOpen(true);
+              else showToast('Administrator access is required.');
+            }}
             onOpenShare={handleOpenShare}
             onSignOut={handleSignOut}
           />
