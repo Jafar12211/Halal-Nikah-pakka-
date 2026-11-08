@@ -25,8 +25,8 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
-import { storageService } from '../services/storageService';
-import { fetchAllRegistrations, updateProfileApprovalStatusFirestore } from '../services/firestoreService';
+
+import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore } from '../services/firestoreService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 import { isAdminUser } from '../utils/admin';
 
@@ -52,6 +52,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [showRejectDrawer, setShowRejectDrawer] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -62,9 +63,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     let cancelled = false;
     setLoading(true);
 
-    fetchAllRegistrations()
-      .then((data) => {
-        if (!cancelled) setProfiles(data);
+    Promise.all([fetchAllRegistrations(), fetchAdminAuditLogs()])
+      .then(([data, logs]) => {
+        if (!cancelled) {
+          setProfiles(data);
+          setAuditLogs(logs);
+        }
       })
       .catch((error) => {
         console.error('Admin registrations could not be loaded:', error);
@@ -82,8 +86,6 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   }, [isOpen, currentUser?.id, currentUser?.role]);
 
   if (!isOpen || !isAdminUser(currentUser)) return null;
-
-  const auditLogs = storageService.getAuditLogs();
 
   const pendingProfiles = profiles.filter((p) => p.approvalStatus === 'pending');
   const approvedProfiles = profiles.filter((p) => p.approvalStatus === 'approved');
