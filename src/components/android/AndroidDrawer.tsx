@@ -12,13 +12,11 @@ import {
   Smartphone,
   LogOut,
   Sparkles,
-  ExternalLink,
   ChevronRight,
   Lock
 } from 'lucide-react';
 import { UserAccount, LanguageCode } from '../../types/database';
 import { translations } from '../../utils/translations';
-import { OFFICIAL_REGISTRATION_URL } from '../../utils/matrimony';
 import { isAdminUser } from '../../utils/admin';
 
 interface AndroidDrawerProps {
@@ -249,17 +247,19 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
             </button>
           </div>
 
-          {/* External portal link */}
+          {/* In-app registration action */}
           <div className="py-2 px-5">
-            <a
-              href={OFFICIAL_REGISTRATION_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-stone-500 hover:text-emerald-900 flex items-center gap-1.5 underline"
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenRegister();
+              }}
+              className="text-[11px] text-emerald-800 hover:text-emerald-950 flex items-center gap-1.5 underline"
             >
-              <span>{isTelugu ? 'బాహ్య రిజిస్ట్రేషన్ పోర్టల్' : 'External Web Portal'}</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+              <Sparkles className="w-3 h-3" />
+              <span>{isTelugu ? 'బయోడేటా నమోదు చేయండి' : 'Register Candidate in Nikah Pakka'}</span>
+            </button>
           </div>
         </div>
 
