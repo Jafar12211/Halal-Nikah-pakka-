@@ -33,6 +33,7 @@ export interface DocumentRecord {
   id: string;
   type: ValidGovtDocType;
   fileName: string;
+  storagePath?: string;
   maskedId: string;
   uploadedAt: string;
   verified: boolean;
