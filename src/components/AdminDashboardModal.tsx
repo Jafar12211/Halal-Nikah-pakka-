@@ -581,7 +581,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                 <div className="space-y-1">
                   <p className="font-semibold text-sm">Protected Identity Documents & Valid Document Standards</p>
                   <p className="text-stone-600 leading-relaxed">
-                    In compliance with Indian matrimony and UIDAI standards, valid identification documents are strictly restricted to <strong>Aadhaar Card</strong>, <strong>PAN Card</strong>, <strong>Passport</strong>, or <strong>Driving Licence</strong>. Full identity numbers are masked with only the last 4 digits visible to prevent identity theft.
+                    For this application’s identity-review policy, accepted document types are limited to <strong>Aadhaar Card</strong>, <strong>PAN Card</strong>, <strong>Passport</strong>, or <strong>Driving Licence</strong>. Never store or display a full identity number in profile fields. Keep only a masked reference in the admin console.
                   </p>
                 </div>
               </div>
@@ -736,10 +736,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                         {/* Photo Verification Checklist */}
                         <div className="flex-1 space-y-2">
                           <div className="p-3 bg-white rounded-lg border border-stone-200 space-y-1.5">
-                            <span className="font-semibold text-stone-900 block text-xs">Admin Photo Verification Checklist:</span>
+                            <span className="font-semibold text-stone-900 block text-xs">Admin Photo Review — confirm each item manually:</span>
                             <div className="space-y-1 text-stone-700">
                               <p className="flex items-center gap-1.5">
-                                <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                <span className="text-amber-700 font-bold shrink-0">•</span>
                                 <span>Clear front-facing portrait with visible facial features</span>
                               </p>
                               <p className="flex items-center gap-1.5">
