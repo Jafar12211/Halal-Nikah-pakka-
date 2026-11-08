@@ -112,10 +112,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           <div className="text-xs uppercase tracking-wider font-semibold text-emerald-800 mb-3 flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-emerald-700" />
-              {language === 'te' ? 'గోదావరి & యానాం సంబంధాలు వెతకండి' : 'Browse Approved Profiles Across Godavari & Yanam'}
+              {language === 'te' ? 'ఆమోదించిన ప్రొఫైళ్లను చూడండి' : 'Browse Approved Profiles Across Godavari & Yanam'}
             </span>
             <span className="text-stone-500 font-normal normal-case hidden sm:inline">
-              {language === 'te' ? '100% నమ్మకమైన సంబంధాలు' : 'Review profile details and confirm them with the family'}
+              {language === 'te' ? 'ప్రొఫైల్ వివరాలను కుటుంబంతో నిర్ధారించుకోండి' : 'Review profile details and confirm them with the family'}
             </span>
           </div>
 
