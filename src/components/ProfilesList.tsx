@@ -21,6 +21,7 @@ import { FilterState } from '../types/matrimony';
 import { generateWhatsAppShareMessage, getProfileDistanceKm } from '../utils/matrimony';
 import { translations } from '../utils/translations';
 import { GODAVARI_DISTRICTS } from '../services/storageService';
+import { ProfilePhotoCarousel } from './ProfilePhotoCarousel';
 
 interface ProfilesListProps {
   profiles: UserProfile[];
@@ -265,9 +266,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                       <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-700" />
                         <span>
-                          {profile.documents && profile.documents.length > 0
-                            ? `${profile.documents[0].type} Verified`
-                            : 'Govt ID Verified'}
+                          {profile.isVerified === true ? 'Government ID Verified' : 'Identity Review Pending'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -290,32 +289,15 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                     {/* Candidate Identity Section */}
                     <div className="p-5 pb-3">
                       <div className="flex items-start gap-4">
-                        {/* Avatar or Uploaded Photo */}
-                        {profile.photos && profile.photos.length > 0 ? (
-                          <div className="w-14 h-14 rounded-2xl overflow-hidden border border-emerald-700/30 shadow-xs shrink-0 relative">
-                            <img
-                              src={profile.photos[0]}
-                              alt={profile.candidateName}
-                              className={`w-full h-full object-cover transition-all ${
-                                profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest
-                                  ? 'blur-xs scale-105'
-                                  : ''
-                              }`}
-                            />
-                            {profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest && (
-                              <div className="absolute inset-0 bg-stone-900/25 flex items-center justify-center">
-                                <Lock className="w-3.5 h-3.5 text-white drop-shadow" />
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-serif font-bold text-lg shadow-xs shrink-0"
-                            style={{ backgroundColor: profile.avatarBgColor || '#047857' }}
-                          >
-                            {profile.avatarInitials}
-                          </div>
-                        )}
+                        {/* Candidate photo carousel or monogram placeholder */}
+                        <ProfilePhotoCarousel
+                          photos={profile.photos}
+                          alt={profile.candidateName}
+                          initials={profile.avatarInitials}
+                          backgroundColor={profile.avatarBgColor}
+                          className="w-14 h-14 rounded-2xl border border-emerald-700/30 shadow-xs shrink-0"
+                          blurred={profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest}
+                        />
 
                         {/* Name & Basic Details */}
                         <div className="min-w-0 flex-1">
