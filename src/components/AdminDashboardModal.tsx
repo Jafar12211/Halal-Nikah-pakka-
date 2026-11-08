@@ -129,7 +129,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   ) => {
     if (isUpdating) return;
 
-    const reviewer = currentUser?.email || currentUser?.id || 'Authorized administrator';
+    const reviewer = currentUser?.email || undefined;
     const noteToRecord =
       customNote ||
       actionNotes ||
