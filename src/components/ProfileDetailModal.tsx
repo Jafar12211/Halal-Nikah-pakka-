@@ -47,18 +47,18 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   const t = translations[language];
 
   const handleCopyBiodata = () => {
-    const text = `*NIKAH PAKKA - Verified Godavari Biodata*
+    const text = `*NIKAH PAKKA - Candidate Biodata*
 Candidate: ${profile.candidateName} (${profile.gender === 'bride' ? 'Bride' : 'Groom'})
 Age/Height: ${profile.age} Years, ${profile.height}
 District: ${profile.district} (${profile.mandalCity})
 Education: ${profile.education}
 Profession: ${profile.profession} (${profile.annualIncomeRange})
-Deen: ${profile.religion.sect} · Salah: ${profile.religion.salah} · Modesty: ${profile.religion.hijabOrBeard}
-Family: ${profile.familyDetails.fatherNameAndOcc} (Father) · Native: ${profile.familyDetails.nativePlace}
+Deen: ${profile.religion?.sect || 'Not provided'} · Salah: ${profile.religion?.salah || 'Not provided'} · Modesty: ${profile.religion?.hijabOrBeard || 'Not provided'}
+Family: ${profile.familyDetails?.fatherNameAndOcc || 'Not shared publicly'} (Father) · Native: ${profile.familyDetails?.nativePlace || 'Not shared publicly'}
 Must-Haves: ${profile.mustHaves?.join(', ') || 'Practicing Deen, good character'}
 Deal-Breakers: ${profile.dealBreakers?.join(', ') || 'Dowry, smoking, lack of prayer'}
-Guardian Contact: ${profile.guardianWaliContact.name} (${profile.guardianWaliContact.relationship}): ${profile.guardianWaliContact.phone}
-Verified through Nikah Pakka Community Matrimony.`;
+Guardian Contact: Shared privately with families when consent is provided.
+Profile listed on Nikah Pakka. Identity documents have not been verified through this public profile.`;
 
     navigator.clipboard.writeText(text);
     setCopiedBiodata(true);
@@ -66,7 +66,8 @@ Verified through Nikah Pakka Community Matrimony.`;
   };
 
   const handleCopyPhone = () => {
-    navigator.clipboard.writeText(profile.guardianWaliContact.phone);
+    if (!profile.guardianWaliContact?.phone) return;
+    navigator.clipboard.writeText(profile.guardianWaliContact?.phone || '');
     setCopiedPhone(true);
     setTimeout(() => setCopiedPhone(false), 2500);
   };
@@ -299,20 +300,20 @@ Verified through Nikah Pakka Community Matrimony.`;
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
               <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <span className="text-stone-500 block text-xs">Salah / Daily Prayers:</span>
-                <span className="font-semibold text-stone-900">{profile.religion.salah}</span>
+                <span className="font-semibold text-stone-900">{profile.religion?.salah || 'Not provided'}</span>
               </div>
               <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <span className="text-stone-500 block text-xs">Dress / Modesty:</span>
-                <span className="font-semibold text-stone-900">{profile.religion.hijabOrBeard}</span>
+                <span className="font-semibold text-stone-900">{profile.religion?.hijabOrBeard || 'Not provided'}</span>
               </div>
               <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <span className="text-stone-500 block text-xs">Sect / Maslak:</span>
-                <span className="font-semibold text-stone-900">{profile.religion.sect}</span>
+                <span className="font-semibold text-stone-900">{profile.religion?.sect || 'Not provided'}</span>
               </div>
               <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <span className="text-stone-500 block text-xs">Quran & Halal Diet:</span>
                 <span className="font-semibold text-stone-900">
-                  {profile.religion.quranRecitation} recitation · Strict Halal food
+                  {profile.religion?.quranRecitation || 'Not provided'} recitation · Strict Halal food
                 </span>
               </div>
             </div>
@@ -352,22 +353,22 @@ Verified through Nikah Pakka Community Matrimony.`;
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
               <div>
                 <span className="text-stone-500 block text-xs">Father's Particulars:</span>
-                <span className="font-medium text-stone-900">{profile.familyDetails.fatherNameAndOcc}</span>
+                <span className="font-medium text-stone-900">{profile.familyDetails?.fatherNameAndOcc || 'Not shared publicly'}</span>
               </div>
               <div>
                 <span className="text-stone-500 block text-xs">Mother's Particulars:</span>
-                <span className="font-medium text-stone-900">{profile.familyDetails.motherNameAndOcc}</span>
+                <span className="font-medium text-stone-900">{profile.familyDetails?.motherNameAndOcc || 'Not shared publicly'}</span>
               </div>
               <div>
                 <span className="text-stone-500 block text-xs">Brothers & Sisters:</span>
                 <span className="font-medium text-stone-900">
-                  {profile.familyDetails.brothersCount} Brothers ({profile.familyDetails.brothersMarried} Married) · {profile.familyDetails.sistersCount} Sisters ({profile.familyDetails.sistersMarried} Married)
+                  {profile.familyDetails?.brothersCount ?? '—'} Brothers ({profile.familyDetails?.brothersMarried ?? '—'} Married) · {profile.familyDetails?.sistersCount ?? '—'} Sisters ({profile.familyDetails?.sistersMarried ?? '—'} Married)
                 </span>
               </div>
               <div>
                 <span className="text-stone-500 block text-xs">Native Place & Family Status:</span>
                 <span className="font-medium text-stone-900">
-                  {profile.familyDetails.nativePlace} · {profile.familyDetails.familyStatus}
+                  {profile.familyDetails?.nativePlace || 'Not shared publicly'} · {profile.familyDetails?.familyStatus || 'Not shared publicly'}
                 </span>
               </div>
             </div>
@@ -395,7 +396,7 @@ Verified through Nikah Pakka Community Matrimony.`;
                 </button>
 
                 <a
-                  href={`tel:${profile.guardianWaliContact.phone}`}
+                  href={`tel:${profile.guardianWaliContact?.phone || ''}`}
                   className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-800 text-white rounded-lg hover:bg-emerald-900 transition-colors flex items-center gap-1.5"
                 >
                   <Phone className="w-3.5 h-3.5" />
@@ -408,20 +409,20 @@ Verified through Nikah Pakka Community Matrimony.`;
               <div>
                 <span className="text-stone-500 block">Wali / Contact Person:</span>
                 <span className="font-semibold text-stone-900">
-                  {profile.guardianWaliContact.name} ({profile.guardianWaliContact.relationship})
+                  {profile.guardianWaliContact?.name || 'Shared after family consent'} ({profile.guardianWaliContact?.relationship || ''})
                 </span>
               </div>
               <div>
                 <span className="text-stone-500 block">Phone Number:</span>
                 <span className="font-semibold text-stone-900 font-mono">
-                  {profile.guardianWaliContact.phone}
+                  {profile.guardianWaliContact?.phone || ''}
                 </span>
               </div>
               <div>
                 <span className="text-stone-500 block">Preferred Calling Time:</span>
                 <span className="font-semibold text-stone-900 flex items-center gap-1">
                   <Clock className="w-3 h-3 text-stone-400" />
-                  {profile.guardianWaliContact.preferredCallTime}
+                  {profile.guardianWaliContact?.preferredCallTime || 'To be arranged privately'}
                 </span>
               </div>
             </div>
