@@ -59,7 +59,11 @@ export const ProfilePhotoCarousel: React.FC<ProfilePhotoCarouselProps> = ({
           alt={alt}
           loading="lazy"
           referrerPolicy="no-referrer"
-          onError={() => setFailedPhotos((previous) => new Set(previous).add(currentPhoto))}
+          onError={() => {
+            if (currentPhoto) {
+              setFailedPhotos((previous) => new Set(previous).add(currentPhoto));
+            }
+          }}
           className={`w-full h-full object-cover ${blurred ? 'blur-xs scale-105' : ''} ${imageClassName}`}
         />
       ) : (
