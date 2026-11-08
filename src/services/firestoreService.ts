@@ -272,7 +272,7 @@ export async function fetchAllRegistrations(): Promise<UserProfile[]> {
 export async function updateProfileApprovalStatusFirestore(
   profileId: string,
   userId: string,
-  status: 'pending' | 'approved' | 'rejected' | 'suspended',
+  status: 'approved' | 'rejected' | 'suspended',
   reviewerEmail?: string,
   notes?: string,
 ): Promise<void> {
