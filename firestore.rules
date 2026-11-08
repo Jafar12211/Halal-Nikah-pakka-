@@ -26,7 +26,9 @@ service cloud.firestore {
         owner(uid)
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasNone(['approvalStatus', 'verificationStatus', 'isVerified', 'approvalNotes', 'documents'])
+          .hasNone(['verificationStatus', 'approvalNotes', 'documents'])
+        && request.resource.data.approvalStatus == 'pending'
+        && request.resource.data.isVerified == false
       ) || (
         admin()
         && resource.data.userId == uid
@@ -52,6 +54,7 @@ service cloud.firestore {
     match /publicProfiles/{uid} {
       allow read: if signedIn();
       allow write: if admin();
+      allow delete: if admin() || owner(uid);
     }
 
     // All other collections are denied until their access model is explicitly implemented.
