@@ -257,8 +257,18 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
               return (
                 <div
                   key={profile.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View profile for ${profile.candidateName}`}
                   onClick={() => onSelectProfile(profile)}
-                  className="group bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer"
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelectProfile(profile);
+                    }
+                  }}
+                  className="group bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer"
                 >
                   <div>
                     {/* Top strip: District & Verification Info */}
