@@ -23,6 +23,7 @@ import {
 
 import { db, auth } from './firebase';
 import type { UserAccount, UserProfile } from '../types/database';
+import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
 // --------------------------------------------------
 // REMOVE UNDEFINED VALUES RECURSIVELY
@@ -295,11 +296,36 @@ export async function updateProfileApprovalStatusFirestore(
     );
   }
 
+  if (status === 'approved') {
+    const hasAdultAge = Number.isInteger(data.age) && data.age >= 18 && data.age <= 100;
+    const hasCandidatePhoto =
+      Array.isArray(data.photos) &&
+      data.photos.some((photo: unknown) => typeof photo === 'string' && /^https:\/\//i.test(photo));
+    const hasVerifiedGovernmentId =
+      Array.isArray(data.documents) &&
+      data.documents.some((document: any) =>
+        VALID_GOVT_DOC_TYPES.includes(document?.type) &&
+        document?.verified === true &&
+        document?.isRestricted === true &&
+        typeof document?.fileName === 'string' &&
+        document.fileName.trim().length > 0 &&
+        typeof document?.maskedId === 'string' &&
+        document.maskedId.trim().length > 0
+      );
+
+    if (!hasAdultAge || !hasCandidatePhoto || !hasVerifiedGovernmentId) {
+      throw new Error(
+        'Approval blocked. The candidate must be 18+, have a valid HTTPS photograph, and have an accepted government ID that an administrator has actually verified.'
+      );
+    }
+  }
+
   // Keep approval and publishing changes together.
   const batch = writeBatch(db);
 
   batch.update(registrationRef, {
     approvalStatus: status,
+    isVerified: status === 'approved',
     approvalNotes: notes || '',
     updatedAt: serverTimestamp(),
   });
@@ -326,12 +352,15 @@ export async function updateProfileApprovalStatusFirestore(
       mustHaves: data.mustHaves || [],
       dealBreakers: data.dealBreakers || [],
       aboutCandidate: data.aboutCandidate || '',
-      photos: [],
-      photoPrivacy: 'avatar_only',
+      // Do not expose photos unless the candidate explicitly chose public visibility.
+      photos: data.photoPrivacy === 'visible' && Array.isArray(data.photos)
+        ? data.photos.filter((photo: unknown) => typeof photo === 'string' && /^https:\/\//i.test(photo))
+        : [],
+      photoPrivacy: data.photoPrivacy === 'visible' ? 'visible' : 'avatar_only',
       avatarInitials: data.avatarInitials || '',
       avatarBgColor: data.avatarBgColor || '#047857',
       documents: [],
-      isVerified: false,
+      isVerified: true,
       approvalStatus: 'approved',
       createdAt: data.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp(),
