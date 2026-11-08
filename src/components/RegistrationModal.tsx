@@ -17,7 +17,7 @@ import { MatrimonyProfile, RegisteredByRole } from '../types/matrimony';
 interface RegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProfileCreated: (newProfile: MatrimonyProfile) => void;
+  onProfileCreated: (newProfile: MatrimonyProfile) => Promise<void>;
 }
 
 type RegistrationForm = {
@@ -228,7 +228,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         interestsCount: 0,
       } as unknown as MatrimonyProfile;
 
-      onProfileCreated(newProfile);
+      await onProfileCreated(newProfile);
       setSubmittedSuccess(true);
     } catch (error) {
       console.error('Registration submission failed:', error);
