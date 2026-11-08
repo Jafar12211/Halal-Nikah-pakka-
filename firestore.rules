@@ -57,6 +57,17 @@ service cloud.firestore {
       allow delete: if admin() || owner(uid);
     }
 
+    // Immutable administrator audit trail.
+    match /auditLogs/{logId} {
+      allow read, list: if admin();
+      allow create: if admin()
+        && request.resource.data.performedBy == request.auth.token.email
+        && request.resource.data.targetId is string
+        && request.resource.data.action in ['PROFILE_APPROVED', 'PROFILE_REJECTED', 'PROFILE_SUSPENDED']
+        && request.resource.data.details is string;
+      allow update, delete: if false;
+    }
+
     // All other collections are denied until their access model is explicitly implemented.
     match /{document=**} { allow read, write: if false; }
   }
