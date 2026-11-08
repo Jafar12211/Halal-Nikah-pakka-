@@ -35,7 +35,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenRegister, onOpenShare }) =
                 <a href="#home" className="hover:text-white transition-colors">Home</a>
               </li>
               <li>
-                <a href="#matches-section" className="hover:text-white transition-colors">Browse Verified Matches</a>
+                <a href="#matches-section" className="hover:text-white transition-colors">Browse Approved Profiles</a>
               </li>
               <li>
                 <a href="#mission-section" className="hover:text-white transition-colors">Why Nikah Pakka</a>
