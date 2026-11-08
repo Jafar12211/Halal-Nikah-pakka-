@@ -36,7 +36,7 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
           </div>
           <div>
             <h1 className="text-lg font-bold font-serif text-white">
-              {isTelugu ? 'ఆసక్తి గల సంబంధాలు (ఖబర్)' : 'My Shortlist & Proposals'}
+              {isTelugu ? 'నేను సేవ్ చేసిన ప్రొఫైళ్లు' : 'My Saved Profiles'}
             </h1>
             <p className="text-xs text-emerald-200 mt-0.5">
               {isTelugu
