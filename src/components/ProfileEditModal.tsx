@@ -59,15 +59,15 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   // Religious and career details
   const [sect, setSect] = useState('Sunni Hanafi');
   const [salah, setSalah] =
-    useState<UserProfile['religion']['salah']>('5 times daily');
+    useState<UserProfile['religion']['salah']>('Not specified');
   const [hijabOrBeard, setHijabOrBeard] =
-    useState<UserProfile['religion']['hijabOrBeard']>('Observes Hijab/Niqab');
+    useState<UserProfile['religion']['hijabOrBeard']>('Not specified');
   const [quranRecitation, setQuranRecitation] =
-    useState<UserProfile['religion']['quranRecitation']>('Daily');
+    useState<UserProfile['religion']['quranRecitation']>('Not specified');
   const [education, setEducation] = useState('');
   const [profession, setProfession] = useState('');
   const [employedIn, setEmployedIn] =
-    useState<UserProfile['employedIn']>('Private Sector');
+    useState<UserProfile['employedIn']>('Not specified');
   const [annualIncomeRange, setAnnualIncomeRange] = useState('');
 
   // Family
@@ -79,9 +79,9 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   const [sistersMarried, setSistersMarried] = useState(0);
   const [nativePlace, setNativePlace] = useState('');
   const [familyStatus, setFamilyStatus] =
-    useState<UserProfile['familyDetails']['familyStatus']>('Upper Middle Class');
+    useState<UserProfile['familyDetails']['familyStatus']>('Not specified');
   const [familyValues, setFamilyValues] =
-    useState<UserProfile['familyDetails']['familyValues']>('Traditional & Practicing');
+    useState<UserProfile['familyDetails']['familyValues']>('Not specified');
 
   // Partner preferences
   const [minAgePref, setMinAgePref] = useState(24);
@@ -146,13 +146,13 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         setMotherTongue(data.motherTongue || '');
 
         setSect(data.religion?.sect || 'Sunni Hanafi');
-        setSalah(data.religion?.salah || '5 times daily');
-        setHijabOrBeard(data.religion?.hijabOrBeard || 'Observes Hijab/Niqab');
-        setQuranRecitation(data.religion?.quranRecitation || 'Daily');
+        setSalah(data.religion?.salah || 'Not specified');
+        setHijabOrBeard(data.religion?.hijabOrBeard || 'Not specified');
+        setQuranRecitation(data.religion?.quranRecitation || 'Not specified');
 
         setEducation(data.education || '');
         setProfession(data.profession || '');
-        setEmployedIn(data.employedIn || 'Private Sector');
+        setEmployedIn(data.employedIn || 'Not specified');
         setAnnualIncomeRange(data.annualIncomeRange || '');
 
         setFatherNameAndOcc(data.familyDetails?.fatherNameAndOcc || '');
@@ -162,8 +162,8 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         setSistersCount(data.familyDetails?.sistersCount || 0);
         setSistersMarried(data.familyDetails?.sistersMarried || 0);
         setNativePlace(data.familyDetails?.nativePlace || '');
-        setFamilyStatus(data.familyDetails?.familyStatus || 'Upper Middle Class');
-        setFamilyValues(data.familyDetails?.familyValues || 'Traditional & Practicing');
+        setFamilyStatus(data.familyDetails?.familyStatus || 'Not specified');
+        setFamilyValues(data.familyDetails?.familyValues || 'Not specified');
 
         setMinAgePref(data.partnerPreferences?.minAge || 24);
         setMaxAgePref(data.partnerPreferences?.maxAge || 30);
@@ -594,6 +594,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                       onChange={(e) => setSalah(e.target.value as UserProfile['religion']['salah'])}
                       className={inputClass}
                     >
+                      <option value="Not specified">Not specified</option>
                       <option value="5 times daily">5 times daily</option>
                       <option value="Regularly">Regularly</option>
                       <option value="Usually">Usually</option>
@@ -610,6 +611,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                       onChange={(e) => setHijabOrBeard(e.target.value as UserProfile['religion']['hijabOrBeard'])}
                       className={inputClass}
                     >
+                      <option value="Not specified">Not specified</option>
                       <option value="Observes Hijab/Niqab">Observes Hijab/Niqab</option>
                       <option value="Full Beard">Full Beard</option>
                       <option value="Trimmed Beard">Trimmed Beard</option>
@@ -625,6 +627,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                       onChange={(e) => setQuranRecitation(e.target.value as UserProfile['religion']['quranRecitation'])}
                       className={inputClass}
                     >
+                      <option value="Not specified">Not specified</option>
                       <option value="Daily">Daily</option>
                       <option value="Weekly">Weekly</option>
                       <option value="Regular">Regular</option>
@@ -662,6 +665,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                       onChange={(e) => setEmployedIn(e.target.value as UserProfile['employedIn'])}
                       className={inputClass}
                     >
+                      <option value="Not specified">Not specified</option>
                       <option value="Private Sector">Private Sector / MNC</option>
                       <option value="Government / PSU">Government / PSU / Bank</option>
                       <option value="Business / Self-Employed">Business / Self-Employed</option>
@@ -774,6 +778,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                       onChange={(e) => setFamilyStatus(e.target.value as UserProfile['familyDetails']['familyStatus'])}
                       className={inputClass}
                     >
+                      <option value="Not specified">Not specified</option>
                       <option value="Upper Middle Class">Upper Middle Class</option>
                       <option value="Middle Class">Middle Class</option>
                       <option value="Affluent">Affluent</option>
@@ -788,10 +793,10 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                       onChange={(e) => setFamilyValues(e.target.value as UserProfile['familyDetails']['familyValues'])}
                       className={inputClass}
                     >
+                      <option value="Not specified">Not specified</option>
                       <option value="Traditional & Practicing">Traditional & Practicing</option>
-                      <option value="Moderate">Moderate</option>
-                      <option value="Religious">Religious</option>
-                      <option value="Modern">Modern</option>
+                      <option value="Moderate Religious">Moderate Religious</option>
+                      <option value="Modern Religious">Modern Religious</option>
                     </select>
                   </div>
                 </div>
