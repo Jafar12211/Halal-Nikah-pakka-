@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   User,
   ShieldCheck,
@@ -13,11 +13,13 @@ import {
   ChevronRight,
   ExternalLink,
   Smartphone,
-  Info
+  Info,
+  Trash2,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { UserAccount, UserProfile, LanguageCode } from '../../types/database';
 import { translations } from '../../utils/translations';
-import { OFFICIAL_REGISTRATION_URL } from '../../utils/matrimony';
 import { PWAInstallButton } from '../PWAInstallButton';
 
 interface ProfileScreenProps {
@@ -31,6 +33,7 @@ interface ProfileScreenProps {
   onOpenAdmin: () => void;
   onOpenShare: () => void;
   onSignOut: () => void;
+  onDeleteAccount: (password?: string) => Promise<void>;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -44,7 +47,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenAdmin,
   onOpenShare,
   onSignOut,
+  onDeleteAccount,
 }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const isTelugu = language === 'te';
   const t = translations[language];
 
@@ -305,26 +313,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <ChevronRight className="w-4 h-4 text-stone-400" />
         </button>
 
-        {/* External Registration Portal */}
-        <a
-          href={OFFICIAL_REGISTRATION_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-stone-50 transition-colors text-left text-stone-700"
-        >
-          <div className="flex items-center gap-3">
-            <ExternalLink className="w-4 h-4 text-stone-500" />
-            <div>
-              <p className="font-semibold text-stone-900">
-                {isTelugu ? 'బాహ్య వెబ్ రిజిస్ట్రేషన్' : 'External Web Portal'}
-              </p>
-              <p className="text-[11px] text-stone-400 font-mono truncate max-w-[220px]">
-                site-75bd7eafe06f4ebf8c6d057f860920dd.freebuff.page
-              </p>
-            </div>
+        {/* Account privacy notice */}
+        <div className="px-4 py-3.5 flex items-start gap-3 text-xs">
+          <Lock className="w-4 h-4 text-emerald-800 shrink-0" />
+          <div>
+            <p className="font-semibold text-stone-900">Private matrimony account</p>
+            <p className="text-[11px] text-stone-500 mt-0.5">
+              Your registration stays private until it passes administrator review. Never share full government ID numbers or passwords.
+            </p>
           </div>
-          <ExternalLink className="w-4 h-4 text-stone-400" />
-        </a>
+        </div>
       </div>
 
       {/* Sign Out Button */}
@@ -339,6 +337,83 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <LogOut className="w-4 h-4" />
           <span>{isTelugu ? 'ఖాతా నుండి నిష్క్రమించండి (లాగౌట్)' : 'Sign Out of Account'}</span>
         </button>
+      )}
+
+      {/* Permanent account deletion */}
+      {currentUser && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError('');
+              setShowDeleteConfirm(true);
+            }}
+            className="w-full py-3 bg-white hover:bg-rose-50 text-rose-700 rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 border border-rose-200 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete My Account</span>
+          </button>
+
+          {showDeleteConfirm && (
+            <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 space-y-3">
+              <div className="flex items-start gap-2 text-rose-950">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <div>
+                  <p className="font-bold text-sm">Permanently delete this account?</p>
+                  <p className="text-xs mt-1">
+                    This removes your Firebase login and your private/public profile records. This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              {currentUser.authProvider === 'email' && (
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  placeholder="Enter your current password"
+                  className="w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs text-stone-900"
+                />
+              )}
+              {deleteError && (
+                <p role="alert" className="text-xs text-rose-800">{deleteError}</p>
+              )}
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  disabled={deletingAccount}
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeletePassword('');
+                    setDeleteError('');
+                  }}
+                  className="px-3 py-2 rounded-lg bg-white border border-stone-300 text-stone-700 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingAccount || (currentUser.authProvider === 'email' && !deletePassword)}
+                  onClick={async () => {
+                    setDeletingAccount(true);
+                    setDeleteError('');
+                    try {
+                      await onDeleteAccount(deletePassword || undefined);
+                    } catch (error) {
+                      setDeleteError(error instanceof Error ? error.message : 'Account deletion failed. Please try again.');
+                    } finally {
+                      setDeletingAccount(false);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 disabled:opacity-50 text-white text-xs font-bold inline-flex items-center gap-1.5"
+                >
+                  {deletingAccount && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {deletingAccount ? 'Deleting…' : 'Permanently Delete'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Footer Info */}
