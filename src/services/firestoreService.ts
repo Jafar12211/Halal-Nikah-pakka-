@@ -395,9 +395,7 @@ export async function updateProfileApprovalStatusFirestore(
         ? 'PROFILE_APPROVED'
         : status === 'rejected'
           ? 'PROFILE_REJECTED'
-          : status === 'suspended'
-            ? 'PROFILE_SUSPENDED'
-            : 'PROFILE_APPROVED',
+          : 'PROFILE_SUSPENDED',
     performedBy: reviewerEmail || adminUser.email || adminUser.uid,
     targetId: userId,
     details: notes || `Profile status changed to ${status}.`,
