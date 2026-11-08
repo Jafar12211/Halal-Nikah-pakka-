@@ -98,6 +98,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   const [guardianPhone, setGuardianPhone] = useState('');
   const [photoPrivacy, setPhotoPrivacy] =
     useState<UserProfile['photoPrivacy']>('blurred_until_request');
+  const [candidateConsentConfirmed, setCandidateConsentConfirmed] = useState(false);
 
   // Only existing image URLs can be retained.
   // Base64 photos cannot be uploaded without Firebase Storage.
@@ -176,6 +177,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         setGuardianPhone(data.guardianWaliContact?.phone || '');
 
         setPhotoPrivacy(data.photoPrivacy || 'blurred_until_request');
+        setCandidateConsentConfirmed(data.candidateConsentConfirmed === true);
 
         setPhotos(
           (data.photos || []).filter(
@@ -233,6 +235,12 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       return;
     }
 
+    if (!candidateConsentConfirmed) {
+      setErrorMsg('Please confirm that the candidate has given permission for this profile and its selected photos to be listed.');
+      setActiveTab('privacy');
+      return;
+    }
+
     if (!education.trim() || !profession.trim()) {
       setErrorMsg('Please enter education and profession details.');
       setActiveTab('deen');
@@ -260,6 +268,8 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       userId: currentUser.id,
 
       candidateName: candidateName.trim(),
+      candidateConsentConfirmed: true,
+      candidateConsentAt: existingProfile?.candidateConsentAt || new Date().toISOString(),
       gender,
       dob: existingProfile?.dob || '',
       age: Number(age),
@@ -1022,6 +1032,21 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     </label>
                   ))}
                 </div>
+
+                <label className="flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-950 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={candidateConsentConfirmed}
+                    onChange={(event) => setCandidateConsentConfirmed(event.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <strong>Candidate consent required.</strong>
+                    <span className="block text-xs text-stone-700 mt-0.5">
+                      I confirm the candidate has personally agreed to this biodata submission and to the chosen photo-visibility setting. I have authority to submit it on their behalf.
+                    </span>
+                  </span>
+                </label>
 
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900">
                   Profile verification and approval can only be performed by an authorized administrator. Saving your profile does not mean it is verified or approved.
