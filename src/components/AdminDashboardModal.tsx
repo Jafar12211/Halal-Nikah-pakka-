@@ -63,13 +63,19 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([fetchAllRegistrations(), fetchAdminAuditLogs()])
-      .then(([data, logs]) => {
-        if (!cancelled) {
-          setProfiles(data);
-          setAuditLogs(logs);
-        }
-      })
+    Promise.all([
+      fetchAllRegistrations().then((data) => {
+        if (!cancelled) setProfiles(data);
+      }),
+      fetchAdminAuditLogs()
+        .then((logs) => {
+          if (!cancelled) setAuditLogs(logs);
+        })
+        .catch((error) => {
+          console.error('Admin audit history could not be loaded:', error);
+          if (!cancelled) setAuditLogs([]);
+        }),
+    ])
       .catch((error) => {
         console.error('Admin registrations could not be loaded:', error);
         if (!cancelled) {
