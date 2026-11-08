@@ -8,6 +8,9 @@ import {
   updateDoc,
   writeBatch,
   serverTimestamp,
+  orderBy,
+  limit,
+  query,
 } from 'firebase/firestore';
 
 import {
@@ -22,7 +25,7 @@ import {
 } from 'firebase/auth';
 
 import { db, auth } from './firebase';
-import type { UserAccount, UserProfile } from '../types/database';
+import type { AuditLog, UserAccount, UserProfile } from '../types/database';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
 // --------------------------------------------------
@@ -273,7 +276,7 @@ export async function updateProfileApprovalStatusFirestore(
   reviewerEmail?: string,
   notes?: string,
 ): Promise<void> {
-  await requireAdmin();
+  const adminUser = await requireAdmin();
 
   if (!userId || userId.length > 128) {
     throw new Error('Invalid user account ID.');
@@ -385,5 +388,49 @@ export async function updateProfileApprovalStatusFirestore(
     batch.delete(publicProfileRef);
   }
 
+  const auditRef = doc(collection(db, 'auditLogs'));
+  batch.set(auditRef, {
+    action:
+      status === 'approved'
+        ? 'PROFILE_APPROVED'
+        : status === 'rejected'
+          ? 'PROFILE_REJECTED'
+          : status === 'suspended'
+            ? 'PROFILE_SUSPENDED'
+            : 'PROFILE_APPROVED',
+    performedBy: reviewerEmail || adminUser.email || adminUser.uid,
+    targetId: userId,
+    details: notes || `Profile status changed to ${status}.`,
+    timestamp: serverTimestamp(),
+  });
+
   await batch.commit();
+}
+
+export async function fetchAdminAuditLogs(): Promise<AuditLog[]> {
+  await requireAdmin();
+
+  const snapshot = await getDocs(
+    query(
+      collection(db, 'auditLogs'),
+      orderBy('timestamp', 'desc'),
+      limit(100),
+    ),
+  );
+
+  return snapshot.docs.map((entry) => {
+    const data = entry.data();
+    const timestamp =
+      data.timestamp && typeof data.timestamp.toDate === 'function'
+        ? data.timestamp.toDate().toISOString()
+        : typeof data.timestamp === 'string'
+          ? data.timestamp
+          : '';
+
+    return {
+      ...data,
+      id: entry.id,
+      timestamp,
+    } as AuditLog;
+  });
 }
