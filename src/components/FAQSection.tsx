@@ -23,7 +23,7 @@ const FAQS: FAQItem[] = [
     questionEn: 'How is Nikah Pakka different from expensive matrimony websites?',
     questionTe: 'ఖరీదైన మ్యాట్రిమోనీ వెబ్‌సైట్ల కంటే నికాహ్ పక్కా ఎలా భిన్నమైనది?',
     answerEn:
-      'Most matrimony sites charge ₹3,000 to ₹15,000 just to view contact numbers or send a message. Nikah Pakka is built as a community-driven initiative for Yanam and Godavari districts with free registration, transparent biodatas, and direct guardian/wali contact details without locking basic matchmaking behind a paywall.',
+      'Nikah Pakka is a community matrimony directory for Yanam and the Godavari region. Browsing and profile registration are currently free. Public profiles show only approved information; guardian contact details are not shared through the public directory, and in-app messaging is not yet available.',
     answerTe:
       'చాలా మ్యాట్రిమోనీ సైట్లు కేవలం ఫోన్ నంబర్లు చూడటానికి ₹3,000 నుండి ₹15,000 వరకు వసూలు చేస్తాయి. నికాహ్ పక్కా యానాం మరియు గోదావరి జిల్లాల ముస్లింల కోసం రూపొందించబడిన ఉచిత సేవా వేదిక. ఎటువంటి ఖరీదైన పేవాల్స్ లేకుండా నేరుగా సంప్రదించవచ్చు.',
   },
@@ -43,7 +43,7 @@ const FAQS: FAQItem[] = [
     questionEn: 'How does Family & Wali-Chaperoned messaging work?',
     questionTe: 'కుటుంబం మరియు వలీ పర్యవేక్షణలో మెసేజింగ్ ఎలా పనిచేస్తుంది?',
     answerEn:
-      'In accordance with Islamic modesty (avoiding Khalwah), our in-app messaging includes the registered guardian (Wali/parent) in every conversation. Messages are end-to-end encrypted for privacy, but accessible to both the candidate and their family elders, fostering respect and preventing inappropriate behavior.',
+      'Family involvement is encouraged throughout the introduction process. In-app family messaging is not yet enabled, so no messages can currently be sent through Nikah Pakka. Families should arrange introductions through contact details they have independently verified.',
     answerTe:
       'ఇస్లామిక్ పద్ధతిలో ఖల్వా (ఏకాంతం) నివారించడానికి, మా ఇన్-యాప్ మెసేజింగ్‌లో కుటుంబ సంరక్షకులను (వలీ/తల్లిదండ్రులను) చేర్చడం జరుగుతుంది. సంభాషణలు ఎండ్-టు-ఎండ్ ఎన్‌క్రిప్ట్ చేయబడి ఉంటాయి, కుటుంబ పెద్దలకు కూడా పారదర్శకంగా ఉంటాయి.',
   },
@@ -53,7 +53,7 @@ const FAQS: FAQItem[] = [
     questionEn: 'How are Aadhaar, Voter ID, and identity documents protected?',
     questionTe: 'ఆధార్, ఓటర్ ఐడీ మరియు గుర్తింపు పత్రాలు ఎలా భద్రపరచబడతాయి?',
     answerEn:
-      'Identity documents uploaded during registration or verification are restricted. Sensitive digits are masked (e.g., XXXX-XXXX-1234) and files are accessible only to verified administrators for approval. They are never published publicly on member profile pages.',
+      'Secure photo and identity-document uploads are not currently available on this project. Do not enter Aadhaar, PAN, passport, or driving-licence numbers into profile fields or send sensitive documents through public channels. A profile must not be described as identity-verified until a secure upload and documented administrator review have actually taken place.',
     answerTe:
       'రిజిస్ట్రేషన్ సమయంలో అప్‌లోడ్ చేసిన గుర్తింపు పత్రాలు అత్యంత గోప్యంగా ఉంటాయి. ఆధార్ నంబర్లు మాస్క్ చేయబడతాయి (ఉదా: XXXX-XXXX-1234) మరియు కేవలం నిర్ధారణ కోసం అడ్మిన్‌కు మాత్రమే కనిపిస్తాయి. పబ్లిక్‌గా ఎవరికీ కనిపించవు.',
   },
@@ -73,7 +73,7 @@ const FAQS: FAQItem[] = [
     questionEn: 'What are the hosting limits, OTP charges, and native Android plans?',
     questionTe: 'ఉచిత హోస్టింగ్ పరిమితులు, OTP ఛార్జీలు మరియు స్థానిక ఆండ్రాయిడ్ యాప్ ప్రణాళిక ఏమిటి?',
     answerEn:
-      'Nikah Pakka is hosted on Google Cloud infrastructure. Basic SMS OTP gateways require an active DLT template registration in India (TRAI compliance) and incur per-SMS costs (~₹0.15 - ₹0.25 per OTP). In this staging phase, instant demo OTP (786786) and Google One-Tap sign-in are available free. A dedicated Flutter/Kotlin native Android APK will be built once user numbers surpass 1,000 active local profiles.',
+      'Email/password and Google sign-in are provided through Firebase Authentication. SMS OTP sign-in is not currently configured, and there is no demo OTP. App installation depends on the browser's PWA support. Hosting and native Android app availability should be confirmed from the live deployment before being promised.',
     answerTe:
       'నికాహ్ పక్కా గూగుల్ క్లౌడ్ ద్వారా నడుస్తుంది. భారతదేశంలో SMS OTP కోసం ట్రాయ్ (TRAI) నిబంధనల ప్రకారం DLT రిజిస్ట్రేషన్ అవసరం. ప్రస్తుతం ఉచిత డెమో OTP (786786) మరియు గూగుల్ సైన్-ఇన్ అందుబాటులో ఉన్నాయి. త్వరలోనే స్థానిక ఆండ్రాయిడ్ APK యాప్ కూడా విడుదల చేయబడుతుంది.',
   },
@@ -162,7 +162,7 @@ export const FAQSection: React.FC<FAQSectionProps> = ({ language, onOpenRegister
             <p className="text-xs text-stone-600">
               {language === 'te'
                 ? 'ఉచితంగా ప్రొఫైల్ నమోదు చేసి మీ ప్రాంతీయ సంబంధాలను అన్వేషించండి.'
-                : '100% free community registration. Zero charges until you find a blessed match.'}
+                : 'Community registration is currently free. Any future paid service would be clearly disclosed before a payment is requested.'}
             </p>
           </div>
           <button
