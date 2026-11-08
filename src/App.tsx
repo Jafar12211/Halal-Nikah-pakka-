@@ -37,6 +37,7 @@ import { auth, db } from './services/firebase';
 
 import {
   logoutFirebaseUser,
+  deleteOwnAccount,
   saveProfileToFirestore,
 } from './services/firestoreService';
 
@@ -447,6 +448,18 @@ export default function App() {
     }
   };
 
+  const handleDeleteAccount = async (password?: string) => {
+    await deleteOwnAccount(password);
+    setCurrentUser(null);
+    setMyProfile(null);
+    setProfiles([]);
+    setUserInterests(new Set());
+    setIsMessagingOpen(false);
+    setIsAdminOpen(false);
+    setSelectedProfile(null);
+    showToast('Your account and profile records have been deleted.');
+  };
+
   const handleOpenShare = () => {
     setActiveTab('home');
 
@@ -706,6 +719,7 @@ export default function App() {
             onOpenAdmin={() => setIsAdminOpen(true)}
             onOpenShare={handleOpenShare}
             onSignOut={handleSignOut}
+            onDeleteAccount={handleDeleteAccount}
           />
         )}
       </main>
