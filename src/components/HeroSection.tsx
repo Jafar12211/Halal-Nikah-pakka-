@@ -93,12 +93,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <span aria-hidden="true" className="text-stone-500">·</span>
             <span className="flex items-center gap-1.5 text-emerald-200 font-medium">
               <ShieldCheck className="w-4 h-4 text-emerald-300" />
-              {language === 'te' ? 'మాన్యువల్ ఐడీ వెరిఫికేషన్' : 'Manual ID Verification'}
+              {language === 'te' ? 'అడ్మిన్ సమీక్ష అవసరం' : 'Administrator review required'}
             </span>
             <span aria-hidden="true" className="text-stone-500">·</span>
             <span className="flex items-center gap-1.5 text-amber-200 font-medium">
               <Users className="w-4 h-4 text-amber-300" />
-              {language === 'te' ? 'వలీ / కుటుంబ పర్యవేక్షణ' : 'Family involvement encouraged'}
+              {language === 'te' ? 'కుటుంబ భాగస్వామ్యం ప్రోత్సహించబడుతుంది' : 'Family involvement encouraged'}
             </span>
             <span aria-hidden="true" className="text-stone-500">·</span>
             <span className="text-stone-300 font-medium">
