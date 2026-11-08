@@ -32,8 +32,18 @@ service cloud.firestore {
         && resource.data.userId == uid
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['approvalStatus', 'approvalNotes', 'updatedAt'])
+          .hasOnly(['approvalStatus', 'approvalNotes', 'updatedAt', 'isVerified'])
         && request.resource.data.approvalStatus in ['pending', 'approved', 'rejected', 'suspended']
+        && request.resource.data.isVerified == (request.resource.data.approvalStatus == 'approved')
+        && (request.resource.data.approvalStatus != 'approved'
+          || (
+            resource.data.age is number
+            && resource.data.age >= 18
+            && resource.data.photos is list
+            && resource.data.photos.size() > 0
+            && resource.data.documents is list
+            && resource.data.documents.size() > 0
+          ))
       );
       allow delete: if owner(uid) || admin();
     }
