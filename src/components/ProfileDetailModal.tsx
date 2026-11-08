@@ -75,6 +75,10 @@ Deal-Breakers: ${profile.dealBreakers?.join(', ') || 'Dowry, smoking, lack of pr
 Guardian Contact: Shared privately with families when consent is provided.
 Profile listed on Nikah Pakka. Identity documents have not been verified through this public profile.`;
 
+    if (!navigator.clipboard?.writeText) {
+      window.alert('Clipboard access is unavailable in this browser. Please copy the biodata manually.');
+      return;
+    }
     void navigator.clipboard.writeText(text).then(() => {
       setCopiedBiodata(true);
       window.setTimeout(() => setCopiedBiodata(false), 2500);
@@ -85,6 +89,10 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
 
   const handleCopyPhone = () => {
     if (!profile.guardianWaliContact?.phone) return;
+    if (!navigator.clipboard?.writeText) {
+      window.alert('Clipboard access is unavailable in this browser.');
+      return;
+    }
     void navigator.clipboard.writeText(profile.guardianWaliContact?.phone || '').then(() => {
       setCopiedPhone(true);
       window.setTimeout(() => setCopiedPhone(false), 2500);
