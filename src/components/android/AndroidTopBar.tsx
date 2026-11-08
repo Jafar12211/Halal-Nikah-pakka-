@@ -3,6 +3,7 @@ import { Menu, Globe, ShieldCheck, Heart, ArrowLeft, Download, Bell } from 'luci
 import { LanguageCode, UserAccount } from '../../types/database';
 import { translations } from '../../utils/translations';
 import { PWAInstallButton } from '../PWAInstallButton';
+import { isAdminUser } from '../../utils/admin';
 
 interface AndroidTopBarProps {
   language: LanguageCode;
@@ -25,7 +26,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
 }) => {
   const t = translations[language];
   const isTelugu = language === 'te';
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = isAdminUser(currentUser);
 
   const isSubScreen = activeScreen !== 'home';
 
