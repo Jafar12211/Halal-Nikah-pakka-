@@ -20,7 +20,7 @@ import {
 } from '../services/firestoreService';
 
 import { auth } from '../services/firebase';
-import { updateProfile } from 'firebase/auth';
+import { sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
 import type { UserAccount } from '../types/database';
 
 interface AuthModalProps {
@@ -132,16 +132,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const user = await registerWithEmailPassword(email, password);
 
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName: name.trim(),
-        });
+      if (!auth.currentUser) {
+        throw new Error('Account was created, but the sign-in session is unavailable. Please sign in.');
       }
 
-      finishAuthentication({
-        ...user,
-        name: name.trim(),
+      await updateProfile(auth.currentUser, {
+        displayName: name.trim(),
       });
+      await sendEmailVerification(auth.currentUser);
+      await signOut(auth);
+
+      setMode('login');
+      setPassword('');
+      setToast('Account created. A verification link has been sent to your email. Verify your email, then sign in.');
+      setEmail(email.trim());
     } catch (err: any) {
       if (err?.code === 'auth/email-already-in-use') {
         setError('This email is already registered. Please sign in.');
