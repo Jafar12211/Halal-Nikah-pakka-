@@ -146,9 +146,9 @@ export async function registerWithEmailPassword(
     password,
   );
 
-  const isAdmin = await getIsAdmin(result.user);
-
-  return createUserAccount(result.user, isAdmin);
+  // A newly created account is always a member. Admin privileges are granted
+  // separately through a trusted Admin SDK custom claim after registration.
+  return createUserAccount(result.user, false);
 }
 
 export async function sendPasswordReset(
