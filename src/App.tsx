@@ -28,6 +28,7 @@ import {
   UserAccount,
   LanguageCode,
   DistrictAP,
+  InterestRequestLists,
 } from './types/database';
 
 import { FilterState, MatrimonyProfile } from './types/matrimony';
@@ -41,6 +42,10 @@ import {
   fetchSavedProfileIds,
   saveProfileBookmark,
   removeProfileBookmark,
+  createInterestRequest,
+  fetchInterestRequests,
+  respondToInterestRequest,
+  cancelInterestRequest,
 } from './services/firestoreService';
 
 import {
@@ -97,6 +102,7 @@ export default function App() {
   const [messagingTargetConvId, setMessagingTargetConvId] = useState<string | undefined>();
 
   const [userInterests, setUserInterests] = useState<Set<string>>(() => new Set<string>());
+  const [interestRequests, setInterestRequests] = useState<InterestRequestLists>({ incoming: [], outgoing: [] });
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const t = translations[language];
@@ -235,6 +241,24 @@ export default function App() {
     setToastMessage(message);
     window.setTimeout(() => setToastMessage(null), 3800);
   };
+
+  const refreshInterestRequests = async () => {
+    if (!currentUser) {
+      setInterestRequests({ incoming: [], outgoing: [] });
+      return;
+    }
+    try {
+      const requests = await fetchInterestRequests(currentUser.id);
+      setInterestRequests(requests);
+    } catch (error) {
+      console.error('Could not load interest requests:', error);
+      showToast('Unable to load interest requests. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    void refreshInterestRequests();
+  }, [currentUser?.id]);
 
   const handleToggleLanguage = () => {
     const nextLang: LanguageCode = language === 'en' ? 'te' : 'en';
@@ -446,6 +470,47 @@ export default function App() {
     } catch (error) {
       console.error('Could not update saved profile:', error);
       showToast(error instanceof Error ? error.message : 'Unable to update your saved profiles.');
+    }
+  };
+
+  const handleSendInterestRequest = async (profileId: string) => {
+    if (!currentUser) {
+      showToast('Please sign in to send an interest request.');
+      setIsAuthOpen(true);
+      return;
+    }
+    try {
+      await createInterestRequest(profileId);
+      await refreshInterestRequests();
+      showToast('Your interest request was sent to the candidate’s account.');
+    } catch (error) {
+      console.error('Could not send interest request:', error);
+      showToast(error instanceof Error ? error.message : 'Unable to send the interest request.');
+    }
+  };
+
+  const handleRespondToInterestRequest = async (
+    requestId: string,
+    status: 'accepted' | 'declined',
+  ) => {
+    try {
+      await respondToInterestRequest(requestId, status);
+      await refreshInterestRequests();
+      showToast(status === 'accepted' ? 'Interest request accepted.' : 'Interest request declined.');
+    } catch (error) {
+      console.error('Could not update interest request:', error);
+      showToast(error instanceof Error ? error.message : 'Unable to update this request.');
+    }
+  };
+
+  const handleCancelInterestRequest = async (requestId: string) => {
+    try {
+      await cancelInterestRequest(requestId);
+      await refreshInterestRequests();
+      showToast('Interest request removed.');
+    } catch (error) {
+      console.error('Could not cancel interest request:', error);
+      showToast(error instanceof Error ? error.message : 'Unable to remove this request.');
     }
   };
 
@@ -719,6 +784,10 @@ export default function App() {
             language={language}
             allProfiles={profiles}
             userInterests={userInterests}
+            incomingRequests={interestRequests.incoming}
+            outgoingRequests={interestRequests.outgoing}
+            onRespondToRequest={handleRespondToInterestRequest}
+            onCancelRequest={handleCancelInterestRequest}
             onSelectProfile={setSelectedProfile}
             onRemoveInterest={handleExpressInterest}
             onStartChat={handleStartChatWithProfile}
@@ -770,6 +839,8 @@ export default function App() {
         profile={selectedProfile}
         onClose={() => setSelectedProfile(null)}
         onExpressInterest={handleExpressInterest}
+        onSendInterest={handleSendInterestRequest}
+        hasPendingInterest={Boolean(selectedProfile && interestRequests.outgoing.some((request) => request.receiverUserId === selectedProfile.id && request.status === 'pending'))}
         isInterested={
           selectedProfile ? userInterests.has(selectedProfile.id) : false
         }
