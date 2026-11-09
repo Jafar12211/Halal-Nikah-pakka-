@@ -33,14 +33,24 @@ Run this only from a secured admin workstation or trusted server with least-priv
 
 ## Firestore data model still required for full launch
 
-The current UI and storage service still contain legacy local-storage workflows for interests, conversations, messages, and parts of profile management. Those are not made production-safe by this patch. In particular:
+The interest-request workflow is Firestore-backed. Messaging remains disabled/local-only, and parts of profile management still need migration. In particular:
 
 1. Add request notifications, abuse reporting/blocking, and live two-account browser testing. Current accept/decline records a response only; it does not reveal private photos/contact details or enable messaging.
 2. Replace the disabled/local-only messaging preview with a Firestore-backed, participant-scoped conversation system. Do not describe messages as encrypted unless end-to-end encryption is actually implemented.
-3. Move privileged profile approval, publication and account-wide cleanup to trusted Cloud Functions or another server-side Admin SDK environment. The current admin custom claim and rules protect the browser-based admin actions, but the server-side boundary is still recommended for production.
-4. Move account deletion to a trusted server-side cleanup function for robust, retryable deletion across every current and future user-owned collection and subcollection. The client currently cleans saved bookmarks, interest requests, Storage objects, registration/public profile records, and then the Auth account.
+3. Move privileged profile approval and publication to trusted Cloud Functions or another server-side Admin SDK environment. Account deletion now runs through the trusted callable function described below.
+4. Account deletion now calls `deleteOwnAccount` after provider reauthentication. The callable checks the token's recent `auth_time`, recursively removes registration/public profile/user documents and subcollections, removes interest requests and participant conversations, deletes profile-photo and identity-document Storage prefixes, and deletes the Auth account last. Extend its explicit collection cleanup whenever a new user-linked top-level collection is added. Immutable admin audit logs are retained.
 5. Implement photo access requests and mutual-consent reveal only if that feature is required. Until then, non-visible photos remain private and are not revealed by saving a profile.
 6. Validate the complete authentication, registration, upload, admin review and deletion flows against the live Firebase project before launch.
+
+## Server-side account deletion
+
+The callable function source is in `functions/`. Install its dependencies with `npm install --prefix functions`, then deploy only after reviewing billing and enabling the required Google Cloud APIs:
+
+```bash
+npx firebase-tools deploy --only functions:deleteOwnAccount --project nikah-pakka
+```
+
+Cloud Functions deployment requires the Blaze billing plan. The web client already calls this function, so do not enable the production account-deletion flow until the function has been deployed and tested in the target project. The function currently does not enforce App Check; configure and verify App Check before enabling enforcement.
 
 ## Deploy rules
 
