@@ -27,6 +27,8 @@ interface ProfileDetailModalProps {
   profile: UserProfile | null;
   onClose: () => void;
   onExpressInterest: (profileId: string) => void;
+  onSendInterest: (profileId: string) => void;
+  hasPendingInterest: boolean;
   isInterested: boolean;
   language: LanguageCode;
   onStartChat: (profile: UserProfile) => void;
@@ -36,6 +38,8 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   profile,
   onClose,
   onExpressInterest,
+  onSendInterest,
+  hasPendingInterest,
   isInterested,
   language,
   onStartChat,
@@ -515,9 +519,18 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
               <span>Chaperoned Family Chat</span>
             </button>
 
+            {/* Send a real request separately from the private saved-profile bookmark. */}
+            <button
+              onClick={() => onSendInterest(profile.id)}
+              disabled={hasPendingInterest}
+              className="px-4 py-2 bg-amber-100 hover:bg-amber-200 disabled:bg-stone-200 disabled:text-stone-500 text-amber-950 rounded-lg text-xs font-semibold border border-amber-300 disabled:border-stone-300 transition-colors"
+            >
+              {hasPendingInterest ? 'Interest Request Pending' : 'Send Interest Request'}
+            </button>
+
             {/* Express Interest Button */}
             <button
-              onClick={() => onExpressInterest(profile.id)}
+              onClick={() => onExpressInterest(profile.id)
               className={`px-5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors ${
                 isInterested
                   ? 'bg-rose-100 text-rose-800'
