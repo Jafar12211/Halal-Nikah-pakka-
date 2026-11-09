@@ -38,6 +38,9 @@ import {
   logoutFirebaseUser,
   deleteOwnAccount,
   saveProfileToFirestore,
+  fetchSavedProfileIds,
+  saveProfileBookmark,
+  removeProfileBookmark,
 } from './services/firestoreService';
 
 import {
@@ -94,7 +97,6 @@ export default function App() {
   const [messagingTargetConvId, setMessagingTargetConvId] = useState<string | undefined>();
 
   const [userInterests, setUserInterests] = useState<Set<string>>(() => new Set<string>());
-  const [interestsOwnerId, setInterestsOwnerId] = useState<string | null>(null);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const t = translations[language];
@@ -177,37 +179,26 @@ export default function App() {
     }
   }, [language]);
 
-  // Keep each account's local shortlist separate on shared devices.
+  // Load this account's saved profiles from Firestore (shared across signed-in devices).
   useEffect(() => {
-    setInterestsOwnerId(null);
+    let cancelled = false;
+    setUserInterests(new Set<string>());
 
-    if (!currentUser) {
-      setUserInterests(new Set<string>());
-      return;
-    }
+    if (!currentUser) return;
 
-    const storageKey = `nikah_pakka_interests_${currentUser.id}`;
-    try {
-      const saved = localStorage.getItem(storageKey);
-      setUserInterests(saved ? new Set<string>(JSON.parse(saved)) : new Set<string>());
-    } catch (error) {
-      console.error('Failed to load this account’s saved interests:', error);
-      setUserInterests(new Set<string>());
-    }
-    setInterestsOwnerId(currentUser.id);
+    void fetchSavedProfileIds(currentUser.id)
+      .then((profileIds) => {
+        if (!cancelled) setUserInterests(new Set(profileIds));
+      })
+      .catch((error) => {
+        console.error('Failed to load saved profiles from Firestore:', error);
+        if (!cancelled) setUserInterests(new Set<string>());
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [currentUser?.id]);
-
-  useEffect(() => {
-    if (!currentUser || interestsOwnerId !== currentUser.id) return;
-    try {
-      localStorage.setItem(
-        `nikah_pakka_interests_${currentUser.id}`,
-        JSON.stringify(Array.from(userInterests))
-      );
-    } catch (error) {
-      console.error('Failed to save this account’s interests:', error);
-    }
-  }, [currentUser?.id, interestsOwnerId, userInterests]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -398,27 +389,33 @@ export default function App() {
     }
   };
 
-  // Express interest (temporary local implementation)
-  const handleExpressInterest = (profileId: string) => {
+  // Save or remove a profile bookmark in the signed-in member's Firestore account.
+  const handleExpressInterest = async (profileId: string) => {
     if (!currentUser) {
-      showToast('Please sign in to express interest.');
+      showToast('Please sign in to save a profile.');
       setIsAuthOpen(true);
       return;
     }
 
-    setUserInterests((previous) => {
-      const next = new Set(previous);
-
-      if (next.has(profileId)) {
-        next.delete(profileId);
-        showToast('Interest removed from this device.');
+    const alreadySaved = userInterests.has(profileId);
+    try {
+      if (alreadySaved) {
+        await removeProfileBookmark(currentUser.id, profileId);
+        setUserInterests((previous) => {
+          const next = new Set(previous);
+          next.delete(profileId);
+          return next;
+        });
+        showToast('Profile removed from your saved list.');
       } else {
-        next.add(profileId);
-        showToast('Interest saved on this device only. It has not been sent to the other family.');
+        await saveProfileBookmark(currentUser.id, profileId);
+        setUserInterests((previous) => new Set(previous).add(profileId));
+        showToast('Profile saved to your account. This does not notify the other family.');
       }
-
-      return next;
-    });
+    } catch (error) {
+      console.error('Could not update saved profile:', error);
+      showToast(error instanceof Error ? error.message : 'Unable to update your saved profiles.');
+    }
   };
 
   // Start a conversation only when both profiles are available
@@ -456,9 +453,8 @@ export default function App() {
     try {
       localStorage.removeItem(`nikah_pakka_interests_${currentUser?.id || ''}`);
     } catch (error) {
-      console.error('Could not clear the local shortlist after account deletion:', error);
+      console.error('Could not clear the legacy local shortlist after account deletion:', error);
     }
-    setInterestsOwnerId(null);
     setUserInterests(new Set<string>());
     setIsMessagingOpen(false);
     setIsAdminOpen(false);
