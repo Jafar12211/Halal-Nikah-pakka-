@@ -656,31 +656,6 @@ export async function removeProfileBookmark(uid: string, profileId: string): Pro
   await deleteDoc(doc(db, 'users', uid, 'savedProfiles', profileId));
 }
 
-async function deleteInterestRequestsForUser(uid: string): Promise<void> {
-  const [incoming, outgoing] = await Promise.all([
-    getDocs(query(collection(db, 'interestRequests'), where('receiverUserId', '==', uid))),
-    getDocs(query(collection(db, 'interestRequests'), where('senderUserId', '==', uid))),
-  ]);
-  const unique = new Map<string, (typeof incoming.docs)[number]>();
-  [...incoming.docs, ...outgoing.docs].forEach((entry) => unique.set(entry.id, entry));
-  const entries = [...unique.values()];
-  for (let offset = 0; offset < entries.length; offset += 450) {
-    const batch = writeBatch(db);
-    entries.slice(offset, offset + 450).forEach((entry) => batch.delete(entry.ref));
-    await batch.commit();
-  }
-}
-
-async function deleteSavedProfilesForUser(uid: string): Promise<void> {
-  const snapshot = await getDocs(collection(db, 'users', uid, 'savedProfiles'));
-  const entries = snapshot.docs;
-  for (let offset = 0; offset < entries.length; offset += 450) {
-    const batch = writeBatch(db);
-    entries.slice(offset, offset + 450).forEach((entry) => batch.delete(entry.ref));
-    await batch.commit();
-  }
-}
-
 export async function fetchAdminAuditLogs(): Promise<AuditLog[]> {
   await requireAdmin();
 
