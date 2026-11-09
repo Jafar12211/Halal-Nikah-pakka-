@@ -517,3 +517,40 @@ test("A member cannot forge an interest request for another sender", async () =>
     updatedAt: serverTimestamp()
   }));
 });
+
+
+test("A participant can remove an interest request during account cleanup", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "interestRequests/request1"), {
+      senderUserId: "sender1",
+      receiverUserId: "receiver1",
+      status: "pending",
+      message: "",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  });
+
+  const senderDb = testEnv.authenticatedContext("sender1").firestore();
+  await assertSucceeds(
+    (await import("firebase/firestore")).deleteDoc(doc(senderDb, "interestRequests/request1"))
+  );
+});
+
+test("An unrelated member cannot delete an interest request", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "interestRequests/request1"), {
+      senderUserId: "sender1",
+      receiverUserId: "receiver1",
+      status: "pending",
+      message: "",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  });
+
+  const outsiderDb = testEnv.authenticatedContext("outsider1").firestore();
+  await assertFails(
+    (await import("firebase/firestore")).deleteDoc(doc(outsiderDb, "interestRequests/request1"))
+  );
+});
