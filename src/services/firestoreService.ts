@@ -314,6 +314,8 @@ export async function saveProfileToFirestore(
 // --------------------------------------------------
 export async function verifyGovernmentDocumentFirestore(userId: string, documentId: string): Promise<void> {
   const adminUser = await requireAdmin();
+  const performedBy = adminUser.email;
+  if (!performedBy) throw new Error('Administrator account must have an email address to create an audit record.');
   if (!userId || !documentId) throw new Error('A valid candidate and document are required.');
   const registrationRef = doc(db, 'registrations', userId);
   const snapshot = await getDoc(registrationRef);
@@ -325,14 +327,14 @@ export async function verifyGovernmentDocumentFirestore(userId: string, document
     throw new Error('The private identity document record is invalid.');
   }
   const updatedDocuments = docs.map((item: any) => item.id === documentId
-    ? { ...item, verified: true, verifiedBy: adminUser.email || adminUser.uid }
+    ? { ...item, verified: true, verifiedBy: performedBy }
     : item);
   const batch = writeBatch(db);
   batch.update(registrationRef, { documents: updatedDocuments, updatedAt: serverTimestamp() });
   const auditRef = doc(collection(db, 'auditLogs'));
   batch.set(auditRef, {
     action: 'DOCUMENT_VERIFIED',
-    performedBy: adminUser.email || adminUser.uid,
+    performedBy,
     targetId: userId,
     details: `Government identity document ${target.type} (${target.maskedId}) reviewed and verified.`,
     timestamp: serverTimestamp(),
@@ -374,6 +376,8 @@ export async function updateProfileApprovalStatusFirestore(
   notes?: string,
 ): Promise<void> {
   const adminUser = await requireAdmin();
+  const performedBy = adminUser.email;
+  if (!performedBy) throw new Error('Administrator account must have an email address to create an audit record.');
 
   if (!userId || userId.length > 128) {
     throw new Error('Invalid user account ID.');
@@ -493,7 +497,7 @@ export async function updateProfileApprovalStatusFirestore(
         : status === 'rejected'
           ? 'PROFILE_REJECTED'
           : 'PROFILE_SUSPENDED',
-    performedBy: reviewerEmail || adminUser.email || adminUser.uid,
+    performedBy,
     targetId: userId,
     details: notes || `Profile status changed to ${status}.`,
     timestamp: serverTimestamp(),
