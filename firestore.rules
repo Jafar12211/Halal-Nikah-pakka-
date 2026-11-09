@@ -176,6 +176,42 @@ function validUserDocument(item, uid) {
       allow delete: if owner(uid);
     }
 
+    // Interest requests are private to their sender and recipient. Both profiles
+    // must be approved before a request can be created. Names and private contacts
+    // are deliberately not copied into this document.
+    match /interestRequests/{requestId} {
+      allow get, list: if signedIn()
+        && (resource.data.senderUserId == request.auth.uid
+          || resource.data.receiverUserId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll([
+          'senderUserId', 'receiverUserId', 'status', 'message', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'senderUserId', 'receiverUserId', 'status', 'message', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.senderUserId == request.auth.uid
+        && validUid(request.resource.data.receiverUserId)
+        && request.resource.data.receiverUserId != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 500
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && approvedPublicProfile(request.auth.uid)
+        && approvedPublicProfile(request.resource.data.receiverUserId);
+      allow update: if signedIn()
+        && resource.data.receiverUserId == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status in ['accepted', 'declined']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if signedIn()
+        && (resource.data.senderUserId == request.auth.uid
+          || resource.data.receiverUserId == request.auth.uid);
+    }
+
     // Immutable administrator audit trail.
     match /auditLogs/{logId} {
       allow read, list: if admin();
