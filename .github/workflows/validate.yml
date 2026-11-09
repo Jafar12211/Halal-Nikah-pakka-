@@ -3,10 +3,10 @@ name: Website validation
 on:
   push:
     branches:
-      - firebase-fixes-review-20261108
+      - firebase-storage-privacy-20261109
   pull_request:
     branches:
-      - firebase-migration-testing
+      - firebase-storage-privacy-20261109
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci
 
       - name: Run TypeScript validation
