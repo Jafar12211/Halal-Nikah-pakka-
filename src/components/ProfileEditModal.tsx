@@ -1097,7 +1097,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   {[
                     {
                       value: 'blurred_until_request',
-                      label: 'Blurred until mutual family interest',
+                      label: 'Private — not visible to other members',
                     },
                     {
                       value: 'avatar_only',
