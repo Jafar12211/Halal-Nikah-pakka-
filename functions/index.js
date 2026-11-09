@@ -76,7 +76,13 @@ async function deleteUserStorageData(uid) {
     `profilePhotos/${uid}/`,
     `identityDocuments/${uid}/`,
   ]) {
-    await bucket.deleteFiles({ prefix });
+    // Enumerate and delete each object explicitly. This is reliable across
+    // the Cloud Storage service and the Firebase Storage emulator, whereas
+    // bucket.deleteFiles({ prefix }) may not remove emulator objects.
+    const [files] = await bucket.getFiles({ prefix });
+    for (const file of files) {
+      await file.delete({ ignoreNotFound: true });
+    }
   }
 }
 
