@@ -1,19 +1,19 @@
-name: Build and verify
+name: Firebase security rules tests
 
 on:
   push:
     branches:
-      - firebase-fixes-review-20261108
+      - firebase-storage-privacy-20261109
   pull_request:
     branches:
-      - firebase-migration-testing
+      - firebase-storage-privacy-20261109
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    name: Install dependencies and build
+  security:
+    name: Firestore and Storage rules tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -25,8 +25,14 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Build application
-        run: npm run build
+      - name: Run Firebase security rules tests
+        run: npx --yes firebase-tools@13.2.0 emulators:exec --only auth,firestore,storage --project nikah-pakka "npm run test:security"
