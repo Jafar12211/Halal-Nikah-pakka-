@@ -10,6 +10,7 @@ This patch is a security foundation, not a claim that every application workflow
 - Admin access in Firestore rules now requires the trusted Firebase Auth custom claim `admin: true`.
 - Private `registrations/{uid}` documents are readable only by their owner or an admin. This prevents exposing guardian contact and identity-verification metadata to every signed-in member.
 - Members can save approved public profiles in their own `users/{uid}/savedProfiles/{profileId}` subcollection. These are private bookmarks shared across the member's signed-in devices; they do not send an interest request or notify another family.
+- A separate `interestRequests/{requestId}` data model and Firestore rules now support requests between approved members. Only the sender and recipient can read a request; only the recipient can accept or decline it. The service layer is present, but the request UI and live notification workflow still need integration and testing.
 - Legacy fictional profiles and conversations are no longer automatically seeded into browser local storage. Existing legacy local bookmarks are migrated when they still refer to approved public profiles.
 
 ## Important: assign the administrator claim securely
@@ -34,7 +35,7 @@ Run this only from a secured admin workstation or trusted server with least-priv
 
 The current UI and storage service still contain legacy local-storage workflows for interests, conversations, messages, and parts of profile management. Those are not made production-safe by this patch. In particular:
 
-1. Complete a distinct Firestore-backed interest-request workflow (sender, recipient, status, consent and notifications). Saved-profile bookmarks are not interest requests.
+1. Connect the new Firestore interest-request service to the profile and interests screens; add recipient consent/accept-decline UI, request status display, abuse reporting/blocking, and notifications. Current requests are private to sender and recipient, but UI integration and live workflow validation remain outstanding.
 2. Replace the disabled/local-only messaging preview with a Firestore-backed, participant-scoped conversation system. Do not describe messages as encrypted unless end-to-end encryption is actually implemented.
 3. Move privileged profile approval, publication and account-wide cleanup to trusted Cloud Functions or another server-side Admin SDK environment. The current admin custom claim and rules protect the browser-based admin actions, but the server-side boundary is still recommended for production.
 4. Complete account deletion for every future user-owned collection and subcollection, and provide a recoverable server-side cleanup process for partial failures.
