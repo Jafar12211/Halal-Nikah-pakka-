@@ -260,6 +260,7 @@ export async function saveProfileToFirestore(
     approvalStatus,
     approvalNotes,
     isVerified,
+    documents,
     ...memberFields
   } = profile as UserProfile & {
     approvalNotes?: string;
