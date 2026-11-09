@@ -21,6 +21,7 @@ import {
 import { UserProfile, LanguageCode } from '../types/database';
 import { generateWhatsAppShareMessage } from '../utils/matrimony';
 import { translations } from '../utils/translations';
+import { getStorageFileBlob } from '../services/firebaseStorageService';
 
 interface ProfileDetailModalProps {
   profile: UserProfile | null;
@@ -42,6 +43,29 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [copiedBiodata, setCopiedBiodata] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: string[] = [];
+    const load = async () => {
+      const entries = await Promise.all((profile?.photos || []).filter((path) => path.startsWith('profilePhotos/')).map(async (path) => {
+        try {
+          const blob = await getStorageFileBlob(path);
+          const url = URL.createObjectURL(blob);
+          urls.push(url);
+          return [path, url] as const;
+        } catch (error) {
+          console.warn('Private profile photo unavailable:', error);
+          return null;
+        }
+      }));
+      if (!cancelled) setPhotoUrls(Object.fromEntries(entries.filter(Boolean) as [string, string][]));
+      else urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    if (profile) void load();
+    return () => { cancelled = true; urls.forEach((url) => URL.revokeObjectURL(url)); };
+  }, [profile?.id, profile?.photos?.join('|')]);
 
   useEffect(() => {
     setSelectedPhotoIndex(0);
@@ -135,7 +159,7 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                 {profile.photos && profile.photos.length > 0 ? (
                   <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-emerald-700/40 shadow-sm shrink-0 relative bg-stone-900">
                     <img
-                      src={profile.photos[selectedPhotoIndex] || profile.photos[0]}
+                      src={(() => { const photo = profile.photos[selectedPhotoIndex] || profile.photos[0]; return photo.startsWith('http') ? photo : photoUrls[photo] || ''; })()}
                       alt={profile.candidateName}
                       className={`w-full h-full object-cover transition-all ${
                         profile.photoPrivacy === 'blurred_until_request' && !isInterested
@@ -244,7 +268,7 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                     }`}
                   >
                     <img
-                      src={picUrl}
+                      src={picUrl.startsWith('http') ? picUrl : photoUrls[picUrl] || ''}
                       alt={`Candidate picture ${idx + 1}`}
                       className={`w-14 h-14 sm:w-16 sm:h-16 object-cover ${
                         profile.photoPrivacy === 'blurred_until_request' && !isInterested
