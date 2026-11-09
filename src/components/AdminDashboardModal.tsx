@@ -800,7 +800,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             <button
                               key={idx}
                               type="button"
-                              onClick={() => setSelectedPhotoIndex(idx)}
+                              onClick={async () => {
+                                setSelectedPhotoIndex(idx);
+                                if (!documentPreviewUrls[picUrl]) {
+                                  try {
+                                    const blob = await getStorageFileBlob(picUrl);
+                                    setDocumentPreviewUrls((old) => ({ ...old, [picUrl]: URL.createObjectURL(blob) }));
+                                  } catch (error) {
+                                    setErrorMessage(error instanceof Error ? error.message : 'Could not load private candidate photo.');
+                                  }
+                                }
+                              }}
                               className={`relative rounded-lg overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
                                 selectedPhotoIndex === idx
                                   ? 'border-emerald-700 ring-2 ring-emerald-500/40 scale-105'
@@ -808,7 +818,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               }`}
                             >
                               <img
-                                src={picUrl}
+                                src={documentPreviewUrls[picUrl] || ''}
                                 alt={`Candidate thumbnail ${idx + 1}`}
                                 className="w-12 h-12 object-cover"
                               />
