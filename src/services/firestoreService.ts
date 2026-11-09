@@ -30,6 +30,7 @@ import {
 } from 'firebase/auth';
 
 import { db, auth } from './firebase';
+import { deleteUserStorageObjects } from './firebaseStorageService';
 import type { AuditLog, UserAccount, UserProfile } from '../types/database';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
@@ -189,6 +190,10 @@ export async function deleteOwnAccount(password?: string): Promise<void> {
   } else {
     throw new Error('Please sign in again using your original sign-in method, then retry account deletion.');
   }
+
+  // Remove private candidate photographs and identity documents before deleting
+  // Firestore records or the Authentication account. Storage rules enforce ownership.
+  await deleteUserStorageObjects(user.uid);
 
   const batch = writeBatch(db);
   batch.delete(doc(db, 'registrations', user.uid));
