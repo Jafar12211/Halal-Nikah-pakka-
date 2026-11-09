@@ -21,7 +21,7 @@ import { GODAVARI_DISTRICTS } from '../services/storageService';
 import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { saveProfileToFirestore } from '../services/firestoreService';
-import { uploadProfilePhoto, uploadGovernmentId, deleteStorageFile, type GovernmentDocumentType } from '../services/firebaseStorageService';
+import { uploadProfilePhoto, uploadGovernmentId, deleteStorageFile, getStorageFileBlob, type GovernmentDocumentType } from '../services/firebaseStorageService';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -104,10 +104,33 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   // Files are stored privately in Firebase Storage; only paths are persisted.
   const [photos, setPhotos] = useState<string[]>([]);
   const [documents, setDocuments] = useState<UserProfile['documents']>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [documentType, setDocumentType] = useState<ValidGovtDocType>('Aadhaar Card');
   const [maskedDocumentId, setMaskedDocumentId] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: string[] = [];
+    const load = async () => {
+      const entries = await Promise.all(photos.filter((path) => path.startsWith('profilePhotos/')).map(async (path) => {
+        try {
+          const blob = await getStorageFileBlob(path);
+          const url = URL.createObjectURL(blob);
+          urls.push(url);
+          return [path, url] as const;
+        } catch (error) {
+          console.warn('Private photo preview unavailable:', error);
+          return null;
+        }
+      }));
+      if (!cancelled) setPhotoPreviews((old) => ({ ...old, ...Object.fromEntries(entries.filter(Boolean) as [string, string][]) }));
+      else urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    if (isOpen && photos.length) void load();
+    return () => { cancelled = true; urls.forEach((url) => URL.revokeObjectURL(url)); };
+  }, [isOpen, currentUser?.id, photos]);
 
   // Load the signed-in user's private Firestore registration.
   useEffect(() => {
@@ -1021,7 +1044,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     {photos.map((photo, index) => (
                       <div key={`${photo}-${index}`} className="relative aspect-square rounded-xl overflow-hidden border border-stone-300">
                         <img
-                          src={photo}
+                          src={photo.startsWith('http') ? photo : photoPreviews[photo] || ''}
                           alt={`Profile photo ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
