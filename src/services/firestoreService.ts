@@ -24,15 +24,16 @@ import {
   sendEmailVerification,
   signOut,
   getIdTokenResult,
-  deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   type User,
 } from 'firebase/auth';
 
-import { db, auth } from './firebase';
-import { deleteUserStorageObjects } from './firebaseStorageService';
+import { db, auth, functions } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+
+const deleteAccountCallable = httpsCallable(functions, 'deleteOwnAccount');
 import type { AuditLog, InterestRequest, InterestRequestLists, UserAccount, UserProfile } from '../types/database';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
@@ -193,20 +194,10 @@ export async function deleteOwnAccount(password?: string): Promise<void> {
     throw new Error('Please sign in again using your original sign-in method, then retry account deletion.');
   }
 
-  // Remove account-owned requests and bookmarks before deleting the account.
-  await deleteInterestRequestsForUser(user.uid);
-  await deleteSavedProfilesForUser(user.uid);
-
-  // Storage rules enforce ownership. This operation is safe to retry if a later
-  // cleanup step fails because deleting an already-empty folder is harmless.
-  await deleteUserStorageObjects(user.uid);
-
-  const batch = writeBatch(db);
-  batch.delete(doc(db, 'registrations', user.uid));
-  batch.delete(doc(db, 'publicProfiles', user.uid));
-  await batch.commit();
-
-  await deleteUser(user);
+  // Force a fresh ID token after reauthentication. The callable independently
+  // checks auth_time and performs privileged cleanup with the Admin SDK.
+  await user.getIdToken(true);
+  await deleteAccountCallable({});
 }
 
 // --------------------------------------------------
