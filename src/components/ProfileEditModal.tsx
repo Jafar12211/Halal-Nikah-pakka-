@@ -1026,7 +1026,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   <div>
                     <strong className="text-emerald-950">Your privacy matters</strong>
                     <p className="text-stone-600 mt-1">
-                      Government ID numbers and identity documents are not collected or verified by this profile editor. Never enter a full Aadhaar, PAN, or passport number here.
+                      Government ID files are uploaded to private Firebase Storage for administrator review. Never enter a full Aadhaar, PAN, or passport number here; provide only a masked reference.
                     </p>
                   </div>
                 </div>
@@ -1051,7 +1051,14 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                         />
                         <button
                           type="button"
-                          onClick={() => setPhotos((old) => old.filter((_, i) => i !== index))}
+                          onClick={async () => {
+                            const removed = photo;
+                            setPhotos((old) => old.filter((_, i) => i !== index));
+                            if (removed.startsWith('profilePhotos/')) {
+                              try { await deleteStorageFile(removed); }
+                              catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Photo file could not be deleted.'); }
+                            }
+                          }}
                           className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 text-white"
                           aria-label="Remove photo"
                         >
