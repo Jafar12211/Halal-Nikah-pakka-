@@ -32,9 +32,9 @@ import {
 
 import { db, auth, functions } from './firebase';
 import { httpsCallable } from 'firebase/functions';
+import type { AuditLog, InterestRequest, InterestRequestLists, UserAccount, UserProfile } from '../types/database';
 
 const deleteAccountCallable = httpsCallable(functions, 'deleteOwnAccount');
-import type { AuditLog, InterestRequest, InterestRequestLists, UserAccount, UserProfile } from '../types/database';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
 // --------------------------------------------------
