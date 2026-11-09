@@ -15,6 +15,7 @@ import {
   UserProfile,
   UserAccount,
   DistrictAP,
+  ValidGovtDocType,
 } from '../types/database';
 
 import { GODAVARI_DISTRICTS } from '../services/storageService';
