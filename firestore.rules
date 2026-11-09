@@ -131,7 +131,8 @@ function validUserDocument(item, uid) {
           .hasOnly(['approvalStatus', 'approvalNotes', 'updatedAt', 'isVerified', 'documents'])
         && request.resource.data.approvalStatus in ['pending', 'approved', 'rejected', 'suspended']
         && request.resource.data.isVerified == (request.resource.data.approvalStatus == 'approved')
-        && validAdminUserDocumentList(request.resource.data.documents, uid)
+        && (!('documents' in request.resource.data)
+          || validAdminUserDocumentList(request.resource.data.documents, uid))
         && (request.resource.data.approvalStatus != 'approved'
           || (
             resource.data.age is number
