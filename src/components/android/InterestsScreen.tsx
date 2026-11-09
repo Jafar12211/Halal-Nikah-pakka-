@@ -40,7 +40,7 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
             </h1>
             <p className="text-xs text-emerald-200 mt-0.5">
               {isTelugu
-                ? `${interestedProfiles.length} ప్రొఫైల్స్ ఈ పరికరంలో మాత్రమే సేవ్ అయ్యాయి · కుటుంబానికి పంపబడలేదు`
+                ? `${interestedProfiles.length} ప్రొఫైల్స్ మీ ఖాతాలో సేవ్ అయ్యాయి · కుటుంబానికి పంపబడలేదు`
                 : `${interestedProfiles.length} candidate(s) saved to your account · Not sent to any family`}
             </p>
           </div>
@@ -53,11 +53,11 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
             <Heart className="w-8 h-8 stroke-1" />
           </div>
           <h2 className="text-base font-bold text-stone-800 font-serif">
-            {isTelugu ? 'ఇంకా ఎటువంటి ఆసక్తి రికార్డు కాలేదు' : 'No Shortlisted Profiles Yet'}
+            {isTelugu ? 'ఇంకా సేవ్ చేసిన ప్రొఫైళ్లు లేవు' : 'No Shortlisted Profiles Yet'}
           </h2>
           <p className="text-xs text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
             {isTelugu
-              ? 'సంబంధాల జాబితాలో గుండె గుర్తుపై క్లిక్ చేసి ప్రొఫైల్‌ను ఈ పరికరంలో సేవ్ చేయండి. ఇది ఇతర కుటుంబానికి నోటిఫికేషన్ పంపదు.'
+              ? 'సంబంధాల జాబితాలో గుండె గుర్తుపై క్లిక్ చేసి ప్రొఫైల్‌ను మీ ఖాతాలో సేవ్ చేయండి. ఇది ఇతర కుటుంబానికి నోటిఫికేషన్ పంపదు.'
               : 'Browse approved profiles from Yanam, Kakinada & Godavari districts. Tap the heart to save a profile to your account; this does not notify the other family.'}
           </p>
           <button
