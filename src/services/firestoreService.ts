@@ -32,7 +32,7 @@ import {
 
 import { db, auth } from './firebase';
 import { deleteUserStorageObjects } from './firebaseStorageService';
-import type { AuditLog, UserAccount, UserProfile } from '../types/database';
+import type { AuditLog, InterestRequest, InterestRequestLists, UserAccount, UserProfile } from '../types/database';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
 // --------------------------------------------------
@@ -508,6 +508,108 @@ export async function updateProfileApprovalStatusFirestore(
   });
 
   await batch.commit();
+}
+
+// --------------------------------------------------
+// MEMBER: FIRESTORE-BACKED INTEREST REQUESTS
+// --------------------------------------------------
+
+function toInterestRequest(snapshot: { id: string; data: () => Record<string, any> }): InterestRequest {
+  const data = snapshot.data();
+  const toIso = (value: any): string => {
+    if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
+    return typeof value === 'string' ? value : '';
+  };
+  return {
+    id: snapshot.id,
+    senderUserId: data.senderUserId,
+    receiverUserId: data.receiverUserId,
+    status: data.status,
+    message: data.message || '',
+    createdAt: toIso(data.createdAt),
+    updatedAt: toIso(data.updatedAt),
+  };
+}
+
+export async function createInterestRequest(
+  receiverUserId: string,
+  message = '',
+): Promise<string> {
+  const sender = await requireSignedInUser();
+  if (!receiverUserId || receiverUserId === sender.uid || receiverUserId.length > 128) {
+    throw new Error('Choose a valid candidate to contact.');
+  }
+  const cleanMessage = message.trim();
+  if (cleanMessage.length > 500) {
+    throw new Error('Your introduction message must be 500 characters or fewer.');
+  }
+
+  const [senderProfile, receiverProfile] = await Promise.all([
+    getDoc(doc(db, 'publicProfiles', sender.uid)),
+    getDoc(doc(db, 'publicProfiles', receiverUserId)),
+  ]);
+  const isApproved = (snapshot: typeof senderProfile) =>
+    snapshot.exists()
+    && snapshot.data().approvalStatus === 'approved'
+    && snapshot.data().isVerified === true;
+  if (!isApproved(senderProfile)) {
+    throw new Error('Your profile must be approved and verified before sending an interest request.');
+  }
+  if (!isApproved(receiverProfile)) {
+    throw new Error('This candidate is no longer available for interest requests.');
+  }
+
+  const existingRequests = await getDocs(query(
+    collection(db, 'interestRequests'),
+    where('senderUserId', '==', sender.uid),
+  ));
+  const duplicate = existingRequests.docs.find((entry) =>
+    entry.data().receiverUserId === receiverUserId && entry.data().status === 'pending'
+  );
+  if (duplicate) {
+    throw new Error('You already have a pending interest request for this candidate.');
+  }
+
+  const requestRef = doc(collection(db, 'interestRequests'));
+  await setDoc(requestRef, {
+    senderUserId: sender.uid,
+    receiverUserId,
+    status: 'pending',
+    message: cleanMessage,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return requestRef.id;
+}
+
+export async function fetchInterestRequests(uid: string): Promise<InterestRequestLists> {
+  await requireOwnAccount(uid);
+  const [incoming, outgoing] = await Promise.all([
+    getDocs(query(collection(db, 'interestRequests'), where('receiverUserId', '==', uid))),
+    getDocs(query(collection(db, 'interestRequests'), where('senderUserId', '==', uid))),
+  ]);
+  return {
+    incoming: incoming.docs.map(toInterestRequest).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    outgoing: outgoing.docs.map(toInterestRequest).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+  };
+}
+
+export async function respondToInterestRequest(
+  requestId: string,
+  status: 'accepted' | 'declined',
+): Promise<void> {
+  const user = await requireSignedInUser();
+  if (!requestId || requestId.length > 128) throw new Error('Invalid interest request.');
+  await updateDoc(doc(db, 'interestRequests', requestId), {
+    status,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function cancelInterestRequest(requestId: string): Promise<void> {
+  const user = await requireSignedInUser();
+  if (!requestId || requestId.length > 128) throw new Error('Invalid interest request.');
+  await deleteDoc(doc(db, 'interestRequests', requestId));
 }
 
 // --------------------------------------------------
