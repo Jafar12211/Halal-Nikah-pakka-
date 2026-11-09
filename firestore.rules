@@ -3,19 +3,40 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     // Set this custom claim only from a trusted Admin SDK environment.
-    function admin() { return signedIn() && request.auth.token.admin == true; }
+    function admin() { return signedIn() && request.auth.token.get('admin', false) == true; }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
     function validUid(uid) { return uid is string && uid.size() > 0 && uid.size() <= 128; }
-    function validUserDocument(item, uid) {
-      return item is map
-        && item.keys().hasAll(['id', 'type', 'fileName', 'storagePath', 'maskedId', 'uploadedAt', 'verified', 'isRestricted'])
-        && item.type in ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence']
-        && item.fileName is string && item.fileName.size() > 0 && item.fileName.size() <= 180
-        && item.storagePath is string
-        && item.storagePath.matches('identityDocuments/' + uid + '/[^/]+')
-        && item.maskedId is string && item.maskedId.size() > 0 && item.maskedId.size() <= 32
-        && item.verified == false && item.isRestricted == true;
-    }
+    
+function validUserDocument(item, uid) {
+  return item is map
+    && item.keys().hasAll([
+      'id', 'type', 'fileName', 'storagePath',
+      'maskedId', 'uploadedAt', 'verified', 'isRestricted'
+    ])
+    && item.keys().hasOnly([
+      'id', 'type', 'fileName', 'storagePath',
+      'maskedId', 'uploadedAt', 'verified', 'isRestricted'
+    ])
+    && item.id is string
+    && item.id.size() > 0
+    && item.id.size() <= 128
+    && item.type in [
+      'Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence'
+    ]
+    && item.fileName is string
+    && item.fileName.size() > 0
+    && item.fileName.size() <= 180
+    && item.storagePath is string
+    && item.storagePath.matches('identityDocuments/' + uid + '/[^/]+')
+    && item.maskedId is string
+    && item.maskedId.size() > 0
+    && item.maskedId.size() <= 32
+    && item.uploadedAt is string
+    && item.uploadedAt.size() > 0
+    && item.verified == false
+    && item.isRestricted == true;
+}
+
     function validUserDocumentList(items, uid) {
       return items is list && items.size() <= 5
         && (items.size() == 0 || validUserDocument(items[0], uid))
