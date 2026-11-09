@@ -16,7 +16,8 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc
+  updateDoc,
+  serverTimestamp
 } from "firebase/firestore";
 
 import {
@@ -216,6 +217,57 @@ test("An administrator cannot add unexpected identity-document fields", async ()
         unexpectedPrivateField: "must be rejected"
       }]
     })
+  );
+});
+
+test("A member can save an approved public profile to their own account", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/profile1"), {
+      approvalStatus: "approved",
+      isVerified: true
+    });
+  });
+
+  const db = testEnv.authenticatedContext("member1").firestore();
+
+  await assertSucceeds(
+    setDoc(doc(db, "users/member1/savedProfiles/profile1"), {
+      profileId: "profile1",
+      createdAt: serverTimestamp()
+    })
+  );
+});
+
+test("A member cannot save a pending or unverified profile", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/profile1"), {
+      approvalStatus: "pending",
+      isVerified: false
+    });
+  });
+
+  const db = testEnv.authenticatedContext("member1").firestore();
+
+  await assertFails(
+    setDoc(doc(db, "users/member1/savedProfiles/profile1"), {
+      profileId: "profile1",
+      createdAt: serverTimestamp()
+    })
+  );
+});
+
+test("A member cannot read another member's saved profiles", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "users/member1/savedProfiles/profile1"), {
+      profileId: "profile1",
+      createdAt: new Date()
+    });
+  });
+
+  const otherDb = testEnv.authenticatedContext("member2").firestore();
+
+  await assertFails(
+    getDoc(doc(otherDb, "users/member1/savedProfiles/profile1"))
   );
 });
 
