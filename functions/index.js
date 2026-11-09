@@ -9,6 +9,13 @@ initializeApp();
 
 const db = getFirestore();
 const auth = getAuth();
+const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '{}');
+const storageBucketName =
+  firebaseConfig.storageBucket ||
+  process.env.STORAGE_BUCKET ||
+  (process.env.GCLOUD_PROJECT
+    ? `${process.env.GCLOUD_PROJECT}.firebasestorage.app`
+    : undefined);
 const storage = getStorage();
 
 const MAX_AUTH_AGE_SECONDS = 5 * 60;
@@ -60,7 +67,11 @@ async function deleteUserFirestoreData(uid) {
 }
 
 async function deleteUserStorageData(uid) {
-  const bucket = storage.bucket();
+  // Resolve the configured/default bucket explicitly so local emulators and
+  // deployed Functions target the same project bucket.
+  const bucket = storageBucketName
+    ? storage.bucket(storageBucketName)
+    : storage.bucket();
   for (const prefix of [
     `profilePhotos/${uid}/`,
     `identityDocuments/${uid}/`,
