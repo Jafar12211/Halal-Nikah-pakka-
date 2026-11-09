@@ -172,6 +172,32 @@ test("An administrator can verify a government ID", async () => {
   );
 });
 
+test("An administrator cannot add unexpected identity-document fields", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "registrations/member1"),
+      validRegistration("member1")
+    );
+  });
+
+  const adminDb = testEnv.authenticatedContext(
+    "admin1",
+    { admin: true, email: "admin@example.com" }
+  ).firestore();
+
+  await assertFails(
+    updateDoc(doc(adminDb, "registrations/member1"), {
+      documents: [{
+        ...documentMetadata,
+        storagePath: "identityDocuments/member1/identity.pdf",
+        verified: true,
+        verifiedBy: "admin@example.com",
+        unexpectedPrivateField: "must be rejected"
+      }]
+    })
+  );
+});
+
 test("An administrator can create an audit log", async () => {
   const adminDb = testEnv.authenticatedContext(
     "admin1",
