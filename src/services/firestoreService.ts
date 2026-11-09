@@ -309,6 +309,37 @@ export async function saveProfileToFirestore(
 }
 
 // --------------------------------------------------
+// ADMIN: VERIFY A PRIVATE GOVERNMENT DOCUMENT
+// --------------------------------------------------
+export async function verifyGovernmentDocumentFirestore(userId: string, documentId: string): Promise<void> {
+  const adminUser = await requireAdmin();
+  if (!userId || !documentId) throw new Error('A valid candidate and document are required.');
+  const registrationRef = doc(db, 'registrations', userId);
+  const snapshot = await getDoc(registrationRef);
+  if (!snapshot.exists()) throw new Error('Candidate registration was not found.');
+  const data = snapshot.data();
+  const docs = Array.isArray(data.documents) ? data.documents : [];
+  const target = docs.find((item: any) => item.id === documentId);
+  if (!target || typeof target.storagePath !== 'string' || !target.storagePath.startsWith(`identityDocuments/${userId}/`) || target.isRestricted !== true) {
+    throw new Error('The private identity document record is invalid.');
+  }
+  const updatedDocuments = docs.map((item: any) => item.id === documentId
+    ? { ...item, verified: true, verifiedBy: adminUser.email || adminUser.uid }
+    : item);
+  const batch = writeBatch(db);
+  batch.update(registrationRef, { documents: updatedDocuments, updatedAt: serverTimestamp() });
+  const auditRef = doc(collection(db, 'auditLogs'));
+  batch.set(auditRef, {
+    action: 'DOCUMENT_VERIFIED',
+    performedBy: adminUser.email || adminUser.uid,
+    targetId: userId,
+    details: `Government identity document ${target.type} (${target.maskedId}) reviewed and verified.`,
+    timestamp: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
+// --------------------------------------------------
 // ADMIN: FETCH PRIVATE REGISTRATIONS
 // --------------------------------------------------
 
