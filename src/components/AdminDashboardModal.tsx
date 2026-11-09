@@ -152,7 +152,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     if (status === 'approved') {
       const hasPhoto =
         Array.isArray(profileToUpdate.photos) &&
-        profileToUpdate.photos.some((photo) => typeof photo === 'string' && /^https:\/\/(firebasestorage\.googleapis\.com|firebasestorage\.app)\//i.test(photo));
+        profileToUpdate.photos.some((photo) => typeof photo === 'string' && photo.startsWith(`profilePhotos/${profileToUpdate.userId}/`));
       const hasValidDocument =
         Array.isArray(profileToUpdate.documents) &&
         profileToUpdate.documents.some((document) =>
@@ -742,10 +742,21 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       <div className="flex flex-col sm:flex-row gap-4 items-start">
                         <div className="w-full sm:w-56 h-56 rounded-xl overflow-hidden border-2 border-emerald-800/40 bg-stone-900 relative shadow-sm shrink-0">
                           <img
-                            src={selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]}
+                            src={documentPreviewUrls[selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]] || ''}
                             alt="Candidate high-res inspection"
                             className="w-full h-full object-cover"
                           />
+                          {!documentPreviewUrls[selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]] && (
+                            <button type="button" onClick={async () => {
+                              const photoPath = selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0];
+                              try {
+                                const blob = await getStorageFileBlob(photoPath);
+                                setDocumentPreviewUrls((old) => ({ ...old, [photoPath]: URL.createObjectURL(blob) }));
+                              } catch (error) {
+                                setErrorMessage(error instanceof Error ? error.message : 'Could not load private candidate photo.');
+                              }
+                            }} className="absolute inset-0 m-auto h-fit w-fit rounded bg-stone-950/80 px-3 py-2 text-white text-xs">Load secure photo</button>
+                          )}
                           <span className="absolute bottom-2 left-2 bg-stone-950/80 text-white text-[9px] px-2 py-0.5 rounded">
                             {selectedPhotoIndex === 0 ? 'Cover Photo' : `Photo #${selectedPhotoIndex + 1}`}
                           </span>
