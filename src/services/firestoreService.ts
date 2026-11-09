@@ -408,7 +408,7 @@ export async function updateProfileApprovalStatusFirestore(
     const hasAdultAge = Number.isInteger(data.age) && data.age >= 18 && data.age <= 100;
     const hasCandidatePhoto =
       Array.isArray(data.photos) &&
-      data.photos.some((photo: unknown) => typeof photo === 'string' && /^https:\/\/(firebasestorage\.googleapis\.com|firebasestorage\.app)\//i.test(photo));
+      data.photos.some((photo: unknown) => typeof photo === 'string' && photo.startsWith(`profilePhotos/${userId}/`));
     const hasVerifiedGovernmentId =
       Array.isArray(data.documents) &&
       data.documents.some((document: any) =>
@@ -464,7 +464,7 @@ export async function updateProfileApprovalStatusFirestore(
       aboutCandidate: data.aboutCandidate || '',
       // Do not expose photos unless the candidate explicitly chose public visibility.
       photos: data.photoPrivacy === 'visible' && Array.isArray(data.photos)
-        ? data.photos.filter((photo: unknown) => typeof photo === 'string' && /^https:\/\/(firebasestorage\.googleapis\.com|firebasestorage\.app)\//i.test(photo))
+        ? data.photos.filter((photo: unknown) => typeof photo === 'string' && photo.startsWith(`profilePhotos/${userId}/`))
         : [],
       photoPrivacy: data.photoPrivacy === 'visible' ? 'visible' : 'avatar_only',
       avatarInitials: data.avatarInitials || '',
