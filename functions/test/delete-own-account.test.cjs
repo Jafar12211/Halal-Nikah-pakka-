@@ -16,7 +16,9 @@ process.env.FIREBASE_CONFIG = JSON.stringify({
 });
 process.env.FIREBASE_AUTH_EMULATOR_HOST = authHost;
 process.env.FIRESTORE_EMULATOR_HOST = firestoreHost;
-process.env.FIREBASE_STORAGE_EMULATOR_HOST = storageHost;
+// The Firebase Admin SDK uses STORAGE_EMULATOR_HOST (not the client SDK's
+// FIREBASE_STORAGE_EMULATOR_HOST) to route Storage calls to the local emulator.
+process.env.STORAGE_EMULATOR_HOST = storageHost;
 
 const { initializeApp, deleteApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
