@@ -410,3 +410,110 @@ test("Users cannot upload oversized profile photos", async () => {
   );
 });
 
+
+
+const seedApprovedProfiles = async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    for (const uid of ["sender1", "receiver1"]) {
+      await setDoc(doc(context.firestore(), `publicProfiles/${uid}`), {
+        userId: uid,
+        approvalStatus: "approved",
+        isVerified: true
+      });
+    }
+  });
+};
+
+test("An approved member can send a private interest request to another approved member", async () => {
+  await seedApprovedProfiles();
+  const db = testEnv.authenticatedContext("sender1").firestore();
+
+  await assertSucceeds(setDoc(doc(db, "interestRequests/request1"), {
+    senderUserId: "sender1",
+    receiverUserId: "receiver1",
+    status: "pending",
+    message: "Assalamu Alaikum. Our family would like to learn more.",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }));
+});
+
+test("A member cannot send an interest request before their profile is approved", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/receiver1"), {
+      userId: "receiver1",
+      approvalStatus: "approved",
+      isVerified: true
+    });
+  });
+  const db = testEnv.authenticatedContext("sender1").firestore();
+
+  await assertFails(setDoc(doc(db, "interestRequests/request1"), {
+    senderUserId: "sender1",
+    receiverUserId: "receiver1",
+    status: "pending",
+    message: "",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }));
+});
+
+test("Only the sender and recipient can read an interest request", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "interestRequests/request1"), {
+      senderUserId: "sender1",
+      receiverUserId: "receiver1",
+      status: "pending",
+      message: "",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  });
+
+  const senderDb = testEnv.authenticatedContext("sender1").firestore();
+  const receiverDb = testEnv.authenticatedContext("receiver1").firestore();
+  const outsiderDb = testEnv.authenticatedContext("outsider1").firestore();
+
+  await assertSucceeds(getDoc(doc(senderDb, "interestRequests/request1")));
+  await assertSucceeds(getDoc(doc(receiverDb, "interestRequests/request1")));
+  await assertFails(getDoc(doc(outsiderDb, "interestRequests/request1")));
+});
+
+test("Only the recipient can accept or decline a pending interest request", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "interestRequests/request1"), {
+      senderUserId: "sender1",
+      receiverUserId: "receiver1",
+      status: "pending",
+      message: "",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  });
+
+  const senderDb = testEnv.authenticatedContext("sender1").firestore();
+  const receiverDb = testEnv.authenticatedContext("receiver1").firestore();
+
+  await assertFails(updateDoc(doc(senderDb, "interestRequests/request1"), {
+    status: "accepted",
+    updatedAt: serverTimestamp()
+  }));
+  await assertSucceeds(updateDoc(doc(receiverDb, "interestRequests/request1"), {
+    status: "accepted",
+    updatedAt: serverTimestamp()
+  }));
+});
+
+test("A member cannot forge an interest request for another sender", async () => {
+  await seedApprovedProfiles();
+  const db = testEnv.authenticatedContext("outsider1").firestore();
+
+  await assertFails(setDoc(doc(db, "interestRequests/request1"), {
+    senderUserId: "sender1",
+    receiverUserId: "receiver1",
+    status: "pending",
+    message: "",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }));
+});
