@@ -20,7 +20,7 @@ process.env.FIREBASE_STORAGE_EMULATOR_HOST = storageHost;
 
 const { initializeApp, deleteApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 
 const app = initializeApp({
@@ -174,19 +174,19 @@ test('a signed-in member can delete only their own account and linked data', asy
   assert.equal(identityExists, false, 'Private identity document should be deleted');
 });
 
-test('a caller cannot delete another member by supplying their UID', async () => {
-  // The callable takes no UID argument: the authenticated token is the sole
-  // source of the account identifier. A caller can delete only their own user.
-  const response = await invokeDelete(otherUser.idToken);
+test('the callable derives the deletion target from the authenticated UID, not caller input', async () => {
+  // The request body contains no target UID. The function must delete the
+  // account represented by the verified bearer token and leave other users intact.
+  const response = await invokeDelete(owner.idToken);
   const body = await response.json();
 
   assert.equal(response.ok, true, JSON.stringify(body));
   assert.equal(body.result?.success ?? body.data?.success, true);
   await assert.rejects(
-    auth.getUser(otherUser.uid),
+    auth.getUser(owner.uid),
     (error) => error.code === 'auth/user-not-found',
   );
-  assert.equal((await auth.getUser(owner.uid)).uid, owner.uid);
+  assert.equal((await auth.getUser(otherUser.uid)).uid, otherUser.uid);
 });
 
 test('a request with an invalid bearer token is rejected', async () => {
