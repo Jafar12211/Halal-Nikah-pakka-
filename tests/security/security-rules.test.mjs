@@ -147,6 +147,27 @@ test("A member cannot mark their government ID as verified", async () => {
   );
 });
 
+test("A member cannot add unapproved fields to identity-document metadata", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "registrations/member1"),
+      validRegistration("member1")
+    );
+  });
+
+  const db = testEnv.authenticatedContext("member1").firestore();
+
+  await assertFails(
+    updateDoc(doc(db, "registrations/member1"), {
+      documents: [{
+        ...documentMetadata,
+        storagePath: "identityDocuments/member1/identity.pdf",
+        extraField: "not allowed"
+      }]
+    })
+  );
+});
+
 test("An administrator can verify a government ID", async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(
@@ -210,6 +231,22 @@ test("An administrator can create an audit log", async () => {
       targetId: "member1",
       action: "DOCUMENT_VERIFIED",
       details: "Test verification"
+    })
+  );
+});
+
+test("An administrator cannot forge another audit identity", async () => {
+  const adminDb = testEnv.authenticatedContext(
+    "admin1",
+    { admin: true, email: "admin@example.com" }
+  ).firestore();
+
+  await assertFails(
+    setDoc(doc(adminDb, "auditLogs/forged-log"), {
+      performedBy: "someone-else@example.com",
+      targetId: "member1",
+      action: "DOCUMENT_VERIFIED",
+      details: "Forged audit record"
     })
   );
 });
