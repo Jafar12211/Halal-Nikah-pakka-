@@ -306,7 +306,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                           initials={profile.avatarInitials}
                           backgroundColor={profile.avatarBgColor}
                           className="w-14 h-14 rounded-2xl border border-emerald-700/30 shadow-xs shrink-0"
-                          blurred={profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest}
+                          blurred={profile.photoPrivacy !== 'visible'}
                         />
 
                         {/* Name & Basic Details */}
