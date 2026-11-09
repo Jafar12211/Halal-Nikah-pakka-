@@ -898,7 +898,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                   {documentPreviewUrls[doc.id] ? 'Reload preview' : 'Load secure preview'}
                                 </button>
                                 {!doc.verified && (
-                                  <button type="button" disabled={documentActionBusy === doc.id || isUpdating} onClick={async () => {
+                                  <button type="button" disabled={documentActionBusy === doc.id || isUpdating || !documentPreviewUrls[doc.id]} onClick={async () => {
                                     setDocumentActionBusy(doc.id); setErrorMessage(null);
                                     try {
                                       await verifyGovernmentDocumentFirestore(selectedProfile.userId, doc.id);
@@ -911,7 +911,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                       setErrorMessage(error instanceof Error ? error.message : 'Document verification failed.');
                                     } finally { setDocumentActionBusy(null); }
                                   }} className="px-2 py-1 rounded bg-emerald-800 text-white text-[10px] font-semibold">
-                                    Verify document
+                                    {documentPreviewUrls[doc.id] ? 'Verify document' : 'Load preview first'}
                                   </button>
                                 )}
                               </div>
