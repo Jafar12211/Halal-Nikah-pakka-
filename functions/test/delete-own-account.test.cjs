@@ -100,10 +100,10 @@ async function seedOwnedData(uid, otherUid) {
 
 before(async () => {
   // Fail early rather than accidentally exercising a deployed endpoint.
-  assert.match(authHost, /^127\\.0\\.0\\.1:/);
-  assert.match(firestoreHost, /^127\\.0\\.0\\.1:/);
-  assert.match(storageHost, /^127\\.0\\.0\\.1:/);
-  assert.match(functionsHost, /^127\\.0\\.0\\.1:/);
+  assert.match(authHost, /^127\.0\.0\.1:/);
+  assert.match(firestoreHost, /^127\.0\.0\.1:/);
+  assert.match(storageHost, /^127\.0\.0\.1:/);
+  assert.match(functionsHost, /^127\.0\.0\.1:/);
 });
 
 beforeEach(async () => {
