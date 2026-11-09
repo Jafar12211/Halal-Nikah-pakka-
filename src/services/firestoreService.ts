@@ -598,7 +598,7 @@ export async function respondToInterestRequest(
   requestId: string,
   status: 'accepted' | 'declined',
 ): Promise<void> {
-  const user = await requireSignedInUser();
+  await requireSignedInUser();
   if (!requestId || requestId.length > 128) throw new Error('Invalid interest request.');
   await updateDoc(doc(db, 'interestRequests', requestId), {
     status,
@@ -607,7 +607,7 @@ export async function respondToInterestRequest(
 }
 
 export async function cancelInterestRequest(requestId: string): Promise<void> {
-  const user = await requireSignedInUser();
+  await requireSignedInUser();
   if (!requestId || requestId.length > 128) throw new Error('Invalid interest request.');
   await deleteDoc(doc(db, 'interestRequests', requestId));
 }
