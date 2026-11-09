@@ -38,3 +38,17 @@ npm run check
 ```
 
 The callable currently does not enforce App Check. Configure and verify App Check in the web client and function before enabling enforcement; turning it on prematurely would block legitimate account deletion calls.
+
+
+## Account-deletion emulator integration tests
+
+From the repository root, install the Functions dependencies and run all required local emulators:
+
+```bash
+npm install --prefix functions
+npx firebase-tools emulators:exec --only auth,firestore,storage,functions --project nikah-pakka "npm run test:account-deletion --prefix functions"
+```
+
+The suite creates disposable users through the Auth Emulator and seeds only emulator Firestore and Storage. It calls the Functions Emulator over its local callable HTTP endpoint. It verifies unauthenticated and invalid-token rejection, that the authenticated UID is the deletion target, recursive Firestore cleanup, preservation of unrelated records and users, and removal of both private Storage prefixes. It does not call production Firebase services.
+
+Do not run this suite against a deployed endpoint or point its emulator host constants at a remote service.
