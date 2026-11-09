@@ -530,7 +530,7 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
 
             {/* Express Interest Button */}
             <button
-              onClick={() => onExpressInterest(profile.id)
+              onClick={() => onExpressInterest(profile.id)}
               className={`px-5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors ${
                 isInterested
                   ? 'bg-rose-100 text-rose-800'
