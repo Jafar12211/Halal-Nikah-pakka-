@@ -687,7 +687,8 @@ class StorageService {
 
   loginWithGoogle(emailOverride?: string): UserAccount {
     const email = emailOverride || 'godavari.candidate@gmail.com';
-    const isAdmin = email.toLowerCase() === DEFAULT_ADMIN_EMAIL.toLowerCase();
+    // Legacy local authentication is never an administrator authority.
+    const isAdmin = false;
 
     const user: UserAccount = {
       id: `usr-g-${Date.now()}`,
@@ -718,7 +719,7 @@ class StorageService {
       email,
       phone,
       name,
-      role: email.toLowerCase() === DEFAULT_ADMIN_EMAIL.toLowerCase() ? 'admin' : role,
+      role: 'member',
       emailVerified: false,
       phoneVerified: false,
       authProvider: 'email',
