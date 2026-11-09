@@ -154,6 +154,28 @@ function validUserDocument(item, uid) {
       allow delete: if admin() || owner(uid);
     }
 
+    // Member-owned saved-profile bookmarks. Only approved public profiles may be saved.
+    function approvedPublicProfile(profileId) {
+      let profilePath = /databases/$(database)/documents/publicProfiles/$(profileId);
+      return exists(profilePath)
+        && get(profilePath).data.approvalStatus == 'approved'
+        && get(profilePath).data.isVerified == true;
+    }
+
+    match /users/{uid}/savedProfiles/{profileId} {
+      allow get, list: if owner(uid);
+      allow create: if owner(uid)
+        && validUid(profileId)
+        && profileId != uid
+        && request.resource.data.keys().hasAll(['profileId', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['profileId', 'createdAt'])
+        && request.resource.data.profileId == profileId
+        && request.resource.data.createdAt == request.time
+        && approvedPublicProfile(profileId);
+      allow update: if false;
+      allow delete: if owner(uid);
+    }
+
     // Immutable administrator audit trail.
     match /auditLogs/{logId} {
       allow read, list: if admin();
