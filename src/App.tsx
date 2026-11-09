@@ -186,14 +186,45 @@ export default function App() {
 
     if (!currentUser) return;
 
-    void fetchSavedProfileIds(currentUser.id)
-      .then((profileIds) => {
-        if (!cancelled) setUserInterests(new Set(profileIds));
-      })
-      .catch((error) => {
-        console.error('Failed to load saved profiles from Firestore:', error);
-        if (!cancelled) setUserInterests(new Set<string>());
-      });
+    void (async () => {
+      const legacyKey = `nikah_pakka_interests_${currentUser.id}`;
+      let legacyIds: string[] = [];
+
+      // Migrate the previous device-only shortlist when its entries still point
+      // to approved public profiles. Keep failed entries locally for a later retry.
+      try {
+        const raw = localStorage.getItem(legacyKey);
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed)) {
+          legacyIds = parsed.filter((value): value is string => typeof value === 'string');
+        }
+      } catch (error) {
+        console.warn('Could not read the legacy local shortlist:', error);
+      }
+
+      const migrationResults = await Promise.allSettled(
+        legacyIds.map((profileId) => saveProfileBookmark(currentUser.id, profileId))
+      );
+      const failedLegacyIds = legacyIds.filter(
+        (_profileId, index) => migrationResults[index]?.status === 'rejected'
+      );
+
+      try {
+        if (failedLegacyIds.length) {
+          localStorage.setItem(legacyKey, JSON.stringify(failedLegacyIds));
+        } else {
+          localStorage.removeItem(legacyKey);
+        }
+      } catch (error) {
+        console.warn('Could not update the legacy local shortlist after migration:', error);
+      }
+
+      const profileIds = await fetchSavedProfileIds(currentUser.id);
+      if (!cancelled) setUserInterests(new Set(profileIds));
+    })().catch((error) => {
+      console.error('Failed to load saved profiles from Firestore:', error);
+      if (!cancelled) setUserInterests(new Set<string>());
+    });
 
     return () => {
       cancelled = true;
