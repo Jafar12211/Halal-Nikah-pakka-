@@ -543,8 +543,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                             : 'bg-white border-stone-300 text-stone-600'
                         }`}
                       >
-                        <strong>Blurred until request</strong>
-                        <p className="text-[11px] mt-1">Preferred privacy setting.</p>
+                        <strong>Private — not visible to other members</strong>
+                        <p className="text-[11px] mt-1">Only you and authorized administrators can access these photos. Request-based reveal is not enabled.</p>
                       </button>
 
                       <button
