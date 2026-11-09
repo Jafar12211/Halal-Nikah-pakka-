@@ -162,13 +162,13 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                       src={(() => { const photo = profile.photos[selectedPhotoIndex] || profile.photos[0]; return photo.startsWith('http') ? photo : photoUrls[photo] || ''; })()}
                       alt={profile.candidateName}
                       className={`w-full h-full object-cover transition-all ${
-                        profile.photoPrivacy === 'blurred_until_request' && !isInterested
+                        profile.photoPrivacy !== 'visible'
                           ? 'blur-xs scale-105'
                           : ''
                       }`}
                     />
-                    {profile.photoPrivacy === 'blurred_until_request' && !isInterested && (
-                      <div className="absolute inset-0 bg-stone-950/30 backdrop-blur-[2px] flex items-center justify-center" title="Photo blurred for modesty until interest accepted">
+                    {profile.photoPrivacy !== 'visible' && (
+                      <div className="absolute inset-0 bg-stone-950/30 backdrop-blur-[2px] flex items-center justify-center" title="Photo hidden by the candidate's privacy setting">
                         <Lock className="w-4 h-4 text-white drop-shadow" />
                       </div>
                     )}
@@ -197,9 +197,9 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                       {profile.photos.length} Photos
                     </span>
                   )}
-                  {profile.photos && profile.photos.length > 0 && profile.photoPrivacy === 'blurred_until_request' && !isInterested && (
+                  {profile.photos && profile.photos.length > 0 && profile.photoPrivacy !== 'visible' && (
                     <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded border border-stone-200">
-                      Modesty Protected Photo
+                      Private Photo
                     </span>
                   )}
                 </div>
@@ -271,7 +271,7 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                       src={picUrl.startsWith('http') ? picUrl : photoUrls[picUrl] || ''}
                       alt={`Candidate picture ${idx + 1}`}
                       className={`w-14 h-14 sm:w-16 sm:h-16 object-cover ${
-                        profile.photoPrivacy === 'blurred_until_request' && !isInterested
+                        profile.photoPrivacy !== 'visible'
                           ? 'blur-[1.5px]'
                           : ''
                       }`}
