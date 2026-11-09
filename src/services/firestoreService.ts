@@ -2,6 +2,7 @@
 import {
   collection,
   doc,
+  deleteDoc,
   getDoc,
   getDocs,
   setDoc,
@@ -191,8 +192,11 @@ export async function deleteOwnAccount(password?: string): Promise<void> {
     throw new Error('Please sign in again using your original sign-in method, then retry account deletion.');
   }
 
-  // Remove private candidate photographs and identity documents before deleting
-  // Firestore records or the Authentication account. Storage rules enforce ownership.
+  // Remove account-owned saved-profile bookmarks before deleting the account.
+  await deleteSavedProfilesForUser(user.uid);
+
+  // Storage rules enforce ownership. This operation is safe to retry if a later
+  // cleanup step fails because deleting an already-empty folder is harmless.
   await deleteUserStorageObjects(user.uid);
 
   const batch = writeBatch(db);
@@ -504,6 +508,67 @@ export async function updateProfileApprovalStatusFirestore(
   });
 
   await batch.commit();
+}
+
+// --------------------------------------------------
+// MEMBER: FIRESTORE-BACKED SAVED PROFILES
+// --------------------------------------------------
+
+async function requireOwnAccount(uid: string): Promise<User> {
+  const user = await requireSignedInUser();
+  if (!uid || user.uid !== uid) {
+    throw new Error('You can manage saved profiles only for your own account.');
+  }
+  return user;
+}
+
+export async function fetchSavedProfileIds(uid: string): Promise<string[]> {
+  await requireOwnAccount(uid);
+  const snapshot = await getDocs(collection(db, 'users', uid, 'savedProfiles'));
+  return snapshot.docs.map((entry) => entry.id);
+}
+
+export async function saveProfileBookmark(uid: string, profileId: string): Promise<void> {
+  await requireOwnAccount(uid);
+  if (!profileId || profileId === uid || profileId.length > 128) {
+    throw new Error('Choose a valid profile to save.');
+  }
+
+  const publicProfile = await getDoc(doc(db, 'publicProfiles', profileId));
+  if (
+    !publicProfile.exists() ||
+    publicProfile.data().approvalStatus !== 'approved' ||
+    publicProfile.data().isVerified !== true
+  ) {
+    throw new Error('Only approved and verified profiles can be saved.');
+  }
+
+  const bookmarkRef = doc(db, 'users', uid, 'savedProfiles', profileId);
+  const existing = await getDoc(bookmarkRef);
+  if (existing.exists()) return;
+
+  await setDoc(bookmarkRef, {
+    profileId,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function removeProfileBookmark(uid: string, profileId: string): Promise<void> {
+  await requireOwnAccount(uid);
+  if (!profileId || profileId.length > 128) {
+    throw new Error('Choose a valid saved profile.');
+  }
+  await deleteDoc(doc(db, 'users', uid, 'savedProfiles', profileId));
+}
+
+async function deleteSavedProfilesForUser(uid: string): Promise<void> {
+  const snapshot = await getDocs(collection(db, 'users', uid, 'savedProfiles'));
+  const entries = snapshot.docs;
+  for (let offset = 0; offset < entries.length; offset += 450) {
+    const batch = writeBatch(db);
+    entries.slice(offset, offset + 450).forEach((entry) => batch.delete(entry.ref));
+    await batch.commit();
+  }
 }
 
 export async function fetchAdminAuditLogs(): Promise<AuditLog[]> {
