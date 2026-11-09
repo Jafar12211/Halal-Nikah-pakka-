@@ -434,7 +434,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                             hasExpressedInterest ? 'fill-rose-700 text-rose-700' : 'text-amber-300'
                           }`}
                         />
-                        <span>{hasExpressedInterest ? (t.interested || 'Interest Sent') : (t.sendKhabar || 'Send Khabar')}</span>
+                        <span>{hasExpressedInterest ? 'Saved' : 'Save Profile'}</span>
                       </button>
                     </div>
                   </div>
