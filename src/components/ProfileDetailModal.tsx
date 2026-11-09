@@ -525,7 +525,7 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
               }`}
             >
               <Heart className={`w-4 h-4 ${isInterested ? 'fill-rose-700 text-rose-700' : 'text-amber-300'}`} />
-              <span>{isInterested ? 'Interest Sent to Family' : 'Send Khabar / Interest'}</span>
+              <span>{isInterested ? 'Saved to My Profiles' : 'Save Profile'}</span>
             </button>
           </div>
         </div>
