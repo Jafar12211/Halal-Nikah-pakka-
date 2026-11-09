@@ -26,7 +26,8 @@ import {
 } from 'lucide-react';
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
 
-import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore } from '../services/firestoreService';
+import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore, verifyGovernmentDocumentFirestore } from '../services/firestoreService';
+import { getStorageFileBlob } from '../services/firebaseStorageService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 import { isAdminUser } from '../utils/admin';
 
@@ -56,6 +57,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [documentPreviewUrls, setDocumentPreviewUrls] = useState<Record<string, string>>({});
+  const [documentActionBusy, setDocumentActionBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !isAdminUser(currentUser)) return;
@@ -849,7 +852,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             </p>
                           </div>
 
-                          <div className="text-right shrink-0">
+                          <div className="flex flex-col items-end gap-2 shrink-0">
                             <span
                               className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
                                 doc.verified
@@ -859,6 +862,46 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             >
                               {doc.verified ? '✓ Admin reviewed' : '⏳ Pending admin review'}
                             </span>
+                            {doc.storagePath && (
+                              <div className="flex gap-2">
+                                <button type="button" disabled={documentActionBusy === doc.id} onClick={async () => {
+                                  setDocumentActionBusy(doc.id);
+                                  try {
+                                    const blob = await getStorageFileBlob(doc.storagePath!);
+                                    const url = URL.createObjectURL(blob);
+                                    setDocumentPreviewUrls((old) => ({ ...old, [doc.id]: url }));
+                                  } catch (error) {
+                                    setErrorMessage(error instanceof Error ? error.message : 'Could not securely load identity file.');
+                                  } finally { setDocumentActionBusy(null); }
+                                }} className="px-2 py-1 rounded bg-stone-100 text-stone-800 text-[10px] font-semibold">
+                                  {documentPreviewUrls[doc.id] ? 'Reload preview' : 'Load secure preview'}
+                                </button>
+                                {!doc.verified && (
+                                  <button type="button" disabled={documentActionBusy === doc.id || isUpdating} onClick={async () => {
+                                    setDocumentActionBusy(doc.id); setErrorMessage(null);
+                                    try {
+                                      await verifyGovernmentDocumentFirestore(selectedProfile.userId, doc.id);
+                                      const refreshed = await fetchAllRegistrations();
+                                      setProfiles(refreshed);
+                                      setSelectedProfile(refreshed.find((profile) => profile.id === selectedProfile.id) || null);
+                                      setStatusMessage('Identity document marked as reviewed. Approval can now be considered after all checks.');
+                                      const logs = await fetchAdminAuditLogs(); setAuditLogs(logs);
+                                    } catch (error) {
+                                      setErrorMessage(error instanceof Error ? error.message : 'Document verification failed.');
+                                    } finally { setDocumentActionBusy(null); }
+                                  }} className="px-2 py-1 rounded bg-emerald-800 text-white text-[10px] font-semibold">
+                                    Verify document
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                            {documentPreviewUrls[doc.id] && (
+                              <div className="w-full sm:w-64">
+                                {doc.fileName.toLowerCase().endsWith('.pdf')
+                                  ? <iframe title="Private government ID preview" src={documentPreviewUrls[doc.id]} className="w-full h-64 border rounded" />
+                                  : <img src={documentPreviewUrls[doc.id]} alt="Private government ID preview" className="max-w-full max-h-64 object-contain border rounded" />}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
