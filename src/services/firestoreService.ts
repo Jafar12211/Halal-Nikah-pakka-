@@ -260,15 +260,29 @@ export async function saveProfileToFirestore(
     approvalStatus,
     approvalNotes,
     isVerified,
-    documents,
     ...memberFields
   } = profile as UserProfile & {
     approvalNotes?: string;
     documents?: unknown;
   };
+  // Keep only user-submitted, unverified document metadata. Admin verification
+  // fields are never accepted from the profile editor.
+  const safeDocuments = Array.isArray(documents)
+    ? documents.map((entry: any) => ({
+        id: String(entry.id || ''),
+        type: entry.type,
+        fileName: String(entry.fileName || ''),
+        storagePath: String(entry.storagePath || ''),
+        maskedId: String(entry.maskedId || ''),
+        uploadedAt: String(entry.uploadedAt || ''),
+        verified: false,
+        isRestricted: true,
+      }))
+    : [];
 
   const safeData = removeUndefined({
     ...memberFields,
+    documents: safeDocuments,
     userId: user.uid,
     updatedAt: serverTimestamp(),
   });
