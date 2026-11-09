@@ -10,12 +10,15 @@ initializeApp();
 const db = getFirestore();
 const auth = getAuth();
 const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '{}');
+// Match the web app's current Firebase default bucket. The Functions
+// emulator may inject a legacy *.appspot.com value in FIREBASE_CONFIG even
+// when this project uses *.firebasestorage.app. An explicit STORAGE_BUCKET
+// still supports projects configured with a custom bucket.
 const storageBucketName =
-  firebaseConfig.storageBucket ||
   process.env.STORAGE_BUCKET ||
   (process.env.GCLOUD_PROJECT
     ? `${process.env.GCLOUD_PROJECT}.firebasestorage.app`
-    : undefined);
+    : firebaseConfig.storageBucket);
 const storage = getStorage();
 
 const MAX_AUTH_AGE_SECONDS = 5 * 60;
