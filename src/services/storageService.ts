@@ -629,9 +629,9 @@ class StorageService {
   private sessionKey = 'nikah_godavari_current_user';
   private auditLogsKey = 'nikah_godavari_audit_logs';
 
-  constructor() {
-    this.initStorage();
-  }
+  // Legacy local-storage service retained only for compatibility with older UI imports.
+  // Do not seed demo profiles, conversations, messages or audit records into real browsers.
+  constructor() {}
 
   private initStorage() {
     if (!localStorage.getItem(this.profilesKey)) {
@@ -748,9 +748,9 @@ class StorageService {
   getProfiles(): UserProfile[] {
     try {
       const raw = localStorage.getItem(this.profilesKey);
-      return raw ? JSON.parse(raw) : SEED_PROFILES;
+      return raw ? JSON.parse(raw) : [];
     } catch {
-      return SEED_PROFILES;
+      return [];
     }
   }
 
@@ -801,7 +801,7 @@ class StorageService {
   getConversations(userId: string): Conversation[] {
     try {
       const raw = localStorage.getItem(this.conversationsKey);
-      const list: Conversation[] = raw ? JSON.parse(raw) : SEED_CONVERSATIONS;
+      const list: Conversation[] = raw ? JSON.parse(raw) : [];
       return list.filter((c) => c.participantUserIds.includes(userId));
     } catch {
       return [];
@@ -811,7 +811,7 @@ class StorageService {
   getMessages(conversationId: string): Message[] {
     try {
       const raw = localStorage.getItem(this.messagesKey);
-      const all: Record<string, Message[]> = raw ? JSON.parse(raw) : SEED_MESSAGES;
+      const all: Record<string, Message[]> = raw ? JSON.parse(raw) : {};
       return all[conversationId] || [];
     } catch {
       return [];
@@ -826,7 +826,7 @@ class StorageService {
     text: string
   ): Message {
     const raw = localStorage.getItem(this.messagesKey);
-    const all: Record<string, Message[]> = raw ? JSON.parse(raw) : SEED_MESSAGES;
+    const all: Record<string, Message[]> = raw ? JSON.parse(raw) : {};
     const conversationMessages = all[conversationId] || [];
 
     const newMessage: Message = {
@@ -847,7 +847,7 @@ class StorageService {
 
     // Update conversation lastMessage
     const convRaw = localStorage.getItem(this.conversationsKey);
-    const convs: Conversation[] = convRaw ? JSON.parse(convRaw) : SEED_CONVERSATIONS;
+    const convs: Conversation[] = convRaw ? JSON.parse(convRaw) : [];
     const convIndex = convs.findIndex((c) => c.id === conversationId);
     if (convIndex >= 0) {
       convs[convIndex].lastMessage = text;
@@ -891,7 +891,7 @@ class StorageService {
     };
 
     const allConvsRaw = localStorage.getItem(this.conversationsKey);
-    const allConvs: Conversation[] = allConvsRaw ? JSON.parse(allConvsRaw) : SEED_CONVERSATIONS;
+    const allConvs: Conversation[] = allConvsRaw ? JSON.parse(allConvsRaw) : [];
     allConvs.unshift(newConv);
     localStorage.setItem(this.conversationsKey, JSON.stringify(allConvs));
 
