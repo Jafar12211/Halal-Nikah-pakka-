@@ -41,7 +41,7 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
             <p className="text-xs text-emerald-200 mt-0.5">
               {isTelugu
                 ? `${interestedProfiles.length} ప్రొఫైల్స్ ఈ పరికరంలో మాత్రమే సేవ్ అయ్యాయి · కుటుంబానికి పంపబడలేదు`
-                : `${interestedProfiles.length} candidate(s) saved on this device only · Not sent to any family`}
+                : `${interestedProfiles.length} candidate(s) saved to your account · Not sent to any family`}
             </p>
           </div>
         </div>
@@ -58,7 +58,7 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
           <p className="text-xs text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
             {isTelugu
               ? 'సంబంధాల జాబితాలో గుండె గుర్తుపై క్లిక్ చేసి ప్రొఫైల్‌ను ఈ పరికరంలో సేవ్ చేయండి. ఇది ఇతర కుటుంబానికి నోటిఫికేషన్ పంపదు.'
-              : 'Browse approved profiles from Yanam, Kakinada & Godavari districts. Tap the heart to save a profile to this device; this does not notify the other family.'}
+              : 'Browse approved profiles from Yanam, Kakinada & Godavari districts. Tap the heart to save a profile to your account; this does not notify the other family.'}
           </p>
           <button
             onClick={onNavigateToMatches}
