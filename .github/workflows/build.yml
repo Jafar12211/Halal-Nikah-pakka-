@@ -39,4 +39,4 @@ jobs:
         run: npm ci
 
       - name: Run Firebase security rules tests
-        run: npx --yes firebase-tools@13.2.0 emulators:exec --only auth,firestore,storage --project nikah-pakka "npm run test:security"
+        run: npx --yes firebase-tools@15.35.0 emulators:exec --only auth,firestore,storage --project nikah-pakka "npm run test:security"
