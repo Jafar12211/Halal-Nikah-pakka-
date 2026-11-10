@@ -45,7 +45,7 @@ jobs:
         run: npm run check --prefix functions
 
       - name: Run account-deletion integration tests against emulators
-        run: npx --yes firebase-tools@13.2.0 emulators:exec --only auth,firestore,storage,functions --project nikah-pakka "npm run test:account-deletion --prefix functions"
+        run: npx --yes firebase-tools@15.35.0 emulators:exec --only auth,firestore,storage,functions --project nikah-pakka "npm run test:account-deletion --prefix functions"
 
       - name: Build production website
         run: npm run build
