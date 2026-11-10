@@ -35,6 +35,9 @@ jobs:
       - name: Run TypeScript validation
         run: npm run lint
 
+      - name: Run utility unit tests
+        run: npm run test:unit
+
       - name: Install locked Cloud Functions dependencies
         run: npm ci --prefix functions --no-audit --no-fund
 
