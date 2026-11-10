@@ -38,6 +38,9 @@ jobs:
       - name: Run utility unit tests
         run: npm run test:unit
 
+      - name: Build production website
+        run: npm run build
+
       - name: Set up Node.js 22 for Cloud Functions runtime tests
         uses: actions/setup-node@v4
         with:
