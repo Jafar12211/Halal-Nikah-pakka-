@@ -35,11 +35,14 @@ jobs:
       - name: Run TypeScript validation
         run: npm run lint
 
-      - name: Install Cloud Functions dependencies
-        run: npm install --prefix functions --no-audit --no-fund
+      - name: Install locked Cloud Functions dependencies
+        run: npm ci --prefix functions --no-audit --no-fund
 
       - name: Check Cloud Functions syntax
         run: npm run check --prefix functions
+
+      - name: Run account-deletion integration tests against emulators
+        run: npx --yes firebase-tools@13.2.0 emulators:exec --only auth,firestore,storage,functions --project nikah-pakka "npm run test:account-deletion --prefix functions"
 
       - name: Build production website
         run: npm run build
