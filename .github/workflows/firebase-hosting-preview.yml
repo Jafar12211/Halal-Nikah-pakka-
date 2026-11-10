@@ -1,0 +1,120 @@
+name: Firebase staging preview
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: firebase-staging-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  staging-preview:
+    name: Test and deploy isolated Firebase staging preview
+    runs-on: ubuntu-latest
+    env:
+      STAGING_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID_STAGING }}
+      STAGING_WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG_STAGING }}
+      STAGING_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+    steps:
+      - name: Check staging configuration
+        id: staging
+        shell: bash
+        run: |
+          if [[ -n "$STAGING_PROJECT_ID" && -n "$STAGING_WEB_CONFIG" && -n "$STAGING_SERVICE_ACCOUNT" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Preview deployment skipped. Configure FIREBASE_PROJECT_ID_STAGING and the two staging secrets; production credentials are not accepted."
+          fi
+
+      - name: Check out repository
+        if: steps.staging.outputs.ready == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24 for web build
+        if: steps.staging.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked web dependencies
+        if: steps.staging.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Write and validate staging Firebase web configuration
+        if: steps.staging.outputs.ready == 'true'
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(process.env.STAGING_WEB_CONFIG);
+          if (config.projectId !== process.env.STAGING_PROJECT_ID) {
+            throw new Error('Staging web config projectId does not match FIREBASE_PROJECT_ID_STAGING.');
+          }
+          for (const key of ['apiKey', 'appId', 'authDomain', 'projectId', 'storageBucket']) {
+            if (typeof config[key] !== 'string' || !config[key]) {
+              throw new Error('Staging Firebase web config is missing ' + key + '.');
+            }
+          }
+          fs.writeFileSync('firebase-applet-config.json', JSON.stringify(config, null, 2) + '\n');
+          NODE
+
+      - name: Run TypeScript validation
+        if: steps.staging.outputs.ready == 'true'
+        run: npm run lint
+
+      - name: Run utility unit tests
+        if: steps.staging.outputs.ready == 'true'
+        run: npm run test:unit
+
+      - name: Build production assets
+        if: steps.staging.outputs.ready == 'true'
+        run: npm run build
+
+      - name: Set up Node.js 22 for Cloud Functions
+        if: steps.staging.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install locked Cloud Functions dependencies
+        if: steps.staging.outputs.ready == 'true'
+        run: npm ci --prefix functions --no-audit --no-fund
+
+      - name: Audit Cloud Functions dependencies
+        if: steps.staging.outputs.ready == 'true'
+        run: npm audit --prefix functions --audit-level=high
+
+      - name: Check Cloud Functions syntax
+        if: steps.staging.outputs.ready == 'true'
+        run: npm run check --prefix functions
+
+      - name: Run security and account-deletion emulator tests
+        if: steps.staging.outputs.ready == 'true'
+        run: npx --yes firebase-tools@15.35.0 emulators:exec --only auth,firestore,storage,functions --project "$STAGING_PROJECT_ID" "npm run test:security && npm run test:account-deletion --prefix functions"
+
+      - name: Prepare staging service-account credentials
+        if: steps.staging.outputs.ready == 'true'
+        shell: bash
+        run: |
+          umask 077
+          printf '%s' "$STAGING_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-staging-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-staging-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy rules and account-deletion function to staging only
+        if: steps.staging.outputs.ready == 'true'
+        run: npx --yes firebase-tools@15.35.0 deploy --only firestore:rules,storage,functions:deleteOwnAccount --project "$STAGING_PROJECT_ID" --non-interactive
+
+      - name: Deploy temporary Firebase Hosting preview channel
+        if: steps.staging.outputs.ready == 'true'
+        run: npx --yes firebase-tools@15.35.0 hosting:channel:deploy "pr-${{ github.event.pull_request.number }}" --project "$STAGING_PROJECT_ID" --expires 7d --non-interactive
