@@ -6,7 +6,7 @@ on:
       - firebase-storage-privacy-20261109
   pull_request:
     branches:
-      - firebase-storage-privacy-20261109
+      - main
 
 permissions:
   contents: read
