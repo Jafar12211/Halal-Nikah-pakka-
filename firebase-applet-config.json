@@ -1,9 +1,9 @@
 {
   "projectId": "nikah-pakka-staging",
-  "appId": "1:593974062791:web:staging",
-  "apiKey": "AIzaSyBwKZSFo38TOAVY6RgD6dXJ9wp77vb4nds",
+  "apiKey": "AIzaSyDxj2kaWnp1hiT80roblkfhn2XMfrX9iNY",
   "authDomain": "nikah-pakka-staging.firebaseapp.com",
   "storageBucket": "nikah-pakka-staging.firebasestorage.app",
   "messagingSenderId": "593974062791",
-  "measurementId": "G-JX04VDG5VS"
+  "appId": "1:593974062791:web:a197d5d58974836af858e2",
+  "measurementId": "G-B320MVNCF1"
 }
