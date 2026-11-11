@@ -40,7 +40,8 @@ test("validateConfig rejects every missing required configuration key", () => {
     delete config[key];
     assert.throws(
       () => validateConfig(config),
-      new RegExp(`Missing or invalid required Firebase configuration field: "\\${key}"`)
+      (error) => error instanceof Error &&
+        error.message.includes(`Missing or invalid required Firebase configuration field: "${key}"`)
     );
   }
 });
@@ -51,7 +52,8 @@ test("validateConfig rejects mismatched values for every registered staging fiel
     config[key] = `wrong-${key}`;
     assert.throws(
       () => validateConfig(config),
-      new RegExp(`field "\\${key}" does not match the exact registered staging Web App value`)
+      (error) => error instanceof Error &&
+        error.message.includes(`Firebase configuration field "${key}" does not match the exact registered staging Web App value`)
     );
   }
 });
