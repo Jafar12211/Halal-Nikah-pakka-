@@ -21,3 +21,17 @@ export const isFirebaseStorageEmulatorEnabled = (): boolean => {
 /** Profile-photo controls are enabled only for local emulator testing. */
 export const isPhotoUploadEnabled = (): boolean =>
   isFirebaseStorageEmulatorEnabled();
+
+/**
+ * Account deletion needs the trusted deleteOwnAccount callable. In no-billing
+ * staging it is available only through the local Functions Emulator. A hosted
+ * deployment may enable it only after the callable has been deployed and tested.
+ */
+export const isCloudAccountDeletionEnabled = (): boolean => {
+  try {
+    return isFirebaseStorageEmulatorEnabled()
+      || import.meta.env?.VITE_ENABLE_CLOUD_ACCOUNT_DELETION === 'true';
+  } catch {
+    return false;
+  }
+};

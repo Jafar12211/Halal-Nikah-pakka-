@@ -4,8 +4,8 @@ This document outlines the strict no-billing architecture and isolation safeguar
 
 ## 1. No-Billing Safeguards & Plan Restrictions
 - **No Cloud Billing**: The staging Firebase project operates under the Spark (Free) plan.
-- **No Cloud Functions Deployment**: Google Cloud requires an active billing account (Blaze plan) to deploy 2nd-gen Cloud Functions. In accordance with strict no-billing directives, Cloud Functions (`deleteOwnAccount`) are tested thoroughly via the local Firebase Functions Emulator and are not deployed to live Cloud Functions without billing authorization.
-- **Fail-Closed Photo Uploads**: Live Firebase Cloud Storage photo uploads are disabled by default via feature flag `VITE_ENABLE_LIVE_PHOTO_UPLOADS=false`. The UI cleanly informs users that photo uploads are temporarily unavailable in staging, and candidate profiles display secure SVG placeholder avatars.
+- **No Cloud Functions Deployment**: Google Cloud requires an active billing account (Blaze plan) to deploy 2nd-gen Cloud Functions. In accordance with strict no-billing directives, Cloud Functions (`deleteOwnAccount`) are tested via the local Firebase Functions Emulator and are not deployed to live Cloud Functions without billing authorization. The hosted staging account-deletion control is therefore disabled with an explanation; it can be enabled only after the callable is deployed and verified.
+- **Fail-Closed Storage Uploads**: Profile-photo and private identity-document uploads are permitted only when `VITE_USE_FIREBASE_EMULATORS=true` connects the app to the local Firebase Storage Emulator. Hosted staging rejects both upload paths in the service layer, even if a UI control is bypassed. Candidate profiles display secure SVG placeholder avatars.
 - **No Base64 in Firestore**: No binary or image base64 payloads are stored in Firestore documents.
 
 ## 2. Firebase Emulators
