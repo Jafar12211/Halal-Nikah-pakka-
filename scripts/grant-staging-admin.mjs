@@ -14,6 +14,7 @@
 
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { mergeAdminClaims } from './admin-claims.mjs';
 
 const TARGET_EMAIL = process.argv[2] || 'jafarmd0007@gmail.com';
 const EXPECTED_PROJECT_ID = 'nikah-pakka-staging';
@@ -51,7 +52,9 @@ async function grantAdmin() {
   }
 
   console.log(`Found user: UID=${userRecord.uid}, email=${userRecord.email}`);
-  await auth.setCustomUserClaims(userRecord.uid, { admin: true });
+  const existingClaims = userRecord.customClaims || {};
+  const mergedClaims = mergeAdminClaims(existingClaims);
+  await auth.setCustomUserClaims(userRecord.uid, mergedClaims);
   console.log(`✔ Successfully granted { admin: true } claim to user ${userRecord.uid} (${userRecord.email}).`);
   console.log('NOTE: The user must refresh their ID token (sign out and sign in again) to receive the claim.');
 }
