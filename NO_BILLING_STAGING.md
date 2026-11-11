@@ -17,6 +17,12 @@ This document outlines the strict no-billing architecture and isolation safeguar
 - To assign administrator status to `jafarmd0007@gmail.com`, execute `scripts/grant-staging-admin.mjs`.
 - The script asserts that the runtime target is strictly `nikah-pakka-staging` before making any modifications.
 
-## 4. Absolute Protection of Production
+## 4. Staging Hosting deployment credential
+
+The web app configuration is public Firebase client configuration and is committed in `firebase-applet-config.json`; it is validated against the exact staging project during CI. It does not need to be duplicated as a GitHub secret.
+
+To enable the optional staging Firestore-rules and Hosting preview deployment, add one GitHub Actions repository secret named `FIREBASE_SERVICE_ACCOUNT_STAGING` containing a service-account JSON credential scoped to `nikah-pakka-staging` with the minimum Firebase Hosting and Firestore rules deployment permissions. Never paste the private key into chat, commit it, or use a production service account. The workflow rejects any project ID other than `nikah-pakka-staging`.
+
+## 5. Absolute Protection of Production
 - Production project `nikah-pakka` (project number `655818278889`) is strictly off-limits.
 - Staging validation scripts (`scripts/validate-staging-config.cjs`) reject any production project references or credentials.
