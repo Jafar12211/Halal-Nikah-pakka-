@@ -7,6 +7,7 @@ import {
   type StorageReference,
 } from 'firebase/storage';
 import { auth, storage } from './firebase';
+import { isFirebaseStorageEmulatorEnabled } from '../utils/featureFlags';
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_ID_DOCUMENT_BYTES = 10 * 1024 * 1024;
@@ -30,6 +31,14 @@ export interface UploadedIdentityDocument {
 function requireOwner(uid: string): void {
   if (!auth.currentUser || auth.currentUser.uid !== uid) {
     throw new Error('You can upload or manage files only for your own account.');
+  }
+}
+
+function requireLocalStorageEmulator(): void {
+  if (!isFirebaseStorageEmulatorEnabled()) {
+    throw new Error(
+      'File uploads are disabled on hosted staging to prevent Firebase Storage charges. Use the local Firebase Storage Emulator for upload testing.',
+    );
   }
 }
 
@@ -73,6 +82,7 @@ function assertIdentityDocument(file: File): void {
 /** Uploads a candidate photo without creating a public download-token URL. */
 export async function uploadProfilePhoto(uid: string, file: File): Promise<string> {
   requireOwner(uid);
+  requireLocalStorageEmulator();
   assertImage(file, MAX_PROFILE_PHOTO_BYTES);
 
   const fileName = createFileName(file);
@@ -94,6 +104,7 @@ export async function uploadGovernmentId(
   documentType: GovernmentDocumentType,
 ): Promise<UploadedIdentityDocument> {
   requireOwner(uid);
+  requireLocalStorageEmulator();
   assertIdentityDocument(file);
 
   const fileName = createFileName(file);
