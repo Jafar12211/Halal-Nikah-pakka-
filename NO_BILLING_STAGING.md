@@ -1,0 +1,22 @@
+# Nikah Pakka – No-Billing (Spark Plan) Staging Setup
+
+This document outlines the strict no-billing architecture and isolation safeguards implemented for staging environment `nikah-pakka-staging`.
+
+## 1. No-Billing Safeguards & Plan Restrictions
+- **No Cloud Billing**: The staging Firebase project operates under the Spark (Free) plan.
+- **No Cloud Functions Deployment**: Google Cloud requires an active billing account (Blaze plan) to deploy 2nd-gen Cloud Functions. In accordance with strict no-billing directives, Cloud Functions (`deleteOwnAccount`) are tested thoroughly via the local Firebase Functions Emulator and are not deployed to live Cloud Functions without billing authorization.
+- **Fail-Closed Photo Uploads**: Live Firebase Cloud Storage photo uploads are disabled by default via feature flag `VITE_ENABLE_LIVE_PHOTO_UPLOADS=false`. The UI cleanly informs users that photo uploads are temporarily unavailable in staging, and candidate profiles display secure SVG placeholder avatars.
+- **No Base64 in Firestore**: No binary or image base64 payloads are stored in Firestore documents.
+
+## 2. Firebase Emulators
+- Firebase Emulators (Auth, Firestore, Storage, Functions) are configured in `firebase.json` for reproducible testing and security rule verification.
+- Security rules tests verify fine-grained read/write permissions, size limits, content-type checks, and ownership assertions on port `9199` for Storage and port `8080` for Firestore.
+- Emulators are strictly enabled only when `VITE_USE_FIREBASE_EMULATORS=true` in development/test environments, preventing accidental leakage.
+
+## 3. Administrator Setup
+- To assign administrator status to `jafarmd0007@gmail.com`, execute `scripts/grant-staging-admin.mjs`.
+- The script asserts that the runtime target is strictly `nikah-pakka-staging` before making any modifications.
+
+## 4. Absolute Protection of Production
+- Production project `nikah-pakka` (project number `655818278889`) is strictly off-limits.
+- Staging validation scripts (`scripts/validate-staging-config.cjs`) reject any production project references or credentials.

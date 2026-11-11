@@ -1,3 +1,4 @@
+import { isPhotoUploadEnabled } from '../utils/featureFlags';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -230,6 +231,10 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   if (!isOpen) return null;
 
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isPhotoUploadEnabled()) {
+      setErrorMsg('Profile photo uploads are temporarily unavailable in staging.');
+      return;
+    }
     const files = Array.from(event.target.files || []);
     event.target.value = '';
     if (!currentUser || !files.length) return;
@@ -1068,11 +1073,18 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     ))}
                   </div>
 
-                  {photos.length === 0 && <p className="text-stone-500">No photographs uploaded yet.</p>}
-                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-800 text-white font-semibold cursor-pointer">
-                    <Camera className="w-4 h-4" /> {uploadingPhoto ? 'Uploading...' : 'Upload photographs'}
-                    <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingPhoto || photos.length >= 5} onChange={handlePhotoUpload} className="sr-only" />
-                  </label>
+                  {photos.length === 0 && <p className="text-stone-500">No photographs uploaded yet. Placeholder avatar will be displayed.</p>}
+                  {isPhotoUploadEnabled() ? (
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-800 text-white font-semibold cursor-pointer">
+                      <Camera className="w-4 h-4" /> {uploadingPhoto ? 'Uploading...' : 'Upload photographs'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingPhoto || photos.length >= 5} onChange={handlePhotoUpload} className="sr-only" />
+                    </label>
+                  ) : (
+                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
+                      <p className="font-semibold">Profile photo uploads are temporarily unavailable in staging.</p>
+                      <p className="text-[11px] text-amber-800 mt-0.5">A secure placeholder avatar is automatically used for candidate profiles.</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border border-stone-200 rounded-xl p-4 space-y-3">
