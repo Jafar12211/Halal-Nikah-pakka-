@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Phone,
@@ -21,11 +21,14 @@ import {
 import { UserProfile, LanguageCode } from '../types/database';
 import { generateWhatsAppShareMessage } from '../utils/matrimony';
 import { translations } from '../utils/translations';
+import { getStorageFileBlob } from '../services/firebaseStorageService';
 
 interface ProfileDetailModalProps {
   profile: UserProfile | null;
   onClose: () => void;
   onExpressInterest: (profileId: string) => void;
+  onSendInterest: (profileId: string) => void;
+  hasPendingInterest: boolean;
   isInterested: boolean;
   language: LanguageCode;
   onStartChat: (profile: UserProfile) => void;
@@ -35,6 +38,8 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   profile,
   onClose,
   onExpressInterest,
+  onSendInterest,
+  hasPendingInterest,
   isInterested,
   language,
   onStartChat,
@@ -42,38 +47,91 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [copiedBiodata, setCopiedBiodata] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: string[] = [];
+    const load = async () => {
+      const entries = await Promise.all((profile?.photos || []).filter((path) => path.startsWith('profilePhotos/')).map(async (path) => {
+        try {
+          const blob = await getStorageFileBlob(path);
+          const url = URL.createObjectURL(blob);
+          urls.push(url);
+          return [path, url] as const;
+        } catch (error) {
+          console.warn('Private profile photo unavailable:', error);
+          return null;
+        }
+      }));
+      if (!cancelled) setPhotoUrls(Object.fromEntries(entries.filter(Boolean) as [string, string][]));
+      else urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    if (profile) void load();
+    return () => { cancelled = true; urls.forEach((url) => URL.revokeObjectURL(url)); };
+  }, [profile?.id, profile?.photos?.join('|')]);
+
+  useEffect(() => {
+    setSelectedPhotoIndex(0);
+  }, [profile?.id]);
+
+  useEffect(() => {
+    const photoCount = profile?.photos?.length || 0;
+    if (photoCount < 2) return undefined;
+
+    const timer = window.setInterval(() => {
+      setSelectedPhotoIndex((current) => (current + 1) % photoCount);
+    }, 4000);
+
+    return () => window.clearInterval(timer);
+  }, [profile?.id, profile?.photos?.length]);
 
   if (!profile) return null;
   const t = translations[language];
 
   const handleCopyBiodata = () => {
-    const text = `*NIKAH PAKKA - Verified Godavari Biodata*
+    const text = `*NIKAH PAKKA - Candidate Biodata*
 Candidate: ${profile.candidateName} (${profile.gender === 'bride' ? 'Bride' : 'Groom'})
 Age/Height: ${profile.age} Years, ${profile.height}
 District: ${profile.district} (${profile.mandalCity})
 Education: ${profile.education}
 Profession: ${profile.profession} (${profile.annualIncomeRange})
-Deen: ${profile.religion.sect} · Salah: ${profile.religion.salah} · Modesty: ${profile.religion.hijabOrBeard}
-Family: ${profile.familyDetails.fatherNameAndOcc} (Father) · Native: ${profile.familyDetails.nativePlace}
+Deen: ${profile.religion?.sect || 'Not provided'} · Salah: ${profile.religion?.salah || 'Not provided'} · Modesty: ${profile.religion?.hijabOrBeard || 'Not provided'}
+Family: ${profile.familyDetails?.fatherNameAndOcc || 'Not shared publicly'} (Father) · Native: ${profile.familyDetails?.nativePlace || 'Not shared publicly'}
 Must-Haves: ${profile.mustHaves?.join(', ') || 'Practicing Deen, good character'}
 Deal-Breakers: ${profile.dealBreakers?.join(', ') || 'Dowry, smoking, lack of prayer'}
-Guardian Contact: ${profile.guardianWaliContact.name} (${profile.guardianWaliContact.relationship}): ${profile.guardianWaliContact.phone}
-Verified through Nikah Pakka Community Matrimony.`;
+Guardian Contact: Not displayed in this public biodata. Families should use contact details they have independently verified.
+Profile listed on Nikah Pakka. Identity documents have not been verified through this public profile.`;
 
-    navigator.clipboard.writeText(text);
-    setCopiedBiodata(true);
-    setTimeout(() => setCopiedBiodata(false), 2500);
+    if (!navigator.clipboard?.writeText) {
+      window.alert('Clipboard access is unavailable in this browser. Please copy the biodata manually.');
+      return;
+    }
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopiedBiodata(true);
+      window.setTimeout(() => setCopiedBiodata(false), 2500);
+    }).catch(() => {
+      window.alert('Your browser did not allow copying. Please select and copy the biodata manually.');
+    });
   };
 
   const handleCopyPhone = () => {
-    navigator.clipboard.writeText(profile.guardianWaliContact.phone);
-    setCopiedPhone(true);
-    setTimeout(() => setCopiedPhone(false), 2500);
+    if (!profile.guardianWaliContact?.phone) return;
+    if (!navigator.clipboard?.writeText) {
+      window.alert('Clipboard access is unavailable in this browser.');
+      return;
+    }
+    void navigator.clipboard.writeText(profile.guardianWaliContact?.phone || '').then(() => {
+      setCopiedPhone(true);
+      window.setTimeout(() => setCopiedPhone(false), 2500);
+    }).catch(() => {
+      window.alert('Your browser did not allow copying this phone number.');
+    });
   };
 
   const handleWhatsAppShare = () => {
     const encoded = generateWhatsAppShareMessage(profile.candidateName);
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -84,7 +142,7 @@ Verified through Nikah Pakka Community Matrimony.`;
           <div className="flex items-center gap-2">
             <span className="font-arabic text-amber-300 text-lg">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span>
             <span className="text-stone-300 text-xs hidden sm:inline">
-              · {t.bismillahHeader || 'Verified Matrimonial Biodata'}
+              · {t.bismillahHeader || 'Candidate Matrimonial Biodata'}
             </span>
           </div>
           <button
@@ -105,16 +163,16 @@ Verified through Nikah Pakka Community Matrimony.`;
                 {profile.photos && profile.photos.length > 0 ? (
                   <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-emerald-700/40 shadow-sm shrink-0 relative bg-stone-900">
                     <img
-                      src={profile.photos[selectedPhotoIndex] || profile.photos[0]}
+                      src={(() => { const photo = profile.photos[selectedPhotoIndex] || profile.photos[0]; return photo.startsWith('http') ? photo : photoUrls[photo] || ''; })()}
                       alt={profile.candidateName}
                       className={`w-full h-full object-cover transition-all ${
-                        profile.photoPrivacy === 'blurred_until_request' && !isInterested
+                        profile.photoPrivacy !== 'visible'
                           ? 'blur-xs scale-105'
                           : ''
                       }`}
                     />
-                    {profile.photoPrivacy === 'blurred_until_request' && !isInterested && (
-                      <div className="absolute inset-0 bg-stone-950/30 backdrop-blur-[2px] flex items-center justify-center" title="Photo blurred for modesty until interest accepted">
+                    {profile.photoPrivacy !== 'visible' && (
+                      <div className="absolute inset-0 bg-stone-950/30 backdrop-blur-[2px] flex items-center justify-center" title="Photo hidden by the candidate's privacy setting">
                         <Lock className="w-4 h-4 text-white drop-shadow" />
                       </div>
                     )}
@@ -143,9 +201,9 @@ Verified through Nikah Pakka Community Matrimony.`;
                       {profile.photos.length} Photos
                     </span>
                   )}
-                  {profile.photos && profile.photos.length > 0 && profile.photoPrivacy === 'blurred_until_request' && !isInterested && (
+                  {profile.photos && profile.photos.length > 0 && profile.photoPrivacy !== 'visible' && (
                     <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded border border-stone-200">
-                      Modesty Protected Photo
+                      Private Photo
                     </span>
                   )}
                 </div>
@@ -174,15 +232,17 @@ Verified through Nikah Pakka Community Matrimony.`;
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
                 <span>
-                  {profile.documents && profile.documents.length > 0
-                    ? `${profile.documents[0].type} Verified`
-                    : 'Govt ID & Family Verified'}
+                  {profile.isVerified
+                    ? 'Admin-reviewed profile'
+                    : profile.documents && profile.documents.length > 0
+                      ? 'Document review pending'
+                      : 'Not yet reviewed'}
                 </span>
               </div>
               <span className="text-[11px] text-stone-500 mt-1 font-mono">
-                {profile.documents && profile.documents.length > 0
+                {profile.documents && profile.documents.length > 0 && profile.documents[0].maskedId
                   ? `Masked ID: ${profile.documents[0].maskedId}`
-                  : 'UIDAI Masked ID · Zero Data Leakage'}
+                  : 'No government ID details available'}
               </span>
             </div>
           </div>
@@ -212,10 +272,10 @@ Verified through Nikah Pakka Community Matrimony.`;
                     }`}
                   >
                     <img
-                      src={picUrl}
+                      src={picUrl.startsWith('http') ? picUrl : photoUrls[picUrl] || ''}
                       alt={`Candidate picture ${idx + 1}`}
                       className={`w-14 h-14 sm:w-16 sm:h-16 object-cover ${
-                        profile.photoPrivacy === 'blurred_until_request' && !isInterested
+                        profile.photoPrivacy !== 'visible'
                           ? 'blur-[1.5px]'
                           : ''
                       }`}
@@ -297,20 +357,20 @@ Verified through Nikah Pakka Community Matrimony.`;
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
               <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <span className="text-stone-500 block text-xs">Salah / Daily Prayers:</span>
-                <span className="font-semibold text-stone-900">{profile.religion.salah}</span>
+                <span className="font-semibold text-stone-900">{profile.religion?.salah || 'Not provided'}</span>
               </div>
               <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <span className="text-stone-500 block text-xs">Dress / Modesty:</span>
-                <span className="font-semibold text-stone-900">{profile.religion.hijabOrBeard}</span>
+                <span className="font-semibold text-stone-900">{profile.religion?.hijabOrBeard || 'Not provided'}</span>
               </div>
               <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <span className="text-stone-500 block text-xs">Sect / Maslak:</span>
-                <span className="font-semibold text-stone-900">{profile.religion.sect}</span>
+                <span className="font-semibold text-stone-900">{profile.religion?.sect || 'Not provided'}</span>
               </div>
               <div className="p-3 bg-stone-50 rounded-lg border border-stone-200">
                 <span className="text-stone-500 block text-xs">Quran & Halal Diet:</span>
                 <span className="font-semibold text-stone-900">
-                  {profile.religion.quranRecitation} recitation · Strict Halal food
+                  {profile.religion?.quranRecitation || 'Not provided'} recitation · Strict Halal food
                 </span>
               </div>
             </div>
@@ -350,22 +410,22 @@ Verified through Nikah Pakka Community Matrimony.`;
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
               <div>
                 <span className="text-stone-500 block text-xs">Father's Particulars:</span>
-                <span className="font-medium text-stone-900">{profile.familyDetails.fatherNameAndOcc}</span>
+                <span className="font-medium text-stone-900">{profile.familyDetails?.fatherNameAndOcc || 'Not shared publicly'}</span>
               </div>
               <div>
                 <span className="text-stone-500 block text-xs">Mother's Particulars:</span>
-                <span className="font-medium text-stone-900">{profile.familyDetails.motherNameAndOcc}</span>
+                <span className="font-medium text-stone-900">{profile.familyDetails?.motherNameAndOcc || 'Not shared publicly'}</span>
               </div>
               <div>
                 <span className="text-stone-500 block text-xs">Brothers & Sisters:</span>
                 <span className="font-medium text-stone-900">
-                  {profile.familyDetails.brothersCount} Brothers ({profile.familyDetails.brothersMarried} Married) · {profile.familyDetails.sistersCount} Sisters ({profile.familyDetails.sistersMarried} Married)
+                  {profile.familyDetails?.brothersCount ?? '—'} Brothers ({profile.familyDetails?.brothersMarried ?? '—'} Married) · {profile.familyDetails?.sistersCount ?? '—'} Sisters ({profile.familyDetails?.sistersMarried ?? '—'} Married)
                 </span>
               </div>
               <div>
                 <span className="text-stone-500 block text-xs">Native Place & Family Status:</span>
                 <span className="font-medium text-stone-900">
-                  {profile.familyDetails.nativePlace} · {profile.familyDetails.familyStatus}
+                  {profile.familyDetails?.nativePlace || 'Not shared publicly'} · {profile.familyDetails?.familyStatus || 'Not shared publicly'}
                 </span>
               </div>
             </div>
@@ -393,7 +453,7 @@ Verified through Nikah Pakka Community Matrimony.`;
                 </button>
 
                 <a
-                  href={`tel:${profile.guardianWaliContact.phone}`}
+                  href={`tel:${profile.guardianWaliContact?.phone || ''}`}
                   className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-800 text-white rounded-lg hover:bg-emerald-900 transition-colors flex items-center gap-1.5"
                 >
                   <Phone className="w-3.5 h-3.5" />
@@ -406,20 +466,20 @@ Verified through Nikah Pakka Community Matrimony.`;
               <div>
                 <span className="text-stone-500 block">Wali / Contact Person:</span>
                 <span className="font-semibold text-stone-900">
-                  {profile.guardianWaliContact.name} ({profile.guardianWaliContact.relationship})
+                  {profile.guardianWaliContact?.name || 'Shared after family consent'} ({profile.guardianWaliContact?.relationship || ''})
                 </span>
               </div>
               <div>
                 <span className="text-stone-500 block">Phone Number:</span>
                 <span className="font-semibold text-stone-900 font-mono">
-                  {profile.guardianWaliContact.phone}
+                  {profile.guardianWaliContact?.phone || ''}
                 </span>
               </div>
               <div>
                 <span className="text-stone-500 block">Preferred Calling Time:</span>
                 <span className="font-semibold text-stone-900 flex items-center gap-1">
                   <Clock className="w-3 h-3 text-stone-400" />
-                  {profile.guardianWaliContact.preferredCallTime}
+                  {profile.guardianWaliContact?.preferredCallTime || 'To be arranged privately'}
                 </span>
               </div>
             </div>
@@ -459,6 +519,15 @@ Verified through Nikah Pakka Community Matrimony.`;
               <span>Chaperoned Family Chat</span>
             </button>
 
+            {/* Send a real request separately from the private saved-profile bookmark. */}
+            <button
+              onClick={() => onSendInterest(profile.id)}
+              disabled={hasPendingInterest}
+              className="px-4 py-2 bg-amber-100 hover:bg-amber-200 disabled:bg-stone-200 disabled:text-stone-500 text-amber-950 rounded-lg text-xs font-semibold border border-amber-300 disabled:border-stone-300 transition-colors"
+            >
+              {hasPendingInterest ? 'Interest Request Pending' : 'Send Interest Request'}
+            </button>
+
             {/* Express Interest Button */}
             <button
               onClick={() => onExpressInterest(profile.id)}
@@ -469,7 +538,7 @@ Verified through Nikah Pakka Community Matrimony.`;
               }`}
             >
               <Heart className={`w-4 h-4 ${isInterested ? 'fill-rose-700 text-rose-700' : 'text-amber-300'}`} />
-              <span>{isInterested ? 'Interest Sent to Family' : 'Send Khabar / Interest'}</span>
+              <span>{isInterested ? 'Saved to My Profiles' : 'Save Profile'}</span>
             </button>
           </div>
         </div>

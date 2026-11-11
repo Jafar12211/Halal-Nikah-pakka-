@@ -1,11 +1,15 @@
 import React from 'react';
 import { Heart, Users, MessageSquare, Phone, ChevronRight, ShieldCheck, MapPin, Briefcase, GraduationCap } from 'lucide-react';
-import { UserProfile, LanguageCode } from '../../types/database';
+import { UserProfile, LanguageCode, InterestRequest } from '../../types/database';
 
 interface InterestsScreenProps {
   language: LanguageCode;
   allProfiles: UserProfile[];
   userInterests: Set<string>;
+  incomingRequests: InterestRequest[];
+  outgoingRequests: InterestRequest[];
+  onRespondToRequest: (requestId: string, status: 'accepted' | 'declined') => void;
+  onCancelRequest: (requestId: string) => void;
   onSelectProfile: (profile: UserProfile) => void;
   onRemoveInterest: (profileId: string) => void;
   onStartChat: (profile: UserProfile) => void;
@@ -16,6 +20,10 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
   language,
   allProfiles,
   userInterests,
+  incomingRequests,
+  outgoingRequests,
+  onRespondToRequest,
+  onCancelRequest,
   onSelectProfile,
   onRemoveInterest,
   onStartChat,
@@ -36,16 +44,67 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
           </div>
           <div>
             <h1 className="text-lg font-bold font-serif text-white">
-              {isTelugu ? 'ఆసక్తి గల సంబంధాలు (ఖబర్)' : 'My Shortlist & Proposals'}
+              {isTelugu ? 'నేను సేవ్ చేసిన ప్రొఫైళ్లు' : 'My Saved Profiles'}
             </h1>
             <p className="text-xs text-emerald-200 mt-0.5">
               {isTelugu
-                ? `${interestedProfiles.length} ప్రొఫైల్స్ షార్ట్‌లిస్ట్ చేయబడ్డాయి · కుటుంబ పెద్దలతో సంప్రదించండి`
-                : `${interestedProfiles.length} candidate(s) shortlisted · Guardian communication ready`}
+                ? `${interestedProfiles.length} ప్రొఫైల్స్ మీ ఖాతాలో సేవ్ అయ్యాయి · కుటుంబానికి పంపబడలేదు`
+                : `${interestedProfiles.length} candidate(s) saved to your account · Not sent to any family`}
             </p>
           </div>
         </div>
       </div>
+
+      {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
+        <section className="bg-white rounded-2xl border border-amber-200 shadow-xs p-4 mb-5">
+          <h2 className="text-sm font-bold text-stone-900 mb-1">Interest Requests</h2>
+          <p className="text-[11px] text-stone-500 mb-3">
+            Requests are private to the two accounts. Accepting does not reveal private photos or contact details and does not start a chat.
+          </p>
+          {incomingRequests.length > 0 && (
+            <div className="space-y-3 mb-4">
+              <h3 className="text-xs font-bold text-emerald-900">Received ({incomingRequests.length})</h3>
+              {incomingRequests.map((request) => {
+                const sender = allProfiles.find((profile) => profile.id === request.senderUserId);
+                return (
+                  <div key={request.id} className="rounded-xl border border-stone-200 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-stone-900">{sender?.candidateName || 'Nikah Pakka member'}</span>
+                      <span className="text-[10px] uppercase tracking-wide text-stone-500">{request.status}</span>
+                    </div>
+                    {request.message && <p className="text-xs text-stone-600 mt-1">{request.message}</p>}
+                    {request.status === 'pending' && (
+                      <div className="flex gap-2 mt-3">
+                        <button onClick={() => onRespondToRequest(request.id, 'accepted')} className="px-3 py-1.5 rounded-lg bg-emerald-800 text-white text-xs font-semibold">Accept</button>
+                        <button onClick={() => onRespondToRequest(request.id, 'declined')} className="px-3 py-1.5 rounded-lg bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200">Decline</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {outgoingRequests.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-emerald-900">Sent ({outgoingRequests.length})</h3>
+              {outgoingRequests.map((request) => {
+                const receiver = allProfiles.find((profile) => profile.id === request.receiverUserId);
+                return (
+                  <div key={request.id} className="rounded-xl border border-stone-200 p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-stone-900 truncate">{receiver?.candidateName || 'Nikah Pakka member'}</p>
+                      <p className="text-[10px] text-stone-500 mt-0.5">Status: {request.status}</p>
+                    </div>
+                    {request.status === 'pending' && (
+                      <button onClick={() => onCancelRequest(request.id)} className="shrink-0 px-3 py-1.5 rounded-lg bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200">Cancel</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {interestedProfiles.length === 0 ? (
         <div className="bg-white rounded-2xl p-8 text-center border border-stone-200/90 shadow-xs">
@@ -53,12 +112,12 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
             <Heart className="w-8 h-8 stroke-1" />
           </div>
           <h2 className="text-base font-bold text-stone-800 font-serif">
-            {isTelugu ? 'ఇంకా ఎటువంటి ఆసక్తి రికార్డు కాలేదు' : 'No Shortlisted Profiles Yet'}
+            {isTelugu ? 'ఇంకా సేవ్ చేసిన ప్రొఫైళ్లు లేవు' : 'No Shortlisted Profiles Yet'}
           </h2>
           <p className="text-xs text-stone-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
             {isTelugu
-              ? 'సంబంధాల జాబితా నుండి నచ్చిన ప్రొఫైల్‌పై గుండె గుర్తుపై క్లిక్ చేసి మీ ఆసక్తిని (ఖబర్) పంపండి.'
-              : 'Browse verified candidates from Yanam, Kakinada & Godavari districts and tap the heart icon to express interest.'}
+              ? 'సంబంధాల జాబితాలో గుండె గుర్తుపై క్లిక్ చేసి ప్రొఫైల్‌ను మీ ఖాతాలో సేవ్ చేయండి. ఇది ఇతర కుటుంబానికి నోటిఫికేషన్ పంపదు.'
+              : 'Browse approved profiles from Yanam, Kakinada & Godavari districts. Tap the heart to save a profile to your account; this does not notify the other family.'}
           </p>
           <button
             onClick={onNavigateToMatches}
@@ -115,7 +174,7 @@ export const InterestsScreen: React.FC<InterestsScreenProps> = ({
                     </div>
                     <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>{isTelugu ? 'ధృవీకరించబడింది' : 'UIDAI Verified'}</span>
+                      <span>{isTelugu ? 'అడ్మిన్ సమీక్షించారు' : 'Admin Reviewed'}</span>
                     </div>
                   </div>
 

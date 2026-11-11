@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:security": "node --test tests/security/*.test.mjs",
+    "test:unit": "node --import tsx --test src/utils/matrimony.test.ts src/utils/translations.test.ts",
+    "test:admin": "node --import tsx --test tests/security/auth-admin.test.mjs tests/security/feature-flags.test.mjs tests/security/staging-config.test.mjs tests/security/admin-claims.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -24,14 +27,18 @@
     "vite": "^8.3.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2",
-    "@types/express": "^4.17.21"
+    "typescript": "^7.0.2"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.7"
   }
 }

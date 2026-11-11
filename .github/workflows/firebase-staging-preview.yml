@@ -1,0 +1,123 @@
+name: Firebase staging preview
+
+on:
+  push:
+    branches:
+      - staging/nikah-pakka-firebase*
+  pull_request:
+    branches:
+      - staging/nikah-pakka-firebase*
+    types:
+      - opened
+      - synchronize
+      - reopened
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: firebase-staging-preview-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  staging-preview:
+    name: Test and deploy isolated Firebase staging preview
+    runs-on: ubuntu-latest
+    env:
+      STAGING_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID_STAGING || 'nikah-pakka-staging' }}
+      STAGING_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+    steps:
+      - name: Check staging configuration
+        id: staging
+        shell: bash
+        run: |
+          if [[ "$STAGING_PROJECT_ID" != "nikah-pakka-staging" ]]; then
+            echo "::error::Refusing deployment: FIREBASE_PROJECT_ID_STAGING must be nikah-pakka-staging."
+            exit 1
+          fi
+          if [[ -n "$STAGING_SERVICE_ACCOUNT" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Staging service-account credential is configured; committed web config will be validated separately."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Preview deployment cannot proceed. Add the FIREBASE_SERVICE_ACCOUNT_STAGING Actions secret."
+            echo "Summary: Staging build and emulator tests will run, but live rules/hosting deployment is skipped until the staging service-account secret is configured."
+          fi
+
+      - name: Choose isolated preview channel
+        id: channel
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "name=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=manual-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24 for web build
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install locked web dependencies
+        run: npm ci
+
+      - name: Fail-closed configuration check
+        run: node scripts/validate-staging-config.cjs
+
+      - name: Run TypeScript validation
+        run: npm run lint
+
+      - name: Run utility unit tests
+        run: npm run test:unit
+
+      - name: Run admin and feature flag tests
+        run: npm run test:admin
+
+      - name: Build production assets
+        run: npm run build
+
+      - name: Set up Node.js 22 for Cloud Functions
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install locked Cloud Functions dependencies
+        run: npm ci --prefix functions --no-audit --no-fund
+
+      - name: Audit Cloud Functions dependencies
+        run: npm audit --prefix functions --audit-level=high
+
+      - name: Check Cloud Functions syntax
+        run: npm run check --prefix functions
+
+      - name: Run security and account-deletion emulator tests
+        run: npx --yes firebase-tools@15.35.0 emulators:exec --only auth,firestore,storage,functions --project "$STAGING_PROJECT_ID" "npm run test:security && npm run test:account-deletion --prefix functions"
+
+      - name: Prepare staging service-account credentials
+        if: steps.staging.outputs.ready == 'true'
+        shell: bash
+        run: |
+          umask 077
+          printf '%s' "$STAGING_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-staging-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-staging-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy firestore rules (Spark plan compatible only; NO Storage, NO Functions)
+        if: steps.staging.outputs.ready == 'true'
+        run: npx --yes firebase-tools@15.35.0 deploy --only firestore:rules --project "$STAGING_PROJECT_ID" --non-interactive
+
+      - name: Deploy temporary Firebase Hosting preview channel
+        if: steps.staging.outputs.ready == 'true'
+        run: npx --yes firebase-tools@15.35.0 hosting:channel:deploy "${{ steps.channel.outputs.name }}" --project "$STAGING_PROJECT_ID" --expires 7d --non-interactive

@@ -1,17 +1,16 @@
+import type { LanguageCode } from '../types/database';
 import React, { useState } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { Download, Smartphone, X, Check } from 'lucide-react';
 
 interface PWAInstallButtonProps {
-  language: 'en' | 'te';
+  language: LanguageCode;
 }
 
 export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ language }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
-  const [simulatedInstalled, setSimulatedInstalled] = useState(false);
-
-  if (isInstalled || simulatedInstalled) {
+  if (isInstalled) {
     return null;
   }
 

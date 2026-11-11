@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function admin() {
+      return signedIn() && request.auth.token.get('admin', false) == true;
+    }
+
+    function approvedPhotoVisible(uid) {
+      let profilePath = /databases/(default)/documents/publicProfiles/$(uid);
+      return signedIn()
+        && firestore.exists(profilePath)
+        && firestore.get(profilePath).data.approvalStatus == 'approved'
+        && firestore.get(profilePath).data.isVerified == true
+        && firestore.get(profilePath).data.photoPrivacy == 'visible';
+    }
+
+    // Profile photos are private by default. Only the owner and admins can
+    // always access them. Other signed-in members can read them only when
+    // the approved public profile explicitly permits visible photographs.
+    match /profilePhotos/{uid}/{fileName} {
+      allow get: if owner(uid) || admin() || approvedPhotoVisible(uid);
+      allow list: if owner(uid) || admin();
+      allow create, update: if owner(uid)
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if owner(uid) || admin();
+    }
+
+    // Identity documents must never be publicly readable or downloadable by
+    // another member. Uploads are limited to the account owner; admins may
+    // read them for verification and may delete them when required.
+    match /identityDocuments/{uid}/{fileName} {
+      allow read: if owner(uid) || admin();
+      allow write: if owner(uid)
+        && request.resource != null
+        && request.resource.size <= 10 * 1024 * 1024
+        && (
+          request.resource.contentType == 'application/pdf'
+          || request.resource.contentType.matches('image/(jpeg|png|webp)')
+        );
+      allow delete: if owner(uid) || admin();
+    }
+
+    // Deny every path not explicitly covered above.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

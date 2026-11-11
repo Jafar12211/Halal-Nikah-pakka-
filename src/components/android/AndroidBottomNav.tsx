@@ -80,7 +80,7 @@ export const AndroidBottomNav: React.FC<AndroidBottomNavProps> = ({
                 onChangeTab(item.id);
               }}
               className="flex-1 flex flex-col items-center justify-center py-1 group relative transition-transform active:scale-95"
-              aria-selected={isActive}
+              aria-current={isActive ? 'page' : undefined}
             >
               {/* Material 3 active pill indicator */}
               <div

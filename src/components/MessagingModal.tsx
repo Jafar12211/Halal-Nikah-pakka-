@@ -1,3 +1,4 @@
+import type { LanguageCode } from '../types/database';
 import React, { useState, useEffect } from 'react';
 import {
   X,
@@ -19,7 +20,7 @@ interface MessagingModalProps {
   onClose: () => void;
   currentUser: UserAccount | null;
   targetConversationId?: string;
-  language: 'en' | 'te';
+  language: LanguageCode;
 }
 
 export const MessagingModal: React.FC<MessagingModalProps> = ({
@@ -83,7 +84,7 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
 
   const handleBlockUser = () => {
     setBlockReportToast(
-      isTelugu ? 'ఈ ప్రొఫైల్ నిరోధించబడింది (Blocked).' : 'This candidate has been blocked and removed from your conversations.'
+      isTelugu ? 'బ్లాక్ ఫీచర్ ఇంకా అందుబాటులో లేదు. ఎవరూ బ్లాక్ కాలేదు.' : 'Blocking is not connected yet. No one has been blocked.'
     );
     setTimeout(() => {
       setBlockReportToast(null);
@@ -99,11 +100,11 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
           <div className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-amber-300" />
             <h3 className="font-serif font-bold text-sm text-white">
-              {isTelugu ? 'నికాహ్ పక్కా - కుటుంబ పర్యవేక్షణ సంభాషణ' : 'Nikah Pakka Secure Family Messaging'}
+              {isTelugu ? 'నికాహ్ పక్కా - కుటుంబ పర్యవేక్షణ సంభాషణ' : 'Nikah Pakka Family Messaging Preview'}
             </h3>
             <span className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-emerald-900 text-emerald-200 border border-emerald-800">
               <Lock className="w-3 h-3 text-amber-300" />
-              End-to-End Encrypted
+              Not yet enabled
             </span>
           </div>
 
