@@ -3,10 +3,10 @@ name: Website validation
 on:
   push:
     branches:
-      - staging/nikah-pakka-firebase
+      - staging/nikah-pakka-firebase*
   pull_request:
     branches:
-      - staging/nikah-pakka-firebase
+      - staging/nikah-pakka-firebase*
 
 permissions:
   contents: read
