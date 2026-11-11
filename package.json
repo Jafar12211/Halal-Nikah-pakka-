@@ -11,7 +11,7 @@
     "lint": "tsc --noEmit",
     "test:security": "node --test tests/security/*.test.mjs",
     "test:unit": "node --import tsx --test src/utils/matrimony.test.ts",
-    "test:admin": "node --import tsx --test tests/security/auth-admin.test.mjs tests/security/feature-flags.test.mjs"
+    "test:admin": "node --import tsx --test tests/security/auth-admin.test.mjs tests/security/feature-flags.test.mjs tests/security/staging-config.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
