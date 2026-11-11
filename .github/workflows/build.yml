@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - firebase-fixes-review-20261108
+      - staging/nikah-pakka-firebase
   pull_request:
     branches:
       - firebase-migration-testing
