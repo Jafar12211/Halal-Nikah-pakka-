@@ -1,3 +1,4 @@
+import type { LanguageCode } from '../types/database';
 import React, { useState, useEffect } from 'react';
 import {
   X,
@@ -19,7 +20,7 @@ interface MessagingModalProps {
   onClose: () => void;
   currentUser: UserAccount | null;
   targetConversationId?: string;
-  language: 'en' | 'te';
+  language: LanguageCode;
 }
 
 export const MessagingModal: React.FC<MessagingModalProps> = ({

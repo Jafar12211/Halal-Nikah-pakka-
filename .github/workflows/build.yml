@@ -1,20 +1,23 @@
-name: Build and verify
+name: Firebase security rules tests
 
 on:
   push:
     branches:
-      - firebase-fixes-review-20261108
       - staging/nikah-pakka-firebase
   pull_request:
     branches:
-      - firebase-migration-testing
+      - staging/nikah-pakka-firebase
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    name: Install dependencies and build
+  security:
+    name: Firestore and Storage rules tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -23,11 +26,17 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
+
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
 
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Build application
-        run: npm run build
+      - name: Run Firebase security rules tests
+        run: npx --yes firebase-tools@15.35.0 emulators:exec --only auth,firestore,storage --project nikah-pakka-staging "npm run test:security"

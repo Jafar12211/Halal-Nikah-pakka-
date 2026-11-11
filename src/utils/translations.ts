@@ -192,4 +192,99 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     footerDua: 'అల్లాహ్ ప్రతి ఒక్కరికీ మంచి జీవిత భాగస్వామిని ప్రసాదించుగాక. ఆమీన్! 🤲',
     footerCopyright: '© 2026 నికాహ్ పక్కా. యానాం మరియు గోదావరి జిల్లాల ముస్లింల సేవలో.',
   },
+  ur: {
+    // Navigation
+    brandTitle: "نکاح پکا",
+    brandSubtitle: "یانم اور گوداوری مسلم میٹرومونی",
+    navMatches: "رشتے تلاش کریں",
+    navWhyUs: "ہمیں کیوں منتخب کریں",
+    navMessaging: "خاندانی بات چیت",
+    navAdmin: "ایڈمن ڈیش بورڈ",
+    navDuas: "دعائیں اور سنت",
+    navFAQs: "عام سوالات",
+    btnRegister: "مفت رجسٹریشن",
+    btnLogin: "لاگ ان کریں",
+    btnMyAccount: "میرا پروفائل",
+    btnSignOut: "لاگ آؤٹ",
+    shareBarakah: "شیئر کریں",
+
+    // Hero
+    bismillah: "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+    heroTag: "گوداوری اور یانم مسلم میٹریمونی",
+    heroHeadline: "یانم اور گوداوری مسلم خاندانوں کے لیے بابرکت آغاز",
+    heroSub: "یانم، کاکیناڈا، راجہ مندری، کوناسیما، بھیماورم، اور ایلورو کے خاندانوں کے لیے کمیونٹی میٹریمونی ڈائریکٹری۔ رجسٹریشن فی الحال مفت ہے؛ خاندان آزادانہ طور پر پروفائل کی تفصیلات کی تصدیق کریں۔",
+    btnStartFree: "امیدوار رجسٹر کریں",
+    btnExploreCommunity: "مقامی رشتے دیکھیں",
+
+    // Filters
+    filterLookingFor: "تلاش برائے",
+    filterAll: "تمام امیدوار",
+    filterBrides: "مسلم دلہن",
+    filterGrooms: "مسلم دولہا",
+    filterDistrict: "ضلع / علاقہ",
+    filterAllDistricts: "تمام گوداوری اور یانم اضلاع",
+    filterAge: "زیادہ سے زیادہ عمر",
+    btnSearchMatches: "منظور شدہ پروفائلز دیکھیں",
+
+    // Pillars
+    pillarPWA: "اینڈرائیڈ PWA ایپ",
+    pillarFamily: "خاندانی شمولیت کی ترغیب",
+    pillarVerification: "ایڈمن کا جائزہ لازمی",
+    pillarDealbreakers: "شرائط و ترجیحات",
+
+    // Directory
+    directoryTitle: "منظور شدہ کمیونٹی پروفائلز",
+    directorySub: "یانم، کاکیناڈا، راجہ مندری، کوناسیما، بھیماورم، اور ایلورو کے امیدوار۔",
+    viewBiodata: "مکمل بائیو ڈیٹا دیکھیں",
+    sendKhabar: "دلچسپی کا اظہار کریں",
+    interested: "اس ڈیوائس پر محفوظ ہے",
+    startChat: "میسجنگ ابھی دستیاب نہیں ہے",
+    e2eeBadge: "ابھی فعال نہیں ہے",
+    waliIncluded: "خاندانی شمولیت کی ترغیب",
+
+    // Profile detail
+    bismillahHeader: "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ · امیدوار کا ازدواجی بائیو ڈیٹا",
+    candidateSummary: "امیدوار کا خلاصہ اور کردار",
+    deenLifestyle: "دین، نماز اور طرزِ زندگی",
+    educationCareer: "تعلیم اور پیشہ",
+    familyBackground: "خاندانی پس منظر اور بزرگوں کی تفصیلات",
+    partnerExpectations: "شریکِ حیات کی ترجیحات (توافق)",
+    mustHavesTitle: "لازمی خصوصیات",
+    dealBreakersTitle: "ناقابلِ قبول باتیں (ڈیل بریکرز)",
+    guardianContact: "سرپرست (ولی) کا رابطہ نمبر (نجی)",
+    copyBiodata: "مکمل بائیو ڈیٹا کاپی کریں",
+    shareWhatsApp: "واٹس ایپ پر بھیجیں",
+
+    // Messaging
+    chatTitle: "خاندانی میسجنگ پیش منظر",
+    chatEncryptedNotice: "میسجنگ فی الحال فعال نہیں ہے۔ اس ویب سائٹ کے ذریعے پیغامات نہیں بھیجے جا سکتے۔",
+    waliNotice: "خاندانی شمولیت کی پرزور ترغیب دی جاتی ہے۔ خاندانی طور پر تصدیق شدہ رابطوں سے رابطہ کریں۔",
+    quickQuestions: "ضروری سوالات:",
+    qDeen: "براہ کرم اپنی روزانہ کی نماز اور تلاوتِ قرآن کا معمول شیئر کریں۔",
+    qFamily: "کیا آپ گوداوری میں بزرگوں کے ساتھ ملاقات کے لیے تیار ہیں؟",
+    qRelocation: "کیا آپ یانم / گوداوری اضلاع میں سکونت اختیار کرنے کے لیے راضی ہیں؟",
+    typeMessagePlaceholder: "احترام کے ساتھ باوقار پیغام لکھیں...",
+    btnSend: "میسجنگ دستیاب نہیں ہے",
+
+    // Admin
+    adminTitle: "محفوظ ایڈمنسٹریٹر ڈیش بورڈ",
+    adminSub: "ایڈمن پروفائل جائزہ اور کمیونٹی کے تحفظ کے کنٹرولز۔",
+    metricTotal: "کل ارکان",
+    metricPending: "زیرِ جائزہ",
+    metricApproved: "منظور شدہ",
+    metricSuspended: "معطل شدہ",
+    btnApprove: "پروفائل منظور کریں",
+    btnReject: "پروفائل مسترد کریں",
+    btnSuspend: "اکاؤنٹ معطل کریں",
+    auditLogs: "سسٹم سیکیورٹی آڈٹ ریکارڈز",
+
+    // PWA & Install
+    installApp: "اینڈرائیڈ PWA ایپ انسٹال کریں",
+    installSub: "نکاح پکا کو ایپ اسٹور فیس کے بغیر براہ راست اپنی ہوم اسکرین پر انسٹال کریں۔",
+    installNow: "ایپ انسٹال کریں",
+
+    // Footer
+    footerDua: "اللہ تعالیٰ ہر مخلص تلاش کو نیک و صالح شریکِ حیات عطا فرمائے۔ آمین! 🤲",
+    footerCopyright: "© 2026 نکاح پکا۔ یانم اور گوداوری کے مسلم خاندانوں کی خدمت میں۔",
+  },
 };

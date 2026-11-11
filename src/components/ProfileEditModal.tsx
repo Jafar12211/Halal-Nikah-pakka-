@@ -15,12 +15,14 @@ import {
   UserProfile,
   UserAccount,
   DistrictAP,
+  ValidGovtDocType,
 } from '../types/database';
 
 import { GODAVARI_DISTRICTS } from '../services/storageService';
 import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { saveProfileToFirestore } from '../services/firestoreService';
+import { uploadProfilePhoto, uploadGovernmentId, deleteStorageFile, getStorageFileBlob, type GovernmentDocumentType } from '../services/firebaseStorageService';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -100,9 +102,36 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     useState<UserProfile['photoPrivacy']>('blurred_until_request');
   const [candidateConsentConfirmed, setCandidateConsentConfirmed] = useState(false);
 
-  // Only existing image URLs can be retained.
-  // Base64 photos cannot be uploaded without Firebase Storage.
+  // Files are stored privately in Firebase Storage; only paths are persisted.
   const [photos, setPhotos] = useState<string[]>([]);
+  const [documents, setDocuments] = useState<UserProfile['documents']>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>({});
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [documentType, setDocumentType] = useState<ValidGovtDocType>('Aadhaar Card');
+  const [maskedDocumentId, setMaskedDocumentId] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: string[] = [];
+    const load = async () => {
+      const entries = await Promise.all(photos.filter((path) => path.startsWith('profilePhotos/')).map(async (path) => {
+        try {
+          const blob = await getStorageFileBlob(path);
+          const url = URL.createObjectURL(blob);
+          urls.push(url);
+          return [path, url] as const;
+        } catch (error) {
+          console.warn('Private photo preview unavailable:', error);
+          return null;
+        }
+      }));
+      if (!cancelled) setPhotoPreviews((old) => ({ ...old, ...Object.fromEntries(entries.filter(Boolean) as [string, string][]) }));
+      else urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    if (isOpen && photos.length) void load();
+    return () => { cancelled = true; urls.forEach((url) => URL.revokeObjectURL(url)); };
+  }, [isOpen, currentUser?.id, photos]);
 
   // Load the signed-in user's private Firestore registration.
   useEffect(() => {
@@ -179,11 +208,8 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         setPhotoPrivacy(data.photoPrivacy || 'blurred_until_request');
         setCandidateConsentConfirmed(data.candidateConsentConfirmed === true);
 
-        setPhotos(
-          (data.photos || []).filter(
-            (photo) => typeof photo === 'string' && !photo.startsWith('data:')
-          )
-        );
+        setPhotos((data.photos || []).filter((photo) => typeof photo === 'string' && !photo.startsWith('data:')));
+        setDocuments(Array.isArray(data.documents) ? data.documents : []);
       } catch (error) {
         console.error('Could not load Firestore profile:', error);
         if (!cancelled) {
@@ -202,6 +228,38 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   }, [isOpen, currentUser]);
 
   if (!isOpen) return null;
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!currentUser || !files.length) return;
+    if (photos.length + files.length > 5) { setErrorMsg('You can upload a maximum of 5 photos.'); return; }
+    setUploadingPhoto(true); setErrorMsg('');
+    try {
+      const paths = await Promise.all(files.map((file) => uploadProfilePhoto(currentUser.id, file)));
+      setPhotos((old) => [...old, ...paths]);
+      setStatusMsg('Photographs uploaded securely. Save your profile to submit them for review.');
+    } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Photo upload failed.'); }
+    finally { setUploadingPhoto(false); }
+  };
+
+  const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!currentUser || !file) return;
+    if (!maskedDocumentId.trim()) { setErrorMsg('Enter a masked ID reference only. Do not enter the full ID number.'); return; }
+    setUploadingDocument(true); setErrorMsg('');
+    try {
+      const typeMap: Record<ValidGovtDocType, GovernmentDocumentType> = {
+        'Aadhaar Card': 'aadhaar', 'PAN Card': 'pan', Passport: 'passport', 'Driving Licence': 'driving_license',
+      };
+      const uploaded = await uploadGovernmentId(currentUser.id, file, typeMap[documentType]);
+      setDocuments((old) => [...old, { id: crypto.randomUUID(), type: documentType, fileName: uploaded.fileName, storagePath: uploaded.storagePath, maskedId: maskedDocumentId.trim(), uploadedAt: new Date().toISOString(), verified: false, isRestricted: true }]);
+      setMaskedDocumentId('');
+      setStatusMsg('Identity document uploaded privately. Save your profile to submit it for admin review.');
+    } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'ID upload failed.'); }
+    finally { setUploadingDocument(false); }
+  };
 
   const addMustHave = () => {
     if (!newMustHave.trim()) return;
@@ -341,7 +399,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       avatarBgColor: gender === 'bride' ? '#047857' : '#0284c7',
 
       // These are not user-editable verification fields.
-      documents: [],
+      documents,
       isVerified: false,
       approvalStatus: existingProfile?.approvalStatus || 'pending',
       approvalNotes: existingProfile?.approvalNotes || '',
@@ -968,7 +1026,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   <div>
                     <strong className="text-emerald-950">Your privacy matters</strong>
                     <p className="text-stone-600 mt-1">
-                      Government ID numbers and identity documents are not collected or verified by this profile editor. Never enter a full Aadhaar, PAN, or passport number here.
+                      Government ID files are uploaded to private Firebase Storage for administrator review. Never enter a full Aadhaar, PAN, or passport number here; provide only a masked reference.
                     </p>
                   </div>
                 </div>
@@ -980,20 +1038,27 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   </div>
 
                   <p className="text-stone-600">
-                    Firebase Storage is not enabled. New photo uploads are temporarily unavailable. Existing web image URLs can be retained or removed.
+                    Upload up to five JPG, PNG or WEBP photographs (maximum 5 MB each). Photos are stored privately and are accessible to other signed-in members only after approval and when you select visible.
                   </p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     {photos.map((photo, index) => (
                       <div key={`${photo}-${index}`} className="relative aspect-square rounded-xl overflow-hidden border border-stone-300">
                         <img
-                          src={photo}
+                          src={photo.startsWith('http') ? photo : photoPreviews[photo] || ''}
                           alt={`Profile photo ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
                         <button
                           type="button"
-                          onClick={() => setPhotos((old) => old.filter((_, i) => i !== index))}
+                          onClick={async () => {
+                            const removed = photo;
+                            setPhotos((old) => old.filter((_, i) => i !== index));
+                            if (removed.startsWith('profilePhotos/')) {
+                              try { await deleteStorageFile(removed); }
+                              catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Photo file could not be deleted.'); }
+                            }
+                          }}
                           className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 text-white"
                           aria-label="Remove photo"
                         >
@@ -1003,9 +1068,27 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     ))}
                   </div>
 
-                  {photos.length === 0 && (
-                    <p className="text-stone-500">No existing web photos saved.</p>
-                  )}
+                  {photos.length === 0 && <p className="text-stone-500">No photographs uploaded yet.</p>}
+                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-800 text-white font-semibold cursor-pointer">
+                    <Camera className="w-4 h-4" /> {uploadingPhoto ? 'Uploading...' : 'Upload photographs'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingPhoto || photos.length >= 5} onChange={handlePhotoUpload} className="sr-only" />
+                  </label>
+                </div>
+
+                <div className="border border-stone-200 rounded-xl p-4 space-y-3">
+                  <strong className="text-stone-900">Private Government Identity Document</strong>
+                  <p className="text-stone-600">Upload Aadhaar, PAN, Passport or Driving Licence for admin review. Files are private. Enter only a masked reference, never the full ID number.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <select className={inputClass} value={documentType} onChange={(e) => setDocumentType(e.target.value as ValidGovtDocType)}>
+                      <option>Aadhaar Card</option><option>PAN Card</option><option>Passport</option><option>Driving Licence</option>
+                    </select>
+                    <input className={inputClass} value={maskedDocumentId} onChange={(e) => setMaskedDocumentId(e.target.value)} placeholder="Masked ID (e.g. XXXX-1234)" maxLength={32} />
+                  </div>
+                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-800 text-white font-semibold cursor-pointer">
+                    <Lock className="w-4 h-4" /> {uploadingDocument ? 'Uploading...' : 'Upload private ID file'}
+                    <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={uploadingDocument} onChange={handleDocumentUpload} className="sr-only" />
+                  </label>
+                  {documents.map((item) => <div key={item.id} className="text-xs rounded bg-stone-50 p-2 flex justify-between gap-2"><span>{item.type} · {item.maskedId} · {item.fileName}</span><strong className={item.verified ? 'text-emerald-700' : 'text-amber-700'}>{item.verified ? 'Verified' : 'Pending review'}</strong></div>)}
                 </div>
 
                 <div className="border border-stone-200 rounded-xl p-4 space-y-3">
@@ -1014,7 +1097,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   {[
                     {
                       value: 'blurred_until_request',
-                      label: 'Blurred until mutual family interest',
+                      label: 'Private — not visible to other members',
                     },
                     {
                       value: 'avatar_only',

@@ -105,7 +105,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
             title="Switch Language"
           >
             <Globe className="w-3 h-3 text-amber-300" />
-            <span>{language === 'en' ? 'తెలుగు' : 'English'}</span>
+            <span>{language === 'en' ? 'తెలుగు' : language === 'te' ? 'اردو' : 'English'}</span>
           </button>
 
           {/* Admin badge button */}

@@ -263,10 +263,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <Globe className="w-4 h-4 text-emerald-800" />
             <div>
               <p className="font-semibold text-stone-900">
-                {isTelugu ? 'యాప్ భాష మార్చండి' : 'App Language'}
+                {language === 'te' ? 'యాప్ భాష మార్చండి' : language === 'ur' ? 'ایپ کی زبان تبدیل کریں' : 'App Language'}
               </p>
               <p className="text-[11px] text-stone-500">
-                {language === 'en' ? 'English (Tap to switch to తెలుగు)' : 'తెలుగు (English కోసం నొక్కండి)'}
+                {language === 'en' ? 'English (Tap for తెలుగు)' : language === 'te' ? 'తెలుగు (اردو کے لیے دبائیں)' : 'اردو (Tap for English)'}
               </p>
             </div>
           </div>

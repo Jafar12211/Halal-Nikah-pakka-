@@ -2,6 +2,7 @@
 import {
   collection,
   doc,
+  deleteDoc,
   getDoc,
   getDocs,
   setDoc,
@@ -11,6 +12,7 @@ import {
   orderBy,
   limit,
   query,
+  where,
 } from 'firebase/firestore';
 
 import {
@@ -22,15 +24,17 @@ import {
   sendEmailVerification,
   signOut,
   getIdTokenResult,
-  deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   type User,
 } from 'firebase/auth';
 
-import { db, auth } from './firebase';
-import type { AuditLog, UserAccount, UserProfile } from '../types/database';
+import { db, auth, functions } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import type { AuditLog, InterestRequest, InterestRequestLists, UserAccount, UserProfile } from '../types/database';
+
+const deleteAccountCallable = httpsCallable(functions, 'deleteOwnAccount');
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 
 // --------------------------------------------------
@@ -190,12 +194,10 @@ export async function deleteOwnAccount(password?: string): Promise<void> {
     throw new Error('Please sign in again using your original sign-in method, then retry account deletion.');
   }
 
-  const batch = writeBatch(db);
-  batch.delete(doc(db, 'registrations', user.uid));
-  batch.delete(doc(db, 'publicProfiles', user.uid));
-  await batch.commit();
-
-  await deleteUser(user);
+  // Force a fresh ID token after reauthentication. The callable independently
+  // checks auth_time and performs privileged cleanup with the Admin SDK.
+  await user.getIdToken(true);
+  await deleteAccountCallable({});
 }
 
 // --------------------------------------------------
@@ -261,9 +263,24 @@ export async function saveProfileToFirestore(
     approvalNotes?: string;
     documents?: unknown;
   };
+  // Keep only user-submitted, unverified document metadata. Admin verification
+  // fields are never accepted from the profile editor.
+  const safeDocuments = Array.isArray(documents)
+    ? documents.map((entry: any) => ({
+        id: String(entry.id || ''),
+        type: entry.type,
+        fileName: String(entry.fileName || ''),
+        storagePath: String(entry.storagePath || ''),
+        maskedId: String(entry.maskedId || ''),
+        uploadedAt: String(entry.uploadedAt || ''),
+        verified: false,
+        isRestricted: true,
+      }))
+    : [];
 
   const safeData = removeUndefined({
     ...memberFields,
+    documents: safeDocuments,
     userId: user.uid,
     updatedAt: serverTimestamp(),
   });
@@ -287,6 +304,39 @@ export async function saveProfileToFirestore(
     batch.delete(doc(db, 'publicProfiles', user.uid));
     await batch.commit();
   }
+}
+
+// --------------------------------------------------
+// ADMIN: VERIFY A PRIVATE GOVERNMENT DOCUMENT
+// --------------------------------------------------
+export async function verifyGovernmentDocumentFirestore(userId: string, documentId: string): Promise<void> {
+  const adminUser = await requireAdmin();
+  const performedBy = adminUser.email;
+  if (!performedBy) throw new Error('Administrator account must have an email address to create an audit record.');
+  if (!userId || !documentId) throw new Error('A valid candidate and document are required.');
+  const registrationRef = doc(db, 'registrations', userId);
+  const snapshot = await getDoc(registrationRef);
+  if (!snapshot.exists()) throw new Error('Candidate registration was not found.');
+  const data = snapshot.data();
+  const docs = Array.isArray(data.documents) ? data.documents : [];
+  const target = docs.find((item: any) => item.id === documentId);
+  if (!target || typeof target.storagePath !== 'string' || !target.storagePath.startsWith(`identityDocuments/${userId}/`) || target.isRestricted !== true) {
+    throw new Error('The private identity document record is invalid.');
+  }
+  const updatedDocuments = docs.map((item: any) => item.id === documentId
+    ? { ...item, verified: true, verifiedBy: performedBy }
+    : item);
+  const batch = writeBatch(db);
+  batch.update(registrationRef, { documents: updatedDocuments, updatedAt: serverTimestamp() });
+  const auditRef = doc(collection(db, 'auditLogs'));
+  batch.set(auditRef, {
+    action: 'DOCUMENT_VERIFIED',
+    performedBy,
+    targetId: userId,
+    details: `Government identity document ${target.type} (${target.maskedId}) reviewed and verified.`,
+    timestamp: serverTimestamp(),
+  });
+  await batch.commit();
 }
 
 // --------------------------------------------------
@@ -323,6 +373,8 @@ export async function updateProfileApprovalStatusFirestore(
   notes?: string,
 ): Promise<void> {
   const adminUser = await requireAdmin();
+  const performedBy = adminUser.email;
+  if (!performedBy) throw new Error('Administrator account must have an email address to create an audit record.');
 
   if (!userId || userId.length > 128) {
     throw new Error('Invalid user account ID.');
@@ -358,7 +410,7 @@ export async function updateProfileApprovalStatusFirestore(
     const hasAdultAge = Number.isInteger(data.age) && data.age >= 18 && data.age <= 100;
     const hasCandidatePhoto =
       Array.isArray(data.photos) &&
-      data.photos.some((photo: unknown) => typeof photo === 'string' && /^https:\/\/(firebasestorage\.googleapis\.com|firebasestorage\.app)\//i.test(photo));
+      data.photos.some((photo: unknown) => typeof photo === 'string' && photo.startsWith(`profilePhotos/${userId}/`));
     const hasVerifiedGovernmentId =
       Array.isArray(data.documents) &&
       data.documents.some((document: any) =>
@@ -414,7 +466,7 @@ export async function updateProfileApprovalStatusFirestore(
       aboutCandidate: data.aboutCandidate || '',
       // Do not expose photos unless the candidate explicitly chose public visibility.
       photos: data.photoPrivacy === 'visible' && Array.isArray(data.photos)
-        ? data.photos.filter((photo: unknown) => typeof photo === 'string' && /^https:\/\/(firebasestorage\.googleapis\.com|firebasestorage\.app)\//i.test(photo))
+        ? data.photos.filter((photo: unknown) => typeof photo === 'string' && photo.startsWith(`profilePhotos/${userId}/`))
         : [],
       photoPrivacy: data.photoPrivacy === 'visible' ? 'visible' : 'avatar_only',
       avatarInitials: data.avatarInitials || '',
@@ -442,13 +494,166 @@ export async function updateProfileApprovalStatusFirestore(
         : status === 'rejected'
           ? 'PROFILE_REJECTED'
           : 'PROFILE_SUSPENDED',
-    performedBy: reviewerEmail || adminUser.email || adminUser.uid,
+    performedBy,
     targetId: userId,
     details: notes || `Profile status changed to ${status}.`,
     timestamp: serverTimestamp(),
   });
 
   await batch.commit();
+}
+
+// --------------------------------------------------
+// MEMBER: FIRESTORE-BACKED INTEREST REQUESTS
+// --------------------------------------------------
+
+function toInterestRequest(snapshot: { id: string; data: () => Record<string, any> }): InterestRequest {
+  const data = snapshot.data();
+  const toIso = (value: any): string => {
+    if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
+    return typeof value === 'string' ? value : '';
+  };
+  return {
+    id: snapshot.id,
+    senderUserId: data.senderUserId,
+    receiverUserId: data.receiverUserId,
+    status: data.status,
+    message: data.message || '',
+    createdAt: toIso(data.createdAt),
+    updatedAt: toIso(data.updatedAt),
+  };
+}
+
+export async function createInterestRequest(
+  receiverUserId: string,
+  message = '',
+): Promise<string> {
+  const sender = await requireSignedInUser();
+  if (!receiverUserId || receiverUserId === sender.uid || receiverUserId.length > 128) {
+    throw new Error('Choose a valid candidate to contact.');
+  }
+  const cleanMessage = message.trim();
+  if (cleanMessage.length > 500) {
+    throw new Error('Your introduction message must be 500 characters or fewer.');
+  }
+
+  const [senderProfile, receiverProfile] = await Promise.all([
+    getDoc(doc(db, 'publicProfiles', sender.uid)),
+    getDoc(doc(db, 'publicProfiles', receiverUserId)),
+  ]);
+  const isApproved = (snapshot: typeof senderProfile) =>
+    snapshot.exists()
+    && snapshot.data().approvalStatus === 'approved'
+    && snapshot.data().isVerified === true;
+  if (!isApproved(senderProfile)) {
+    throw new Error('Your profile must be approved and verified before sending an interest request.');
+  }
+  if (!isApproved(receiverProfile)) {
+    throw new Error('This candidate is no longer available for interest requests.');
+  }
+
+  const existingRequests = await getDocs(query(
+    collection(db, 'interestRequests'),
+    where('senderUserId', '==', sender.uid),
+  ));
+  const duplicate = existingRequests.docs.find((entry) =>
+    entry.data().receiverUserId === receiverUserId && entry.data().status === 'pending'
+  );
+  if (duplicate) {
+    throw new Error('You already have a pending interest request for this candidate.');
+  }
+
+  const requestRef = doc(collection(db, 'interestRequests'));
+  await setDoc(requestRef, {
+    senderUserId: sender.uid,
+    receiverUserId,
+    status: 'pending',
+    message: cleanMessage,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return requestRef.id;
+}
+
+export async function fetchInterestRequests(uid: string): Promise<InterestRequestLists> {
+  await requireOwnAccount(uid);
+  const [incoming, outgoing] = await Promise.all([
+    getDocs(query(collection(db, 'interestRequests'), where('receiverUserId', '==', uid))),
+    getDocs(query(collection(db, 'interestRequests'), where('senderUserId', '==', uid))),
+  ]);
+  return {
+    incoming: incoming.docs.map(toInterestRequest).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    outgoing: outgoing.docs.map(toInterestRequest).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+  };
+}
+
+export async function respondToInterestRequest(
+  requestId: string,
+  status: 'accepted' | 'declined',
+): Promise<void> {
+  await requireSignedInUser();
+  if (!requestId || requestId.length > 128) throw new Error('Invalid interest request.');
+  await updateDoc(doc(db, 'interestRequests', requestId), {
+    status,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function cancelInterestRequest(requestId: string): Promise<void> {
+  await requireSignedInUser();
+  if (!requestId || requestId.length > 128) throw new Error('Invalid interest request.');
+  await deleteDoc(doc(db, 'interestRequests', requestId));
+}
+
+// --------------------------------------------------
+// MEMBER: FIRESTORE-BACKED SAVED PROFILES
+// --------------------------------------------------
+
+async function requireOwnAccount(uid: string): Promise<User> {
+  const user = await requireSignedInUser();
+  if (!uid || user.uid !== uid) {
+    throw new Error('You can manage saved profiles only for your own account.');
+  }
+  return user;
+}
+
+export async function fetchSavedProfileIds(uid: string): Promise<string[]> {
+  await requireOwnAccount(uid);
+  const snapshot = await getDocs(collection(db, 'users', uid, 'savedProfiles'));
+  return snapshot.docs.map((entry) => entry.id);
+}
+
+export async function saveProfileBookmark(uid: string, profileId: string): Promise<void> {
+  await requireOwnAccount(uid);
+  if (!profileId || profileId === uid || profileId.length > 128) {
+    throw new Error('Choose a valid profile to save.');
+  }
+
+  const publicProfile = await getDoc(doc(db, 'publicProfiles', profileId));
+  if (
+    !publicProfile.exists() ||
+    publicProfile.data().approvalStatus !== 'approved' ||
+    publicProfile.data().isVerified !== true
+  ) {
+    throw new Error('Only approved and verified profiles can be saved.');
+  }
+
+  const bookmarkRef = doc(db, 'users', uid, 'savedProfiles', profileId);
+  const existing = await getDoc(bookmarkRef);
+  if (existing.exists()) return;
+
+  await setDoc(bookmarkRef, {
+    profileId,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function removeProfileBookmark(uid: string, profileId: string): Promise<void> {
+  await requireOwnAccount(uid);
+  if (!profileId || profileId.length > 128) {
+    throw new Error('Choose a valid saved profile.');
+  }
+  await deleteDoc(doc(db, 'users', uid, 'savedProfiles', profileId));
 }
 
 export async function fetchAdminAuditLogs(): Promise<AuditLog[]> {

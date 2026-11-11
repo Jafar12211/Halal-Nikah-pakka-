@@ -11,7 +11,7 @@ export type DistrictAP =
   | 'Hyderabad (Telangana)'
   | 'Gulf / Overseas NRI (Godavari Roots)';
 
-export type LanguageCode = 'en' | 'te';
+export type LanguageCode = 'en' | 'te' | 'ur';
 
 export interface UserAccount {
   id: string;
@@ -115,13 +115,16 @@ export interface UserProfile {
 export interface InterestRequest {
   id: string;
   senderUserId: string;
-  senderProfileId: string;
-  senderName: string;
-  receiverProfileId: string;
-  receiverName: string;
+  receiverUserId: string;
   status: 'pending' | 'accepted' | 'declined';
   message: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface InterestRequestLists {
+  incoming: InterestRequest[];
+  outgoing: InterestRequest[];
 }
 
 export interface Message {

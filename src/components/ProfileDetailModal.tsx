@@ -21,11 +21,14 @@ import {
 import { UserProfile, LanguageCode } from '../types/database';
 import { generateWhatsAppShareMessage } from '../utils/matrimony';
 import { translations } from '../utils/translations';
+import { getStorageFileBlob } from '../services/firebaseStorageService';
 
 interface ProfileDetailModalProps {
   profile: UserProfile | null;
   onClose: () => void;
   onExpressInterest: (profileId: string) => void;
+  onSendInterest: (profileId: string) => void;
+  hasPendingInterest: boolean;
   isInterested: boolean;
   language: LanguageCode;
   onStartChat: (profile: UserProfile) => void;
@@ -35,6 +38,8 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   profile,
   onClose,
   onExpressInterest,
+  onSendInterest,
+  hasPendingInterest,
   isInterested,
   language,
   onStartChat,
@@ -42,6 +47,29 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [copiedBiodata, setCopiedBiodata] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: string[] = [];
+    const load = async () => {
+      const entries = await Promise.all((profile?.photos || []).filter((path) => path.startsWith('profilePhotos/')).map(async (path) => {
+        try {
+          const blob = await getStorageFileBlob(path);
+          const url = URL.createObjectURL(blob);
+          urls.push(url);
+          return [path, url] as const;
+        } catch (error) {
+          console.warn('Private profile photo unavailable:', error);
+          return null;
+        }
+      }));
+      if (!cancelled) setPhotoUrls(Object.fromEntries(entries.filter(Boolean) as [string, string][]));
+      else urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    if (profile) void load();
+    return () => { cancelled = true; urls.forEach((url) => URL.revokeObjectURL(url)); };
+  }, [profile?.id, profile?.photos?.join('|')]);
 
   useEffect(() => {
     setSelectedPhotoIndex(0);
@@ -135,16 +163,16 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                 {profile.photos && profile.photos.length > 0 ? (
                   <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-emerald-700/40 shadow-sm shrink-0 relative bg-stone-900">
                     <img
-                      src={profile.photos[selectedPhotoIndex] || profile.photos[0]}
+                      src={(() => { const photo = profile.photos[selectedPhotoIndex] || profile.photos[0]; return photo.startsWith('http') ? photo : photoUrls[photo] || ''; })()}
                       alt={profile.candidateName}
                       className={`w-full h-full object-cover transition-all ${
-                        profile.photoPrivacy === 'blurred_until_request' && !isInterested
+                        profile.photoPrivacy !== 'visible'
                           ? 'blur-xs scale-105'
                           : ''
                       }`}
                     />
-                    {profile.photoPrivacy === 'blurred_until_request' && !isInterested && (
-                      <div className="absolute inset-0 bg-stone-950/30 backdrop-blur-[2px] flex items-center justify-center" title="Photo blurred for modesty until interest accepted">
+                    {profile.photoPrivacy !== 'visible' && (
+                      <div className="absolute inset-0 bg-stone-950/30 backdrop-blur-[2px] flex items-center justify-center" title="Photo hidden by the candidate's privacy setting">
                         <Lock className="w-4 h-4 text-white drop-shadow" />
                       </div>
                     )}
@@ -173,9 +201,9 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                       {profile.photos.length} Photos
                     </span>
                   )}
-                  {profile.photos && profile.photos.length > 0 && profile.photoPrivacy === 'blurred_until_request' && !isInterested && (
+                  {profile.photos && profile.photos.length > 0 && profile.photoPrivacy !== 'visible' && (
                     <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded border border-stone-200">
-                      Modesty Protected Photo
+                      Private Photo
                     </span>
                   )}
                 </div>
@@ -244,10 +272,10 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
                     }`}
                   >
                     <img
-                      src={picUrl}
+                      src={picUrl.startsWith('http') ? picUrl : photoUrls[picUrl] || ''}
                       alt={`Candidate picture ${idx + 1}`}
                       className={`w-14 h-14 sm:w-16 sm:h-16 object-cover ${
-                        profile.photoPrivacy === 'blurred_until_request' && !isInterested
+                        profile.photoPrivacy !== 'visible'
                           ? 'blur-[1.5px]'
                           : ''
                       }`}
@@ -491,6 +519,15 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
               <span>Chaperoned Family Chat</span>
             </button>
 
+            {/* Send a real request separately from the private saved-profile bookmark. */}
+            <button
+              onClick={() => onSendInterest(profile.id)}
+              disabled={hasPendingInterest}
+              className="px-4 py-2 bg-amber-100 hover:bg-amber-200 disabled:bg-stone-200 disabled:text-stone-500 text-amber-950 rounded-lg text-xs font-semibold border border-amber-300 disabled:border-stone-300 transition-colors"
+            >
+              {hasPendingInterest ? 'Interest Request Pending' : 'Send Interest Request'}
+            </button>
+
             {/* Express Interest Button */}
             <button
               onClick={() => onExpressInterest(profile.id)}
@@ -501,7 +538,7 @@ Profile listed on Nikah Pakka. Identity documents have not been verified through
               }`}
             >
               <Heart className={`w-4 h-4 ${isInterested ? 'fill-rose-700 text-rose-700' : 'text-amber-300'}`} />
-              <span>{isInterested ? 'Interest Sent to Family' : 'Send Khabar / Interest'}</span>
+              <span>{isInterested ? 'Saved to My Profiles' : 'Save Profile'}</span>
             </button>
           </div>
         </div>

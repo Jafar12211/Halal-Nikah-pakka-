@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { getStorageFileBlob } from '../services/firebaseStorageService';
 
 interface ProfilePhotoCarouselProps {
   photos?: string[];
@@ -12,7 +13,7 @@ interface ProfilePhotoCarouselProps {
 
 /**
  * Automatically rotates through candidate-provided photos.
- * Only HTTPS URLs are rendered; broken URLs fall back to the profile monogram.
+ * Private Firebase Storage paths are fetched through the authenticated SDK; failures fall back to the monogram.
  */
 export const ProfilePhotoCarousel: React.FC<ProfilePhotoCarouselProps> = ({
   photos = [],
@@ -24,11 +25,12 @@ export const ProfilePhotoCarousel: React.FC<ProfilePhotoCarouselProps> = ({
   blurred = false,
 }) => {
   const safePhotos = useMemo(
-    () => photos.filter((photo) => typeof photo === 'string' && /^https:\/\//i.test(photo)),
+    () => photos.filter((photo) => typeof photo === 'string' && (/^https:\/\//i.test(photo) || photo.startsWith('profilePhotos/'))),
     [photos],
   );
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedPhotos, setFailedPhotos] = useState<Set<string>>(() => new Set());
+  const [resolvedPhoto, setResolvedPhoto] = useState<{ path: string; url: string } | null>(null);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -44,7 +46,28 @@ export const ProfilePhotoCarousel: React.FC<ProfilePhotoCarouselProps> = ({
   }, [safePhotos.length]);
 
   const currentPhoto = safePhotos[activeIndex];
-  const canDisplayPhoto = Boolean(currentPhoto && !failedPhotos.has(currentPhoto));
+
+  useEffect(() => {
+    if (!currentPhoto || /^https:\/\//i.test(currentPhoto)) {
+      setResolvedPhoto(null);
+      return undefined;
+    }
+    let cancelled = false;
+    let objectUrl = '';
+    void getStorageFileBlob(currentPhoto).then((blob) => {
+      objectUrl = URL.createObjectURL(blob);
+      if (!cancelled) setResolvedPhoto({ path: currentPhoto, url: objectUrl });
+      else URL.revokeObjectURL(objectUrl);
+    }).catch(() => {
+      if (!cancelled) setFailedPhotos((old) => new Set(old).add(currentPhoto));
+    });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [currentPhoto]);
+
+  const currentPhotoUrl = currentPhoto && /^https:\/\//i.test(currentPhoto)
+    ? currentPhoto
+    : resolvedPhoto?.path === currentPhoto ? resolvedPhoto.url : '';
+  const canDisplayPhoto = Boolean(currentPhoto && currentPhotoUrl && !failedPhotos.has(currentPhoto));
 
   return (
     <div
@@ -55,7 +78,7 @@ export const ProfilePhotoCarousel: React.FC<ProfilePhotoCarouselProps> = ({
       {canDisplayPhoto ? (
         <img
           key={currentPhoto}
-          src={currentPhoto}
+          src={currentPhotoUrl}
           alt={alt}
           loading="lazy"
           referrerPolicy="no-referrer"

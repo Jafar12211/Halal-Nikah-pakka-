@@ -28,6 +28,7 @@ import {
   UserAccount,
   LanguageCode,
   DistrictAP,
+  InterestRequestLists,
 } from './types/database';
 
 import { FilterState, MatrimonyProfile } from './types/matrimony';
@@ -38,6 +39,13 @@ import {
   logoutFirebaseUser,
   deleteOwnAccount,
   saveProfileToFirestore,
+  fetchSavedProfileIds,
+  saveProfileBookmark,
+  removeProfileBookmark,
+  createInterestRequest,
+  fetchInterestRequests,
+  respondToInterestRequest,
+  cancelInterestRequest,
 } from './services/firestoreService';
 
 import {
@@ -94,7 +102,7 @@ export default function App() {
   const [messagingTargetConvId, setMessagingTargetConvId] = useState<string | undefined>();
 
   const [userInterests, setUserInterests] = useState<Set<string>>(() => new Set<string>());
-  const [interestsOwnerId, setInterestsOwnerId] = useState<string | null>(null);
+  const [interestRequests, setInterestRequests] = useState<InterestRequestLists>({ incoming: [], outgoing: [] });
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const t = translations[language];
@@ -177,45 +185,83 @@ export default function App() {
     }
   }, [language]);
 
-  // Keep each account's local shortlist separate on shared devices.
+  // Load this account's saved profiles from Firestore (shared across signed-in devices).
   useEffect(() => {
-    setInterestsOwnerId(null);
+    let cancelled = false;
+    setUserInterests(new Set<string>());
 
-    if (!currentUser) {
-      setUserInterests(new Set<string>());
-      return;
-    }
+    if (!currentUser) return;
 
-    const storageKey = `nikah_pakka_interests_${currentUser.id}`;
-    try {
-      const saved = localStorage.getItem(storageKey);
-      setUserInterests(saved ? new Set<string>(JSON.parse(saved)) : new Set<string>());
-    } catch (error) {
-      console.error('Failed to load this account’s saved interests:', error);
-      setUserInterests(new Set<string>());
-    }
-    setInterestsOwnerId(currentUser.id);
-  }, [currentUser?.id]);
+    void (async () => {
+      const legacyKey = `nikah_pakka_interests_${currentUser.id}`;
+      let legacyIds: string[] = [];
 
-  useEffect(() => {
-    if (!currentUser || interestsOwnerId !== currentUser.id) return;
-    try {
-      localStorage.setItem(
-        `nikah_pakka_interests_${currentUser.id}`,
-        JSON.stringify(Array.from(userInterests))
+      // Migrate the previous device-only shortlist when its entries still point
+      // to approved public profiles. Keep failed entries locally for a later retry.
+      try {
+        const raw = localStorage.getItem(legacyKey);
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed)) {
+          legacyIds = parsed.filter((value): value is string => typeof value === 'string');
+        }
+      } catch (error) {
+        console.warn('Could not read the legacy local shortlist:', error);
+      }
+
+      const migrationResults = await Promise.allSettled(
+        legacyIds.map((profileId) => saveProfileBookmark(currentUser.id, profileId))
       );
-    } catch (error) {
-      console.error('Failed to save this account’s interests:', error);
-    }
-  }, [currentUser?.id, interestsOwnerId, userInterests]);
+      const failedLegacyIds = legacyIds.filter(
+        (_profileId, index) => migrationResults[index]?.status === 'rejected'
+      );
+
+      try {
+        if (failedLegacyIds.length) {
+          localStorage.setItem(legacyKey, JSON.stringify(failedLegacyIds));
+        } else {
+          localStorage.removeItem(legacyKey);
+        }
+      } catch (error) {
+        console.warn('Could not update the legacy local shortlist after migration:', error);
+      }
+
+      const profileIds = await fetchSavedProfileIds(currentUser.id);
+      if (!cancelled) setUserInterests(new Set(profileIds));
+    })().catch((error) => {
+      console.error('Failed to load saved profiles from Firestore:', error);
+      if (!cancelled) setUserInterests(new Set<string>());
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
     window.setTimeout(() => setToastMessage(null), 3800);
   };
 
+  const refreshInterestRequests = async () => {
+    if (!currentUser) {
+      setInterestRequests({ incoming: [], outgoing: [] });
+      return;
+    }
+    try {
+      const requests = await fetchInterestRequests(currentUser.id);
+      setInterestRequests(requests);
+    } catch (error) {
+      console.error('Could not load interest requests:', error);
+      showToast('Unable to load interest requests. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    void refreshInterestRequests();
+  }, [currentUser?.id]);
+
   const handleToggleLanguage = () => {
-    const nextLang: LanguageCode = language === 'en' ? 'te' : 'en';
+    const nextLang: LanguageCode = language === 'en' ? 'te' : language === 'te' ? 'ur' : 'en';
     setLanguage(nextLang);
 
     showToast(
@@ -398,27 +444,74 @@ export default function App() {
     }
   };
 
-  // Express interest (temporary local implementation)
-  const handleExpressInterest = (profileId: string) => {
+  // Save or remove a profile bookmark in the signed-in member's Firestore account.
+  const handleExpressInterest = async (profileId: string) => {
     if (!currentUser) {
-      showToast('Please sign in to express interest.');
+      showToast('Please sign in to save a profile.');
       setIsAuthOpen(true);
       return;
     }
 
-    setUserInterests((previous) => {
-      const next = new Set(previous);
-
-      if (next.has(profileId)) {
-        next.delete(profileId);
-        showToast('Interest removed from this device.');
+    const alreadySaved = userInterests.has(profileId);
+    try {
+      if (alreadySaved) {
+        await removeProfileBookmark(currentUser.id, profileId);
+        setUserInterests((previous) => {
+          const next = new Set(previous);
+          next.delete(profileId);
+          return next;
+        });
+        showToast('Profile removed from your saved list.');
       } else {
-        next.add(profileId);
-        showToast('Interest saved on this device only. It has not been sent to the other family.');
+        await saveProfileBookmark(currentUser.id, profileId);
+        setUserInterests((previous) => new Set(previous).add(profileId));
+        showToast('Profile saved to your account. This does not notify the other family.');
       }
+    } catch (error) {
+      console.error('Could not update saved profile:', error);
+      showToast(error instanceof Error ? error.message : 'Unable to update your saved profiles.');
+    }
+  };
 
-      return next;
-    });
+  const handleSendInterestRequest = async (profileId: string) => {
+    if (!currentUser) {
+      showToast('Please sign in to send an interest request.');
+      setIsAuthOpen(true);
+      return;
+    }
+    try {
+      await createInterestRequest(profileId);
+      await refreshInterestRequests();
+      showToast('Your interest request was sent to the candidate’s account.');
+    } catch (error) {
+      console.error('Could not send interest request:', error);
+      showToast(error instanceof Error ? error.message : 'Unable to send the interest request.');
+    }
+  };
+
+  const handleRespondToInterestRequest = async (
+    requestId: string,
+    status: 'accepted' | 'declined',
+  ) => {
+    try {
+      await respondToInterestRequest(requestId, status);
+      await refreshInterestRequests();
+      showToast(status === 'accepted' ? 'Interest request accepted.' : 'Interest request declined.');
+    } catch (error) {
+      console.error('Could not update interest request:', error);
+      showToast(error instanceof Error ? error.message : 'Unable to update this request.');
+    }
+  };
+
+  const handleCancelInterestRequest = async (requestId: string) => {
+    try {
+      await cancelInterestRequest(requestId);
+      await refreshInterestRequests();
+      showToast('Interest request removed.');
+    } catch (error) {
+      console.error('Could not cancel interest request:', error);
+      showToast(error instanceof Error ? error.message : 'Unable to remove this request.');
+    }
   };
 
   // Start a conversation only when both profiles are available
@@ -456,9 +549,8 @@ export default function App() {
     try {
       localStorage.removeItem(`nikah_pakka_interests_${currentUser?.id || ''}`);
     } catch (error) {
-      console.error('Could not clear the local shortlist after account deletion:', error);
+      console.error('Could not clear the legacy local shortlist after account deletion:', error);
     }
-    setInterestsOwnerId(null);
     setUserInterests(new Set<string>());
     setIsMessagingOpen(false);
     setIsAdminOpen(false);
@@ -692,6 +784,10 @@ export default function App() {
             language={language}
             allProfiles={profiles}
             userInterests={userInterests}
+            incomingRequests={interestRequests.incoming}
+            outgoingRequests={interestRequests.outgoing}
+            onRespondToRequest={handleRespondToInterestRequest}
+            onCancelRequest={handleCancelInterestRequest}
             onSelectProfile={setSelectedProfile}
             onRemoveInterest={handleExpressInterest}
             onStartChat={handleStartChatWithProfile}
@@ -743,6 +839,8 @@ export default function App() {
         profile={selectedProfile}
         onClose={() => setSelectedProfile(null)}
         onExpressInterest={handleExpressInterest}
+        onSendInterest={handleSendInterestRequest}
+        hasPendingInterest={Boolean(selectedProfile && interestRequests.outgoing.some((request) => request.receiverUserId === selectedProfile.id && request.status === 'pending'))}
         isInterested={
           selectedProfile ? userInterests.has(selectedProfile.id) : false
         }

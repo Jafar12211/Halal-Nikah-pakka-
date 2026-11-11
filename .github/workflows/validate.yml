@@ -3,13 +3,17 @@ name: Website validation
 on:
   push:
     branches:
-      - firebase-fixes-review-20261108
+      - staging/nikah-pakka-firebase
   pull_request:
     branches:
-      - firebase-migration-testing
+      - staging/nikah-pakka-firebase
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -22,14 +26,34 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci
 
       - name: Run TypeScript validation
         run: npm run lint
 
+      - name: Run utility unit tests
+        run: npm run test:unit
+
       - name: Build production website
         run: npm run build
+
+      - name: Set up Node.js 22 for Cloud Functions runtime tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install locked Cloud Functions dependencies
+        run: npm ci --prefix functions --no-audit --no-fund
+
+      - name: Audit Cloud Functions dependencies
+        run: npm audit --prefix functions --audit-level=high
+
+      - name: Check Cloud Functions syntax
+        run: npm run check --prefix functions
+
+      - name: Run account-deletion integration tests against emulators
+        run: npx --yes firebase-tools@15.35.0 emulators:exec --only auth,firestore,storage,functions --project nikah-pakka-staging "npm run test:account-deletion --prefix functions"

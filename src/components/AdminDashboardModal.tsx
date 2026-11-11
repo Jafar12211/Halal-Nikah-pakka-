@@ -26,7 +26,8 @@ import {
 } from 'lucide-react';
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
 
-import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore } from '../services/firestoreService';
+import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore, verifyGovernmentDocumentFirestore } from '../services/firestoreService';
+import { getStorageFileBlob } from '../services/firebaseStorageService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 import { isAdminUser } from '../utils/admin';
 
@@ -56,6 +57,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [documentPreviewUrls, setDocumentPreviewUrls] = useState<Record<string, string>>({});
+  const [documentActionBusy, setDocumentActionBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !isAdminUser(currentUser)) return;
@@ -149,7 +152,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     if (status === 'approved') {
       const hasPhoto =
         Array.isArray(profileToUpdate.photos) &&
-        profileToUpdate.photos.some((photo) => typeof photo === 'string' && /^https:\/\/(firebasestorage\.googleapis\.com|firebasestorage\.app)\//i.test(photo));
+        profileToUpdate.photos.some((photo) => typeof photo === 'string' && photo.startsWith(`profilePhotos/${profileToUpdate.userId}/`));
       const hasValidDocument =
         Array.isArray(profileToUpdate.documents) &&
         profileToUpdate.documents.some((document) =>
@@ -739,10 +742,21 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       <div className="flex flex-col sm:flex-row gap-4 items-start">
                         <div className="w-full sm:w-56 h-56 rounded-xl overflow-hidden border-2 border-emerald-800/40 bg-stone-900 relative shadow-sm shrink-0">
                           <img
-                            src={selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]}
+                            src={documentPreviewUrls[selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]] || ''}
                             alt="Candidate high-res inspection"
                             className="w-full h-full object-cover"
                           />
+                          {!documentPreviewUrls[selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]] && (
+                            <button type="button" onClick={async () => {
+                              const photoPath = selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0];
+                              try {
+                                const blob = await getStorageFileBlob(photoPath);
+                                setDocumentPreviewUrls((old) => ({ ...old, [photoPath]: URL.createObjectURL(blob) }));
+                              } catch (error) {
+                                setErrorMessage(error instanceof Error ? error.message : 'Could not load private candidate photo.');
+                              }
+                            }} className="absolute inset-0 m-auto h-fit w-fit rounded bg-stone-950/80 px-3 py-2 text-white text-xs">Load secure photo</button>
+                          )}
                           <span className="absolute bottom-2 left-2 bg-stone-950/80 text-white text-[9px] px-2 py-0.5 rounded">
                             {selectedPhotoIndex === 0 ? 'Cover Photo' : `Photo #${selectedPhotoIndex + 1}`}
                           </span>
@@ -786,7 +800,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             <button
                               key={idx}
                               type="button"
-                              onClick={() => setSelectedPhotoIndex(idx)}
+                              onClick={async () => {
+                                setSelectedPhotoIndex(idx);
+                                if (!documentPreviewUrls[picUrl]) {
+                                  try {
+                                    const blob = await getStorageFileBlob(picUrl);
+                                    setDocumentPreviewUrls((old) => ({ ...old, [picUrl]: URL.createObjectURL(blob) }));
+                                  } catch (error) {
+                                    setErrorMessage(error instanceof Error ? error.message : 'Could not load private candidate photo.');
+                                  }
+                                }
+                              }}
                               className={`relative rounded-lg overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
                                 selectedPhotoIndex === idx
                                   ? 'border-emerald-700 ring-2 ring-emerald-500/40 scale-105'
@@ -794,7 +818,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               }`}
                             >
                               <img
-                                src={picUrl}
+                                src={documentPreviewUrls[picUrl] || ''}
                                 alt={`Candidate thumbnail ${idx + 1}`}
                                 className="w-12 h-12 object-cover"
                               />
@@ -849,7 +873,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             </p>
                           </div>
 
-                          <div className="text-right shrink-0">
+                          <div className="flex flex-col items-end gap-2 shrink-0">
                             <span
                               className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
                                 doc.verified
@@ -859,6 +883,46 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             >
                               {doc.verified ? '✓ Admin reviewed' : '⏳ Pending admin review'}
                             </span>
+                            {doc.storagePath && (
+                              <div className="flex gap-2">
+                                <button type="button" disabled={documentActionBusy === doc.id} onClick={async () => {
+                                  setDocumentActionBusy(doc.id);
+                                  try {
+                                    const blob = await getStorageFileBlob(doc.storagePath!);
+                                    const url = URL.createObjectURL(blob);
+                                    setDocumentPreviewUrls((old) => ({ ...old, [doc.id]: url }));
+                                  } catch (error) {
+                                    setErrorMessage(error instanceof Error ? error.message : 'Could not securely load identity file.');
+                                  } finally { setDocumentActionBusy(null); }
+                                }} className="px-2 py-1 rounded bg-stone-100 text-stone-800 text-[10px] font-semibold">
+                                  {documentPreviewUrls[doc.id] ? 'Reload preview' : 'Load secure preview'}
+                                </button>
+                                {!doc.verified && (
+                                  <button type="button" disabled={documentActionBusy === doc.id || isUpdating || !documentPreviewUrls[doc.id]} onClick={async () => {
+                                    setDocumentActionBusy(doc.id); setErrorMessage(null);
+                                    try {
+                                      await verifyGovernmentDocumentFirestore(selectedProfile.userId, doc.id);
+                                      const refreshed = await fetchAllRegistrations();
+                                      setProfiles(refreshed);
+                                      setSelectedProfile(refreshed.find((profile) => profile.id === selectedProfile.id) || null);
+                                      setStatusMessage('Identity document marked as reviewed. Approval can now be considered after all checks.');
+                                      const logs = await fetchAdminAuditLogs(); setAuditLogs(logs);
+                                    } catch (error) {
+                                      setErrorMessage(error instanceof Error ? error.message : 'Document verification failed.');
+                                    } finally { setDocumentActionBusy(null); }
+                                  }} className="px-2 py-1 rounded bg-emerald-800 text-white text-[10px] font-semibold">
+                                    {documentPreviewUrls[doc.id] ? 'Verify document' : 'Load preview first'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                            {documentPreviewUrls[doc.id] && (
+                              <div className="w-full sm:w-64">
+                                {doc.fileName.toLowerCase().endsWith('.pdf')
+                                  ? <iframe title="Private government ID preview" src={documentPreviewUrls[doc.id]} className="w-full h-64 border rounded" />
+                                  : <img src={documentPreviewUrls[doc.id]} alt="Private government ID preview" className="max-w-full max-h-64 object-contain border rounded" />}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}

@@ -1,9 +1,10 @@
+import type { LanguageCode } from '../types/database';
 import React, { useState } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { Download, Smartphone, X, Check } from 'lucide-react';
 
 interface PWAInstallButtonProps {
-  language: 'en' | 'te';
+  language: LanguageCode;
 }
 
 export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ language }) => {

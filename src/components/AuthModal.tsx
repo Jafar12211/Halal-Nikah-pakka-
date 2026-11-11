@@ -1,3 +1,4 @@
+import type { LanguageCode } from '../types/database';
 
 import React, { useState } from 'react';
 import {
@@ -27,7 +28,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthSuccess: (user: UserAccount) => void;
-  language: 'en' | 'te';
+  language: LanguageCode;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({

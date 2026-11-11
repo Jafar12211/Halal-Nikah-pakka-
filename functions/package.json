@@ -1,0 +1,20 @@
+{
+  "name": "nikah-pakka-functions",
+  "private": true,
+  "description": "Trusted Firebase backend functions for Nikah Pakka",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "check": "node --check index.js",
+    "test:account-deletion": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.10.0",
+    "firebase-functions": "^6.4.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

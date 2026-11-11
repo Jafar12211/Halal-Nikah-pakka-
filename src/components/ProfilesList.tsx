@@ -306,7 +306,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                           initials={profile.avatarInitials}
                           backgroundColor={profile.avatarBgColor}
                           className="w-14 h-14 rounded-2xl border border-emerald-700/30 shadow-xs shrink-0"
-                          blurred={profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest}
+                          blurred={profile.photoPrivacy !== 'visible'}
                         />
 
                         {/* Name & Basic Details */}
@@ -434,7 +434,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                             hasExpressedInterest ? 'fill-rose-700 text-rose-700' : 'text-amber-300'
                           }`}
                         />
-                        <span>{hasExpressedInterest ? (t.interested || 'Interest Sent') : (t.sendKhabar || 'Send Khabar')}</span>
+                        <span>{hasExpressedInterest ? 'Saved' : 'Save Profile'}</span>
                       </button>
                     </div>
                   </div>
