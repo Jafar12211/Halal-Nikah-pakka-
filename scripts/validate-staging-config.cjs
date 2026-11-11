@@ -24,6 +24,7 @@ for (const key of requiredKeys) {
   }
 }
 
+// 1. Staging project validation
 if (config.projectId !== 'nikah-pakka-staging') {
   console.error(`FAIL-CLOSED: Expected projectId to be "nikah-pakka-staging", found "${config.projectId}".`);
   process.exit(1);
@@ -39,11 +40,16 @@ if (config.storageBucket !== 'nikah-pakka-staging.firebasestorage.app') {
   process.exit(1);
 }
 
-// Ensure no production project reference is leaked in config
+// 2. Absolute production protection: reject production project ID and project number
 const stringified = JSON.stringify(config);
-if (stringified.includes('nikah-pakka.firebaseapp.com') || stringified.includes('nikah-pakka.firebasestorage.app') || stringified.includes('655818278889')) {
-  console.error('FAIL-CLOSED: Found production project credentials or IDs in firebase-applet-config.json.');
+if (
+  stringified.includes('nikah-pakka.firebaseapp.com') ||
+  stringified.includes('nikah-pakka.firebasestorage.app') ||
+  stringified.includes('655818278889') ||
+  config.projectId === 'nikah-pakka'
+) {
+  console.error('FAIL-CLOSED: Production project ID "nikah-pakka" or project number 655818278889 detected! Deployment rejected.');
   process.exit(1);
 }
 
-console.log('✔ Staging Firebase configuration validated successfully for project: "nikah-pakka-staging".');
+console.log('✔ Staging Firebase configuration validated successfully for project: "nikah-pakka-staging" (593974062791).');
