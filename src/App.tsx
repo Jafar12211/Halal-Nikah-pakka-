@@ -176,13 +176,15 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  // Save language preference
+  // Save language preference and synchronize document attributes for RTL support
   useEffect(() => {
     try {
       localStorage.setItem('nikah_godavari_language', language);
     } catch {
       // Ignore storage errors
     }
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr';
   }, [language]);
 
   // Load this account's saved profiles from Firestore (shared across signed-in devices).

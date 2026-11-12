@@ -349,11 +349,11 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                       <div className="mt-3 pt-2.5 border-t border-stone-100">
                         <div className="flex items-center gap-2 text-[11px] text-stone-600">
                           <span className="font-semibold text-emerald-900">Deen:</span>
-                          <span>{profile.religion.salah}</span>
+                          <span>{profile.religion?.salah || 'Not specified'}</span>
                           <span aria-hidden="true">·</span>
-                          <span>{profile.religion.hijabOrBeard}</span>
+                          <span>{profile.religion?.hijabOrBeard || 'Not specified'}</span>
                           <span aria-hidden="true">·</span>
-                          <span>{profile.religion.sect}</span>
+                          <span>{profile.religion?.sect || 'Sunni'}</span>
                         </div>
                       </div>
 
