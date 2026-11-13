@@ -108,6 +108,7 @@ test('activation deletes only this app old caches and preserves unrelated caches
   const worker = createWorker({ initialCaches: {
     'nikah-pakka-v1': [],
     'nikah-pakka-static-v1': [],
+    'nikah-pakka-static-v2': [],
     'another-app-cache': [],
   }});
   let activation;
