@@ -91,7 +91,8 @@ test('private and no-store static responses are not cached', async () => {
   })});
   const request = new Request('https://nikah-pakka.example/assets/app.js');
   await dispatchFetch(worker, request);
-  assert.equal(worker.stores.get('nikah-pakka-static-v2').has(request.url), false);
+  const staticCache = worker.stores.get('nikah-pakka-static-v2');
+  assert.equal(staticCache?.has(request.url) ?? false, false);
 });
 
 test('offline navigation falls back only to the application shell', async () => {
