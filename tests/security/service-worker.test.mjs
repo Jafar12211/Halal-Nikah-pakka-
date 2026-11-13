@@ -98,7 +98,7 @@ test('offline navigation falls back only to the application shell', async () => 
   const worker = createWorker({ fetchImpl: async () => { throw new Error('offline'); } });
   const shellCache = new Map([['/index.html', new Response('app shell', { headers: { 'content-type': 'text/html' } })]]);
   worker.stores.set('nikah-pakka-static-v2', shellCache);
-  const request = new Request('https://nikah-pakka.example/member/private-route', { mode: 'navigate' });
+  const request = { url: 'https://nikah-pakka.example/member/private-route', method: 'GET', mode: 'navigate', headers: new Headers() };
   const response = await dispatchFetch(worker, request);
   assert.equal(await response.text(), 'app shell');
   assert.equal(shellCache.has(request.url), false);
