@@ -2,8 +2,8 @@
 const CACHE_NAME = 'nikah-pakka-static-v2';
 const OWNED_CACHE_PREFIX = 'nikah-pakka-static-';
 const LEGACY_CACHE_NAME = 'nikah-pakka-v1';
-const APP_SHELL = ['/','/index.html','/manifest.json','/icon.svg'];
-const STATIC_EXTENSIONS = /\\.(?:js|mjs|css|svg|png|jpe?g|webp|ico|woff2?)$/i;
+const APP_SHELL = ['/', '/index.html', '/manifest.json', '/icon.svg'];
+const STATIC_EXTENSIONS = /\.(?:js|mjs|css|svg|png|jpe?g|webp|ico|woff2?)$/i;
 
 function isSameOrigin(request, url) {
   return url.origin === self.location.origin
@@ -26,17 +26,23 @@ function isNavigationRequest(request, url) {
 }
 
 function isSafeStaticResponse(response, url) {
-  if (!response || response.status !== 200 || response.type === 'opaque' || response.type === 'opaqueredirect' || response.redirected) {
+  if (!response || response.status !== 200
+    || response.type === 'opaque' || response.type === 'opaqueredirect'
+    || response.redirected) {
     return false;
   }
   const cacheControl = response.headers.get('cache-control') || '';
-  if (/\\b(?:private|no-store)\\b/i.test(cacheControl)) return false;
+  if (/\b(?:private|no-store)\b/i.test(cacheControl)) return false;
+  const vary = response.headers.get('vary') || '';
+  if (/(?:^|,)\s*(?:\*|cookie)\s*(?:,|$)/i.test(vary)) return false;
 
   const contentType = (response.headers.get('content-type') || '').toLowerCase();
-  if (APP_SHELL.includes(url.pathname)) return contentType.includes('text/html')
-    || contentType.includes('application/manifest+json')
-    || contentType.includes('image/svg+xml');
-  return /^(?:text\\/javascript|application\\/javascript|text\\/css|image\\/(?:svg\\+xml|png|jpeg|webp|x-icon)|font\\/|application\\/font)/.test(contentType);
+  if (APP_SHELL.includes(url.pathname)) {
+    return contentType.includes('text/html')
+      || contentType.includes('application/manifest+json')
+      || contentType.includes('image/svg+xml');
+  }
+  return /^(?:text\/javascript|application\/javascript|text\/css|image\/(?:svg\+xml|png|jpeg|webp|x-icon)|font\/|application\/font)/.test(contentType);
 }
 
 self.addEventListener('install', (event) => {
@@ -68,7 +74,7 @@ self.addEventListener('fetch', (event) => {
 
   const staticAsset = isStaticAssetRequest(request, url);
   const navigation = isNavigationRequest(request, url);
-  // All API, Firebase, authenticated, cross-origin, query-string and non-GET
+  // API, Firebase, authenticated, cross-origin, query-string and non-GET
   // requests bypass this worker and are never read from or written to Cache Storage.
   if (!staticAsset && !navigation) return;
 
