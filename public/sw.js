@@ -26,7 +26,7 @@ function isNavigationRequest(request, url) {
 }
 
 function isSafeStaticResponse(response, url) {
-  if (!response || response.status !== 200 || response.type !== 'basic' || response.redirected) {
+  if (!response || response.status !== 200 || response.type === 'opaque' || response.type === 'opaqueredirect' || response.redirected) {
     return false;
   }
   const cacheControl = response.headers.get('cache-control') || '';
