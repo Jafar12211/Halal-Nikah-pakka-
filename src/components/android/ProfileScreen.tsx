@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isCloudAccountDeletionEnabled } from '../../utils/featureFlags';
 import {
   User,
   ShieldCheck,
@@ -378,6 +379,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               {deleteError && (
                 <p role="alert" className="text-xs text-rose-800">{deleteError}</p>
               )}
+              {!isCloudAccountDeletionEnabled() && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="status">
+                  Account deletion is temporarily unavailable on hosted staging because the secure Cloud Function is not deployed on the no-billing plan. No account data will be removed here. The deletion flow remains available in the local Firebase Emulators.
+                </p>
+              )}
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
@@ -393,7 +399,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </button>
                 <button
                   type="button"
-                  disabled={deletingAccount || (currentUser.authProvider === 'email' && !deletePassword)}
+                  disabled={!isCloudAccountDeletionEnabled() || deletingAccount || (currentUser.authProvider === 'email' && !deletePassword)}
                   onClick={async () => {
                     setDeletingAccount(true);
                     setDeleteError('');

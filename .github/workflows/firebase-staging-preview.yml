@@ -27,20 +27,23 @@ jobs:
     runs-on: ubuntu-latest
     env:
       STAGING_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID_STAGING || 'nikah-pakka-staging' }}
-      STAGING_WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG_STAGING }}
       STAGING_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
     steps:
       - name: Check staging configuration
         id: staging
         shell: bash
         run: |
-          if [[ -n "$STAGING_PROJECT_ID" && -n "$STAGING_WEB_CONFIG" && -n "$STAGING_SERVICE_ACCOUNT" ]]; then
+          if [[ "$STAGING_PROJECT_ID" != "nikah-pakka-staging" ]]; then
+            echo "::error::Refusing deployment: FIREBASE_PROJECT_ID_STAGING must be nikah-pakka-staging."
+            exit 1
+          fi
+          if [[ -n "$STAGING_SERVICE_ACCOUNT" ]]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "Staging environment variables and secrets are configured."
+            echo "Staging service-account credential is configured; committed web config will be validated separately."
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Preview deployment cannot proceed. Missing required staging secrets: FIREBASE_WEB_CONFIG_STAGING, FIREBASE_SERVICE_ACCOUNT_STAGING, and/or FIREBASE_PROJECT_ID_STAGING."
-            echo "Summary: Staging build and emulator tests will run, but live hosting preview deployment is skipped until secrets are provided in repository settings."
+            echo "::warning::Preview deployment cannot proceed. Add the FIREBASE_SERVICE_ACCOUNT_STAGING Actions secret."
+            echo "Summary: Staging build and emulator tests will run, but live rules/hosting deployment is skipped until the staging service-account secret is configured."
           fi
 
       - name: Choose isolated preview channel
@@ -70,26 +73,6 @@ jobs:
 
       - name: Install locked web dependencies
         run: npm ci
-
-      - name: Write and validate staging Firebase web configuration
-        if: steps.staging.outputs.ready == 'true'
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const config = JSON.parse(process.env.STAGING_WEB_CONFIG);
-          if (config.projectId !== process.env.STAGING_PROJECT_ID) {
-            throw new Error('Staging web config projectId does not match FIREBASE_PROJECT_ID_STAGING.');
-          }
-          if (config.projectId !== 'nikah-pakka-staging') {
-            throw new Error('ABSOLUTE PROTECTION: projectId must be nikah-pakka-staging.');
-          }
-          for (const key of ['apiKey', 'appId', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId']) {
-            if (typeof config[key] !== 'string' || !config[key]) {
-              throw new Error('Staging Firebase web config is missing ' + key + '.');
-            }
-          }
-          fs.writeFileSync('firebase-applet-config.json', JSON.stringify(config, null, 2) + '\n');
-          NODE
 
       - name: Fail-closed configuration check
         run: node scripts/validate-staging-config.cjs

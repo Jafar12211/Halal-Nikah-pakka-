@@ -1,4 +1,4 @@
-import { isPhotoUploadEnabled } from '../utils/featureFlags';
+import { isFirebaseStorageEmulatorEnabled, isPhotoUploadEnabled } from '../utils/featureFlags';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -249,6 +249,11 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   };
 
   const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isFirebaseStorageEmulatorEnabled()) {
+      setErrorMsg('Private ID uploads are disabled on hosted staging to prevent Firebase Storage charges. Use the local Firebase Storage Emulator for testing.');
+      event.target.value = '';
+      return;
+    }
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!currentUser || !file) return;
@@ -1096,10 +1101,16 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     </select>
                     <input className={inputClass} value={maskedDocumentId} onChange={(e) => setMaskedDocumentId(e.target.value)} placeholder="Masked ID (e.g. XXXX-1234)" maxLength={32} />
                   </div>
-                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-800 text-white font-semibold cursor-pointer">
-                    <Lock className="w-4 h-4" /> {uploadingDocument ? 'Uploading...' : 'Upload private ID file'}
-                    <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={uploadingDocument} onChange={handleDocumentUpload} className="sr-only" />
-                  </label>
+                  {isFirebaseStorageEmulatorEnabled() ? (
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-800 text-white font-semibold cursor-pointer">
+                      <Lock className="w-4 h-4" /> {uploadingDocument ? 'Uploading...' : 'Upload private ID file'}
+                      <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={uploadingDocument} onChange={handleDocumentUpload} className="sr-only" />
+                    </label>
+                  ) : (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                      Private ID uploads are disabled on hosted staging to prevent Firebase Storage charges. They can be tested with the local Firebase Storage Emulator.
+                    </p>
+                  )}
                   {documents.map((item) => <div key={item.id} className="text-xs rounded bg-stone-50 p-2 flex justify-between gap-2"><span>{item.type} · {item.maskedId} · {item.fileName}</span><strong className={item.verified ? 'text-emerald-700' : 'text-amber-700'}>{item.verified ? 'Verified' : 'Pending review'}</strong></div>)}
                 </div>
 

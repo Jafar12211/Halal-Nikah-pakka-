@@ -1,5 +1,8 @@
 import { LanguageCode } from '../types/database';
 
+export const normalizeLanguageCode = (value: unknown): LanguageCode =>
+  value === 'te' || value === 'ur' ? value : 'en';
+
 export const translations: Record<LanguageCode, Record<string, string>> = {
   en: {
     // Navigation
