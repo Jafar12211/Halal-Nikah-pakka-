@@ -1,4 +1,4 @@
-name: Firebase staging preview
+name: Firebase staging validation and optional preview
 
 on:
   push:
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   staging-preview:
-    name: Test and deploy isolated Firebase staging preview
+    name: Validate staging and optionally deploy isolated preview
     runs-on: ubuntu-latest
     env:
       STAGING_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID_STAGING || 'nikah-pakka-staging' }}
@@ -115,9 +115,35 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-staging-service-account.json" >> "$GITHUB_ENV"
 
       - name: Deploy firestore rules (Spark plan compatible only; NO Storage, NO Functions)
+        id: deploy_firestore_rules
         if: steps.staging.outputs.ready == 'true'
         run: npx --yes firebase-tools@15.35.0 deploy --only firestore:rules --project "$STAGING_PROJECT_ID" --non-interactive
 
       - name: Deploy temporary Firebase Hosting preview channel
+        id: deploy_hosting_preview
         if: steps.staging.outputs.ready == 'true'
         run: npx --yes firebase-tools@15.35.0 hosting:channel:deploy "${{ steps.channel.outputs.name }}" --project "$STAGING_PROJECT_ID" --expires 7d --non-interactive
+
+
+      - name: Report staging deployment status
+        if: always()
+        shell: bash
+        env:
+          STAGING_READY: ${{ steps.staging.outputs.ready }}
+          RULES_OUTCOME: ${{ steps.deploy_firestore_rules.outcome }}
+          HOSTING_OUTCOME: ${{ steps.deploy_hosting_preview.outcome }}
+        run: |
+          {
+            echo "### Firebase staging deployment"
+            echo "Target project: **nikah-pakka-staging**"
+            if [[ "$STAGING_READY" != "true" ]]; then
+              echo "**Status: BLOCKED — NOT DEPLOYED**"
+              echo "The required FIREBASE_SERVICE_ACCOUNT_STAGING Actions secret is missing. No Firestore rules or Hosting preview deployment occurred."
+            elif [[ "$RULES_OUTCOME" == "success" && "$HOSTING_OUTCOME" == "success" ]]; then
+              echo "**Status: DEPLOYED TO STAGING PREVIEW**"
+              echo "Firestore rules were deployed to nikah-pakka-staging and a temporary Hosting preview channel was created."
+            else
+              echo "**Status: NOT COMPLETED**"
+              echo "One or more deployment steps did not complete successfully. Review this workflow's deployment step logs."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
