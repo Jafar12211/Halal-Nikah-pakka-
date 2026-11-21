@@ -21,7 +21,7 @@ import {
 } from '../services/firestoreService';
 
 import { auth } from '../services/firebase';
-import { sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
+import { sendEmailVerification, updateProfile } from 'firebase/auth';
 import type { UserAccount } from '../types/database';
 
 interface AuthModalProps {
@@ -141,19 +141,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const user = await registerWithEmailPassword(email, password);
 
       if (!auth.currentUser) {
-        throw new Error('Account was created, but the sign-in session is unavailable. Please sign in.');
+        throw new Error('Your account was created, but the sign-in session could not be established. Please try signing in.');
       }
 
       await updateProfile(auth.currentUser, {
         displayName: name.trim(),
       });
-      await sendEmailVerification(auth.currentUser);
-      await signOut(auth);
 
-      setMode('login');
-      setPassword('');
-      setToast('Account created. A verification link has been sent to your email. Verify your email, then sign in.');
-      setEmail(email.trim());
+      // Send verification without destroying the new member's authenticated
+      // session. The app can now open the biodata form immediately; signing the
+      // member out here previously prevented them from completing registration.
+      try {
+        await sendEmailVerification(auth.currentUser);
+      } catch (verificationError) {
+        console.warn('Verification email could not be sent during registration:', verificationError);
+      }
+
+      finishAuthentication({
+        ...user,
+        name: name.trim(),
+      });
     } catch (err: any) {
       if (err?.code === 'auth/email-already-in-use') {
         // Move directly to the sign-in form and keep the email the user entered.
