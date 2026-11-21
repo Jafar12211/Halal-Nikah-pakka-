@@ -249,8 +249,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     'block text-xs font-semibold text-stone-700 mb-1';
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-stone-200 overflow-hidden my-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/70 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4">
+      <div className="relative my-auto bg-white w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] rounded-2xl shadow-2xl border border-stone-200 overflow-y-auto overscroll-contain">
 
         <div className="bg-emerald-950 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-900">
           <div>
