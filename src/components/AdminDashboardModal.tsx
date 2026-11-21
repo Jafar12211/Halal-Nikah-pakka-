@@ -25,6 +25,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
+import { AdminCandidateFullDetails } from './AdminCandidateFullDetails';
 
 import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore, verifyGovernmentDocumentFirestore } from '../services/firestoreService';
 import { getStorageFileBlob } from '../services/firebaseStorageService';
@@ -722,6 +723,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
               {/* Studio Scrollable Body */}
               <div className="p-6 overflow-y-auto space-y-5 text-xs">
+                <AdminCandidateFullDetails profile={selectedProfile} />
+
                 {/* 1. PHOTO VERIFICATION STUDIO */}
                 <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-3">
                   <div className="flex items-center justify-between">
