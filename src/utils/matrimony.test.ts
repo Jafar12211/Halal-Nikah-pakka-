@@ -6,6 +6,7 @@ import {
   validateRegistrationForm,
   generateWhatsAppShareMessage,
   generateBiodataText,
+  OFFICIAL_REGISTRATION_URL,
   RegistrationInput
 } from './matrimony';
 import { MatrimonyProfile, FilterState } from '../types/matrimony';
@@ -179,7 +180,8 @@ test('generateWhatsAppShareMessage generates encoded text with registration link
   const encoded = generateWhatsAppShareMessage();
   const decoded = decodeURIComponent(encoded);
   assert.ok(decoded.includes('NIKAH PAKKA'));
-  assert.ok(decoded.includes('freebuff.page/profile'));
+  assert.ok(decoded.includes(OFFICIAL_REGISTRATION_URL));
+  assert.equal(decoded.includes('freebuff.page/profile'), false);
   assert.ok(decoded.includes('Our Small Request'));
 });
 

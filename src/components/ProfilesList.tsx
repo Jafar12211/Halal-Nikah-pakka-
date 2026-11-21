@@ -21,6 +21,7 @@ import { FilterState } from '../types/matrimony';
 import { generateWhatsAppShareMessage, getProfileDistanceKm } from '../utils/matrimony';
 import { translations } from '../utils/translations';
 import { GODAVARI_DISTRICTS } from '../services/storageService';
+import { ProfilePhotoCarousel } from './ProfilePhotoCarousel';
 
 interface ProfilesListProps {
   profiles: UserProfile[];
@@ -48,7 +49,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
   const handleShareProfile = (profile: UserProfile, e: React.MouseEvent) => {
     e.stopPropagation();
     const encoded = generateWhatsAppShareMessage(profile.candidateName);
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -59,12 +60,12 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-800 mb-2">
               <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{t.directoryTitle || 'Verified Community Directory'}</span>
+              <span>{t.directoryTitle || 'Approved Community Directory'}</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-serif font-bold text-stone-900 tracking-tight">
               {language === 'te'
                 ? 'యానాం & గోదావరి ముస్లిం సంబంధాలు'
-                : 'Yanam & Godavari Verified Muslim Matches'}
+                : 'Yanam & Godavari Muslim Matrimony Profiles'}
             </h2>
             <p className="text-xs sm:text-sm text-stone-600 mt-1">
               {t.directorySub ||
@@ -256,8 +257,18 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
               return (
                 <div
                   key={profile.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View profile for ${profile.candidateName}`}
                   onClick={() => onSelectProfile(profile)}
-                  className="group bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer"
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelectProfile(profile);
+                    }
+                  }}
+                  className="group bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer"
                 >
                   <div>
                     {/* Top strip: District & Verification Info */}
@@ -265,9 +276,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                       <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-700" />
                         <span>
-                          {profile.documents && profile.documents.length > 0
-                            ? `${profile.documents[0].type} Verified`
-                            : 'Govt ID Verified'}
+                          {profile.isVerified === true ? 'Admin Reviewed' : 'Review Pending'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -290,32 +299,15 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                     {/* Candidate Identity Section */}
                     <div className="p-5 pb-3">
                       <div className="flex items-start gap-4">
-                        {/* Avatar or Uploaded Photo */}
-                        {profile.photos && profile.photos.length > 0 ? (
-                          <div className="w-14 h-14 rounded-2xl overflow-hidden border border-emerald-700/30 shadow-xs shrink-0 relative">
-                            <img
-                              src={profile.photos[0]}
-                              alt={profile.candidateName}
-                              className={`w-full h-full object-cover transition-all ${
-                                profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest
-                                  ? 'blur-xs scale-105'
-                                  : ''
-                              }`}
-                            />
-                            {profile.photoPrivacy === 'blurred_until_request' && !hasExpressedInterest && (
-                              <div className="absolute inset-0 bg-stone-900/25 flex items-center justify-center">
-                                <Lock className="w-3.5 h-3.5 text-white drop-shadow" />
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-serif font-bold text-lg shadow-xs shrink-0"
-                            style={{ backgroundColor: profile.avatarBgColor || '#047857' }}
-                          >
-                            {profile.avatarInitials}
-                          </div>
-                        )}
+                        {/* Candidate photo carousel or monogram placeholder */}
+                        <ProfilePhotoCarousel
+                          photos={profile.photos}
+                          alt={profile.candidateName}
+                          initials={profile.avatarInitials}
+                          backgroundColor={profile.avatarBgColor}
+                          className="w-14 h-14 rounded-2xl border border-emerald-700/30 shadow-xs shrink-0"
+                          blurred={profile.photoPrivacy !== 'visible'}
+                        />
 
                         {/* Name & Basic Details */}
                         <div className="min-w-0 flex-1">
@@ -357,11 +349,11 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                       <div className="mt-3 pt-2.5 border-t border-stone-100">
                         <div className="flex items-center gap-2 text-[11px] text-stone-600">
                           <span className="font-semibold text-emerald-900">Deen:</span>
-                          <span>{profile.religion.salah}</span>
+                          <span>{profile.religion?.salah || 'Not specified'}</span>
                           <span aria-hidden="true">·</span>
-                          <span>{profile.religion.hijabOrBeard}</span>
+                          <span>{profile.religion?.hijabOrBeard || 'Not specified'}</span>
                           <span aria-hidden="true">·</span>
-                          <span>{profile.religion.sect}</span>
+                          <span>{profile.religion?.sect || 'Sunni'}</span>
                         </div>
                       </div>
 
@@ -442,7 +434,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({
                             hasExpressedInterest ? 'fill-rose-700 text-rose-700' : 'text-amber-300'
                           }`}
                         />
-                        <span>{hasExpressedInterest ? (t.interested || 'Interest Sent') : (t.sendKhabar || 'Send Khabar')}</span>
+                        <span>{hasExpressedInterest ? 'Saved' : 'Save Profile'}</span>
                       </button>
                     </div>
                   </div>

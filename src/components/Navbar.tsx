@@ -1,3 +1,4 @@
+import { isAdminUser } from '../utils/admin';
 import React, { useState } from 'react';
 import {
   Heart,
@@ -45,9 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const t = translations[language];
-  const isAdmin =
-    currentUser?.role === 'admin' ||
-    currentUser?.email.toLowerCase() === 'jafarmd0007@gmail.com';
+  const isAdmin = isAdminUser(currentUser);
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
@@ -160,11 +159,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onToggleLanguage}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:text-emerald-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors border border-stone-200"
-              title="Switch language between English and Telugu"
+              title="Switch language between English, Telugu, and Urdu"
               aria-label="Toggle language"
             >
               <Globe className="w-3.5 h-3.5 text-emerald-800" />
-              <span>{language === 'en' ? 'తెలుగు' : 'English'}</span>
+              <span>{language === 'en' ? 'తెలుగు' : language === 'te' ? 'اردو' : 'English'}</span>
             </button>
 
             {/* In-app Family Chat */}
