@@ -16,190 +16,75 @@
 }
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-    scroll-padding-top: 5rem;
-    background: var(--np-ivory);
-  }
-
+  html { scroll-behavior: smooth; scroll-padding-top: 5rem; background: var(--np-ivory); }
   body {
     min-width: 320px;
     font-family: 'Plus Jakarta Sans', 'Noto Sans Telugu', 'Noto Naskh Arabic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     color: var(--np-ink);
-    background:
-      radial-gradient(ellipse at 8% 0%, rgba(214, 168, 79, 0.07), transparent 28rem),
-      var(--np-ivory);
+    background: radial-gradient(ellipse at 8% 0%, rgba(214, 168, 79, 0.07), transparent 28rem), var(--np-ivory);
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-
-  #root {
-    min-height: 100vh;
-    min-height: 100svh;
-    overflow-x: clip;
-  }
-
-  button, a, input, select, textarea {
-    -webkit-tap-highlight-color: transparent;
-  }
-
+  #root { min-height: 100vh; min-height: 100svh; overflow-x: clip; }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-    outline: 3px solid rgba(214, 168, 79, 0.9);
-    outline-offset: 3px;
+    outline: 3px solid rgba(214, 168, 79, 0.9); outline-offset: 3px;
   }
-
-  input, select, textarea {
-    accent-color: var(--np-forest);
-  }
-
-  input::placeholder, textarea::placeholder {
-    color: #8b9690;
-    opacity: 1;
-  }
-
-  button:disabled {
-    cursor: not-allowed;
-  }
-
-  ::selection {
-    color: #022c22;
-    background: #f4dfad;
-  }
-
-  img {
-    max-width: 100%;
-  }
-
-  h1, h2, h3, h4 {
-    text-wrap: balance;
-  }
-
-  p {
-    text-wrap: pretty;
-  }
+  input, select, textarea { accent-color: var(--np-forest); }
+  input::placeholder, textarea::placeholder { color: #8b9690; opacity: 1; }
+  button:disabled { cursor: not-allowed; }
+  ::selection { color: #022c22; background: #f4dfad; }
+  img { max-width: 100%; }
+  h1, h2, h3, h4 { text-wrap: balance; }
+  p { text-wrap: pretty; }
 }
 
-.font-arabic {
-  font-family: 'Noto Naskh Arabic', 'Amiri', serif;
-}
+.font-arabic { font-family: 'Noto Naskh Arabic', 'Amiri', serif; }
 
-/* A consistent premium finish across the existing experience. */
-#home {
-  isolation: isolate;
-  background-color: var(--np-forest-deep);
-}
-
-#home > div:last-child {
-  position: relative;
-}
-
-#mission-section,
-#matches-section,
-#faqs-section,
-#share-section,
-#duas-section {
-  scroll-margin-top: 5rem;
-}
-
-#matches-section > section {
-  background: linear-gradient(180deg, rgba(250, 249, 245, 0.96), rgba(255, 255, 255, 0.98));
-}
-
-#matches-section article,
-#matches-section [role="button"] {
+#home { isolation: isolate; background-color: var(--np-forest-deep); }
+#home > div:last-child { position: relative; }
+#mission-section, #matches-section, #faqs-section, #share-section, #duas-section { scroll-margin-top: 5rem; }
+#matches-section > section { background: linear-gradient(180deg, rgba(250, 249, 245, 0.96), rgba(255, 255, 255, 0.98)); }
+#matches-section article, #matches-section [role="button"] {
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
-
 @media (hover: hover) and (pointer: fine) {
-  #matches-section article:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 18px 38px rgba(20, 45, 34, 0.09);
-  }
+  #matches-section article:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(20, 45, 34, 0.09); }
 }
 
-/* Form controls: consistent contrast, comfortable touch targets and clear errors. */
-input:not([type="checkbox]):not([type="radio]),
-select,
-textarea {
-  max-width: 100%;
-}
-
-input:not([type="checkbox]):not([type="radio]):focus,
-select:focus,
-textarea:focus {
+/* Form controls: consistent contrast, comfortable touch targets and clear focus. */
+input:not([type="checkbox"]):not([type="radio"]), select, textarea { max-width: 100%; }
+input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus {
   border-color: var(--np-forest) !important;
   box-shadow: 0 0 0 3px rgba(6, 78, 59, 0.10);
 }
-
-button, [role="button"] {
-  touch-action: manipulation;
-}
-
+button, [role="button"] { touch-action: manipulation; }
 button:not(:disabled) {
   transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
-
-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
+button:active:not(:disabled) { transform: translateY(1px); }
 
 /* Keep overlays usable on short screens and mobile browsers. */
-.fixed.inset-0 {
-  overscroll-behavior: contain;
-}
-
-.fixed.inset-0 > div {
-  max-height: 100%;
-}
-
+.fixed.inset-0 { overscroll-behavior: contain; }
+.fixed.inset-0 > div { max-height: 100%; }
 [role="dialog"] {
   max-height: calc(100vh - 1.5rem);
   max-height: calc(100dvh - 1.5rem);
   overscroll-behavior: contain;
 }
 
-/* RTL support for Urdu without changing component layout or application logic. */
-html[dir="rtl"] body {
-  font-family: 'Noto Naskh Arabic', 'Plus Jakarta Sans', system-ui, sans-serif;
-}
-
-html[dir="rtl"] .font-arabic {
-  line-height: 1.9;
-}
+/* Urdu uses a native Arabic-script font while retaining existing RTL layout. */
+html[dir="rtl"] body { font-family: 'Noto Naskh Arabic', 'Plus Jakarta Sans', system-ui, sans-serif; }
+html[dir="rtl"] .font-arabic { line-height: 1.9; }
 
 @media (max-width: 640px) {
-  html {
-    scroll-padding-top: 4.25rem;
+  html { scroll-padding-top: 4.25rem; }
+  body { font-size: 15px; }
+  #mission-section, #matches-section, #faqs-section, #share-section, #duas-section {
+    scroll-margin-top: 4.25rem; padding-top: 3.25rem; padding-bottom: 3.25rem;
   }
-
-  body {
-    font-size: 15px;
-  }
-
-  #mission-section,
-  #matches-section,
-  #faqs-section,
-  #share-section,
-  #duas-section {
-    scroll-margin-top: 4.25rem;
-  }
-
-  #mission-section,
-  #matches-section,
-  #faqs-section,
-  #share-section,
-  #duas-section {
-    padding-top: 3.25rem;
-    padding-bottom: 3.25rem;
-  }
-
-  input:not([type="checkbox"]):not([type="radio"]),
-  select,
-  textarea {
-    font-size: 16px;
-  }
-
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
   .fixed.inset-0 {
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
@@ -207,23 +92,14 @@ html[dir="rtl"] .font-arabic {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 }
-
 @media (min-width: 641px) and (max-width: 1024px) {
-  #mission-section,
-  #matches-section,
-  #faqs-section,
-  #share-section,
-  #duas-section {
-    padding-top: 4.25rem;
-    padding-bottom: 4.25rem;
+  #mission-section, #matches-section, #faqs-section, #share-section, #duas-section {
+    padding-top: 4.25rem; padding-bottom: 4.25rem;
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important; animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
   }
 }
