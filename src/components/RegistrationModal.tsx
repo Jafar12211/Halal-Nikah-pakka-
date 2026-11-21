@@ -300,7 +300,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               }}
               className="px-6 py-2.5 bg-emerald-800 text-white text-xs font-semibold rounded-lg hover:bg-emerald-900"
             >
-              Close
+              View My Profile
             </button>
           </div>
         ) : (

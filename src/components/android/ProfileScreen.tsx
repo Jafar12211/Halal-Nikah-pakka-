@@ -158,8 +158,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     {myProfile.mandalCity}, {myProfile.district} · {myProfile.religion.sect}
                   </p>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  {myProfile.approvalStatus === 'approved' ? (isTelugu ? 'ఆమోదించబడింది' : 'Approved') : (isTelugu ? 'పరిశీలనలో ఉంది' : 'Pending')}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  myProfile.approvalStatus === 'approved'
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    : myProfile.approvalStatus === 'rejected'
+                      ? 'bg-rose-100 text-rose-800 border-rose-200'
+                      : myProfile.approvalStatus === 'suspended'
+                        ? 'bg-stone-200 text-stone-800 border-stone-300'
+                        : 'bg-amber-100 text-amber-900 border-amber-200'
+                }`}>
+                  {myProfile.approvalStatus === 'approved'
+                    ? (isTelugu ? 'ఆమోదించబడింది' : 'Approved')
+                    : myProfile.approvalStatus === 'rejected'
+                      ? (isTelugu ? 'తిరస్కరించబడింది' : 'Changes required')
+                      : myProfile.approvalStatus === 'suspended'
+                        ? (isTelugu ? 'నిలిపివేయబడింది' : 'Suspended')
+                        : (isTelugu ? 'పరిశీలనలో ఉంది' : 'Pending review')}
                 </span>
               </div>
 

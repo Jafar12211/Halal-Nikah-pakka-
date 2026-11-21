@@ -144,6 +144,8 @@ export default function App() {
 
         // Preserve the authenticated session even if profile loading fails.
         setCurrentUser(user);
+        // Send signed-in members directly to their own profile area.
+        setActiveTab('profile');
 
         try {
           const profileSnapshot = await getDoc(
@@ -159,6 +161,9 @@ export default function App() {
             });
           } else {
             setMyProfile(null);
+            // A member with no biodata should be guided straight into registration.
+            // Admins use the admin console and do not need a candidate profile.
+            if (!isAdmin) setIsRegisterOpen(true);
           }
         } catch (profileError) {
           console.error('Firebase profile load error:', profileError);
@@ -862,6 +867,7 @@ export default function App() {
         onAuthSuccess={(user: UserAccount) => {
           setCurrentUser(user);
           setIsAuthOpen(false);
+          setActiveTab('profile');
           showToast(`Assalamu Alaikum, ${user.name}!`);
           void refreshMyProfile();
         }}
