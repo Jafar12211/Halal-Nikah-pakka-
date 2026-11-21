@@ -114,42 +114,91 @@ export function calculateCompatibilityScore(
   preferences?: Partial<MatrimonyProfile['partnerPreferences']>
 ): { score: number; highlights: string[] } {
   const highlights: string[] = [];
-  let score = 70; // baseline community alignment
+  const checks: Array<{ weight: number; matched: boolean; label: string }> = [];
+
+  // Only score preferences the member actually supplied. Missing preferences
+  // are not treated as matches, and verification is displayed as a trust signal
+  // rather than being allowed to inflate personal compatibility.
+  if (typeof preferences?.minAge === 'number' && typeof preferences?.maxAge === 'number') {
+    checks.push({
+      weight: 25,
+      matched: candidate.age >= preferences.minAge && candidate.age <= preferences.maxAge,
+      label: 'Within preferred age range',
+    });
+  }
+
+  if (preferences?.maritalStatusPreference?.length) {
+    checks.push({
+      weight: 20,
+      matched: preferences.maritalStatusPreference.includes(candidate.maritalStatus),
+      label: 'Matches preferred marital status',
+    });
+  }
+
+  if (preferences?.locationPreference?.length) {
+    const candidateLocation = candidate.city.toLocaleLowerCase();
+    checks.push({
+      weight: 20,
+      matched: preferences.locationPreference.some((location) =>
+        candidateLocation.includes(location.toLocaleLowerCase())
+      ),
+      label: 'Matches preferred location',
+    });
+  }
+
+  if (preferences?.educationPreference?.trim()) {
+    const requestedEducation = preferences.educationPreference.toLocaleLowerCase();
+    checks.push({
+      weight: 15,
+      matched: candidate.education.toLocaleLowerCase().includes(requestedEducation),
+      label: 'Matches education preference',
+    });
+  }
+
+  if (preferences?.religiosityPreference?.trim()) {
+    const requestedPractice = preferences.religiosityPreference.toLocaleLowerCase();
+    const practiceText = [
+      candidate.religiousPractice.salah,
+      candidate.religiousPractice.hijabOrBeard,
+      candidate.religiousPractice.quranRecitation,
+      candidate.religiousPractice.halalDiet ? 'halal' : '',
+    ].join(' ').toLocaleLowerCase();
+    checks.push({
+      weight: 20,
+      matched: requestedPractice.split(/[;,/]+/).map((part) => part.trim()).filter(Boolean)
+        .some((part) => practiceText.includes(part)),
+      label: 'Matches stated religious-practice preference',
+    });
+  }
+
+  const applicableWeight = checks.reduce((total, check) => total + check.weight, 0);
+  const matchedWeight = checks.reduce((total, check) => total + (check.matched ? check.weight : 0), 0);
+
+  for (const check of checks) {
+    if (check.matched) highlights.push(check.label);
+  }
 
   if (candidate.isVerified) {
-    score += 10;
-    highlights.push('Manually verified family background');
+    highlights.push('Profile has an admin-reviewed verification status');
   }
-
   if (candidate.religiousPractice.salah === '5 times daily') {
-    score += 10;
     highlights.push('Punctual with 5 daily Salah');
-  } else if (candidate.religiousPractice.salah === 'Regularly') {
-    score += 5;
-    highlights.push('Regular Salah practitioner');
   }
-
   if (candidate.religiousPractice.halalDiet) {
-    score += 5;
-    highlights.push('Strict Halal lifestyle');
+    highlights.push('Halal lifestyle stated');
   }
-
   if (candidate.guardianWaliContact.name && candidate.guardianWaliContact.phone) {
-    score += 5;
-    highlights.push('Family / Wali actively involved');
+    highlights.push('Family / Wali contact provided');
   }
 
-  if (preferences?.minAge && preferences?.maxAge) {
-    if (candidate.age >= preferences.minAge && candidate.age <= preferences.maxAge) {
-      highlights.push('Within preferred age range');
-    }
-  }
+  // With no member preferences, return a neutral score instead of an invented
+  // compatibility percentage. The UI should describe this as "set preferences".
+  const score = applicableWeight === 0
+    ? 0
+    : Math.round((matchedWeight / applicableWeight) * 100);
 
-  // Cap between 0 and 100
-  const finalScore = Math.min(100, Math.max(50, score));
-  return { score: finalScore, highlights };
+  return { score, highlights };
 }
-
 /**
  * Supported government identity documents strictly limited to Aadhaar, PAN, Passport, and Driving Licence.
  */

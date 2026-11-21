@@ -110,11 +110,36 @@ test('filterProfiles filters correctly by gender and age', () => {
   assert.equal(cityResults[0].candidateName, 'Zayd Khan');
 });
 
-test('calculateCompatibilityScore awards points for Salah and Verification', () => {
+test('calculateCompatibilityScore matches only member-supplied preferences and explains trust signals', () => {
   const result = calculateCompatibilityScore(sampleProfile, { minAge: 25, maxAge: 30 });
-  assert.ok(result.score >= 85);
+  assert.equal(result.score, 100);
+  assert.ok(result.highlights.includes('Within preferred age range'));
   assert.ok(result.highlights.includes('Punctual with 5 daily Salah'));
-  assert.ok(result.highlights.includes('Manually verified family background'));
+  assert.ok(result.highlights.includes('Profile has an admin-reviewed verification status'));
+});
+
+test('calculateCompatibilityScore does not invent a compatibility score when preferences are empty', () => {
+  const result = calculateCompatibilityScore(sampleProfile);
+  assert.equal(result.score, 0);
+  assert.equal(result.highlights.includes('Within preferred age range'), false);
+});
+
+test('calculateCompatibilityScore penalizes candidates outside the selected age range', () => {
+  const result = calculateCompatibilityScore(sampleProfile, { minAge: 30, maxAge: 35 });
+  assert.equal(result.score, 0);
+  assert.equal(result.highlights.includes('Within preferred age range'), false);
+});
+
+test('calculateCompatibilityScore evaluates location, education and marital preferences', () => {
+  const result = calculateCompatibilityScore(sampleProfile, {
+    locationPreference: ['Hyderabad'],
+    educationPreference: 'MBBS',
+    maritalStatusPreference: ['Never Married'],
+  });
+  assert.equal(result.score, 100);
+  assert.ok(result.highlights.includes('Matches preferred location'));
+  assert.ok(result.highlights.includes('Matches education preference'));
+  assert.ok(result.highlights.includes('Matches preferred marital status'));
 });
 
 test('validateRegistrationForm rejects missing essential fields', () => {
