@@ -1,12 +1,9 @@
 {
-  "projectId": "effective-timer-8fx4d",
-  "appId": "1:188584702250:web:8dbdaaefb49b51ca74ee53",
-  "apiKey": "AIzaSyB4gI5Sf_ZesjXmDI5BAityvbSnSAUcGFE",
-  "authDomain": "effective-timer-8fx4d.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-nikahpakkagenuin-e22c7ff3-3c90-4267-9954-85d485dbc143",
-  "storageBucket": "effective-timer-8fx4d.firebasestorage.app",
-  "messagingSenderId": "188584702250",
-  "measurementId": "",
-  "oAuthClientId": "188584702250-hvlq35a3c4j7tmi21dh1uhtjmlu9rp16.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "projectId": "nikah-pakka",
+  "appId": "1:655818278889:web:41569b3545534e9e4d6d78",
+  "apiKey": "AIzaSyBwKZSFo38TOAVY6RgD6dXJ9wp77vb4nds",
+  "authDomain": "nikah-pakka.firebaseapp.com",
+  "storageBucket": "nikah-pakka.firebasestorage.app",
+  "messagingSenderId": "655818278889",
+  "measurementId": "G-JX04VDG5VS"
 }
