@@ -280,6 +280,13 @@ export async function saveProfileToFirestore(
 
   const safeData = removeUndefined({
     ...memberFields,
+    // Server-derived from the authenticated Firebase user, never trusted from form input.
+    // These fields remain in the private registration document and are never published.
+    accountEmail: user.email || '',
+    accountPhone: user.phoneNumber || '',
+    authProvider: user.providerData.some((provider) => provider.providerId === 'google.com')
+      ? 'google'
+      : 'email',
     documents: safeDocuments,
     userId: user.uid,
     updatedAt: serverTimestamp(),
