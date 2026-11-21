@@ -27,7 +27,7 @@ import {
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
 import { AdminCandidateFullDetails } from './AdminCandidateFullDetails';
 
-import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore, verifyGovernmentDocumentFirestore } from '../services/firestoreService';
+import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore, verifyGovernmentDocumentFirestore, deleteRegistrationAsAdmin } from '../services/firestoreService';
 import { getStorageFileBlob } from '../services/firebaseStorageService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 import { isAdminUser } from '../utils/admin';
@@ -210,6 +210,35 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       console.error(`Failed to ${status} profile:`, error);
       const message = error instanceof Error ? error.message : 'Unknown Firebase error';
       setErrorMessage(`Could not ${status} profile: ${message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteProfileData = async (profile: UserProfile) => {
+    if (isUpdating) return;
+    const confirmed = window.confirm(
+      `Delete the private registration and public profile data for ${profile.candidateName || 'this candidate'}? This cannot be undone. The Firebase Authentication account will remain and must be handled separately.`
+    );
+    if (!confirmed) return;
+
+    setIsUpdating(true);
+    setErrorMessage(null);
+    try {
+      await deleteRegistrationAsAdmin(profile.userId);
+      const [updatedProfiles, updatedAuditLogs] = await Promise.all([
+        fetchAllRegistrations(),
+        fetchAdminAuditLogs(),
+      ]);
+      setProfiles(updatedProfiles);
+      setAuditLogs(updatedAuditLogs);
+      setSelectedProfile(null);
+      setStatusMessage('Candidate profile data deleted. The sign-in account was retained.');
+      window.setTimeout(() => setStatusMessage(null), 4500);
+      onProfileStatusChanged();
+    } catch (error) {
+      console.error('Failed to delete candidate profile data:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Could not delete candidate profile data.');
     } finally {
       setIsUpdating(false);
     }
@@ -573,6 +602,16 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               <span>Reject</span>
                             </button>
                           )}
+
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={() => handleDeleteProfileData(p)}
+                            className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+                            title="Delete private registration and public profile data; retain Firebase Auth account"
+                          >
+                            Delete Profile Data
+                          </button>
 
                           {p.approvalStatus === 'approved' && (
                             <button
