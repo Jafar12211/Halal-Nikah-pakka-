@@ -146,11 +146,82 @@ function validUserDocument(item, uid) {
       allow delete: if owner(uid) || admin();
     }
 
-    // Sanitized profile discovery documents: only trusted backend/admin may publish or modify.
+    // Public profile documents have a strict allowlist. This prevents private
+    // registration fields (guardian contacts, family details, identity metadata,
+    // email, phone, etc.) from being published by an administrator write.
+    function validPublicProfile(uid) {
+      let data = request.resource.data;
+      return data is map
+        && data.keys().hasAll([
+          'userId', 'candidateName', 'gender', 'age', 'height', 'maritalStatus',
+          'religion', 'education', 'profession', 'employedIn', 'annualIncomeRange',
+          'district', 'mandalCity', 'motherTongue', 'partnerPreferences',
+          'mustHaves', 'dealBreakers', 'aboutCandidate', 'photos', 'photoPrivacy',
+          'avatarInitials', 'avatarBgColor', 'documents', 'isVerified',
+          'approvalStatus', 'createdAt', 'updatedAt', 'favoritesCount',
+          'interestsReceivedCount'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'candidateName', 'gender', 'age', 'height', 'maritalStatus',
+          'religion', 'education', 'profession', 'employedIn', 'annualIncomeRange',
+          'district', 'mandalCity', 'motherTongue', 'partnerPreferences',
+          'mustHaves', 'dealBreakers', 'aboutCandidate', 'photos', 'photoPrivacy',
+          'avatarInitials', 'avatarBgColor', 'documents', 'isVerified',
+          'approvalStatus', 'createdAt', 'updatedAt', 'favoritesCount',
+          'interestsReceivedCount'
+        ])
+        && data.userId == uid
+        && data.approvalStatus == 'approved'
+        && data.isVerified == true
+        && data.candidateName is string
+        && data.candidateName.size() > 0
+        && data.candidateName.size() <= 100
+        && data.gender in ['bride', 'groom']
+        && data.age is number
+        && data.age >= 18 && data.age <= 100
+        && data.height is string
+        && data.maritalStatus in ['Never Married', 'Divorced', 'Widowed']
+        && data.religion is map
+        && data.religion.keys().hasOnly([
+          'sect', 'salah', 'hijabOrBeard', 'quranRecitation',
+          'fastingRamadan', 'halalDiet'
+        ])
+        && data.education is string
+        && data.profession is string
+        && data.employedIn is string
+        && data.annualIncomeRange is string
+        && data.district is string
+        && data.mandalCity is string
+        && data.motherTongue is string
+        && data.partnerPreferences is map
+        && data.partnerPreferences.keys().hasOnly([
+          'minAge', 'maxAge', 'minHeight', 'preferredDistricts',
+          'educationPreference', 'maritalStatusPreference', 'religiosityPreference'
+        ])
+        && data.mustHaves is list
+        && data.mustHaves.size() <= 30
+        && data.dealBreakers is list
+        && data.dealBreakers.size() <= 30
+        && data.aboutCandidate is string
+        && data.photos is list
+        && data.photos.size() <= 10
+        && data.photoPrivacy in ['visible', 'avatar_only']
+        && data.avatarInitials is string
+        && data.avatarBgColor is string
+        && data.documents is list
+        && data.documents.size() == 0
+        && data.favoritesCount is number
+        && data.favoritesCount >= 0
+        && data.interestsReceivedCount is number
+        && data.interestsReceivedCount >= 0;
+    }
+
+    // Only approved, sanitized documents can be read by the public.
+    // Admin writes are schema-constrained; owners may remove their own listing.
     match /publicProfiles/{uid} {
       allow read: if resource.data.approvalStatus == 'approved'
         && resource.data.isVerified == true;
-      allow write: if admin();
+      allow create, update: if admin() && validPublicProfile(uid);
       allow delete: if admin() || owner(uid);
     }
 

@@ -57,7 +57,7 @@ import {
   where,
 } from 'firebase/firestore';
 
-import { normalizeLanguageCode, translations } from './utils/translations';
+import { translations } from './utils/translations';
 import { CheckCircle2 } from 'lucide-react';
 import { isAdminUser } from './utils/admin';
 
@@ -65,7 +65,7 @@ export default function App() {
   const [language, setLanguage] = useState<LanguageCode>(() => {
     try {
       const saved = localStorage.getItem('nikah_godavari_language');
-      return normalizeLanguageCode(saved);
+      return saved === 'te' ? 'te' : 'en';
     } catch {
       return 'en';
     }

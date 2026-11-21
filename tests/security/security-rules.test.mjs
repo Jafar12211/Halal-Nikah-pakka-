@@ -220,6 +220,71 @@ test("An administrator cannot add unexpected identity-document fields", async ()
   );
 });
 
+const validPublicProfile = (uid) => ({
+  userId: uid,
+  candidateName: "Approved Test Member",
+  gender: "groom",
+  age: 25,
+  height: "5'8",
+  maritalStatus: "Never Married",
+  religion: {},
+  education: "Graduate",
+  profession: "Engineer",
+  employedIn: "Private Sector",
+  annualIncomeRange: "Not specified",
+  district: "Yanam (Puducherry)",
+  mandalCity: "Yanam",
+  motherTongue: "Urdu",
+  partnerPreferences: {},
+  mustHaves: [],
+  dealBreakers: [],
+  aboutCandidate: "Test profile",
+  photos: [],
+  photoPrivacy: "avatar_only",
+  avatarInitials: "TM",
+  avatarBgColor: "#047857",
+  documents: [],
+  isVerified: true,
+  approvalStatus: "approved",
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+  favoritesCount: 0,
+  interestsReceivedCount: 0
+});
+
+test("Non-admin members cannot publish public profiles", async () => {
+  const db = testEnv.authenticatedContext("member1").firestore();
+  await assertFails(setDoc(
+    doc(db, "publicProfiles/member1"),
+    validPublicProfile("member1")
+  ));
+});
+
+test("Administrators can publish only allowlisted public profile fields", async () => {
+  const adminDb = testEnv.authenticatedContext(
+    "admin1",
+    { admin: true, email: "admin@example.com" }
+  ).firestore();
+  await assertSucceeds(setDoc(
+    doc(adminDb, "publicProfiles/member1"),
+    validPublicProfile("member1")
+  ));
+});
+
+test("Administrators cannot publish private guardian or family fields", async () => {
+  const adminDb = testEnv.authenticatedContext(
+    "admin1",
+    { admin: true, email: "admin@example.com" }
+  ).firestore();
+  await assertFails(setDoc(
+    doc(adminDb, "publicProfiles/member1"),
+    {
+      ...validPublicProfile("member1"),
+      guardianWaliContact: { phone: "+910000000000" }
+    }
+  ));
+});
+
 test("A member can save an approved public profile to their own account", async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), "publicProfiles/profile1"), {
