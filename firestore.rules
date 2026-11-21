@@ -15,24 +15,74 @@ service cloud.firestore {
       allow list: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if owner(uid) && validUid(uid)
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.keys().hasAll(['userId', 'candidateName', 'age'])
+        && request.resource.data.keys().hasAll(['userId', 'candidateName', 'age', 'candidateConsentConfirmed', 'candidateConsentAt'])
         && request.resource.data.candidateName is string
+        && request.resource.data.candidateName.size() > 0
         && request.resource.data.candidateName.size() <= 100
         && request.resource.data.age is number
         && request.resource.data.age >= 18 && request.resource.data.age <= 100
+        && request.resource.data.candidateConsentConfirmed == true
+        && request.resource.data.candidateConsentAt is string
+        && request.resource.data.candidateConsentAt.size() > 0
+        && request.resource.data.gender in ['bride', 'groom']
+        && request.resource.data.maritalStatus in ['Never Married', 'Divorced', 'Widowed']
         && (!('approvalStatus' in request.resource.data) || request.resource.data.approvalStatus == 'pending')
         && (!('isVerified' in request.resource.data) || request.resource.data.isVerified == false);
-      allow update: if owner(uid)
+      allow update: if (
+        owner(uid)
+        && request.resource.data.userId == resource.data.userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verificationStatus', 'approvalNotes', 'documents'])
+        && request.resource.data.candidateName is string
+        && request.resource.data.candidateName.size() > 0
+        && request.resource.data.candidateName.size() <= 100
+        && request.resource.data.age is number
+        && request.resource.data.age >= 18
+        && request.resource.data.age <= 100
+        && request.resource.data.candidateConsentConfirmed == true
+        && request.resource.data.candidateConsentAt is string
+        && request.resource.data.candidateConsentAt.size() > 0
+        && request.resource.data.gender in ['bride', 'groom']
+        && request.resource.data.maritalStatus in ['Never Married', 'Divorced', 'Widowed']
+        && request.resource.data.approvalStatus == 'pending'
+        && request.resource.data.isVerified == false
+      ) || (
+        admin()
+        && resource.data.userId == uid
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasNone(['approvalStatus', 'verificationStatus', 'isVerified', 'approvalNotes', 'documents']);
+          .hasOnly(['approvalStatus', 'approvalNotes', 'updatedAt', 'isVerified'])
+        && request.resource.data.approvalStatus in ['pending', 'approved', 'rejected', 'suspended']
+        && request.resource.data.isVerified == (request.resource.data.approvalStatus == 'approved')
+        && (request.resource.data.approvalStatus != 'approved'
+          || (
+            resource.data.age is number
+            && resource.data.age >= 18
+            && resource.data.photos is list
+            && resource.data.photos.size() > 0
+            && resource.data.documents is list
+            && resource.data.documents.size() > 0
+          ))
+      );
       allow delete: if owner(uid) || admin();
     }
 
     // Sanitized profile discovery documents: only trusted backend/admin may publish or modify.
     match /publicProfiles/{uid} {
-      allow read: if signedIn();
+      allow read: if resource.data.approvalStatus == 'approved'
+        && resource.data.isVerified == true;
       allow write: if admin();
+      allow delete: if admin() || owner(uid);
+    }
+
+    // Immutable administrator audit trail.
+    match /auditLogs/{logId} {
+      allow read, list: if admin();
+      allow create: if admin()
+        && request.resource.data.performedBy == request.auth.token.email
+        && request.resource.data.targetId is string
+        && request.resource.data.action in ['PROFILE_APPROVED', 'PROFILE_REJECTED', 'PROFILE_SUSPENDED']
+        && request.resource.data.details is string;
+      allow update, delete: if false;
     }
 
     // All other collections are denied until their access model is explicitly implemented.

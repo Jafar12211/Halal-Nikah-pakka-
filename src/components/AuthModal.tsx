@@ -20,7 +20,7 @@ import {
 } from '../services/firestoreService';
 
 import { auth } from '../services/firebase';
-import { updateProfile } from 'firebase/auth';
+import { sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
 import type { UserAccount } from '../types/database';
 
 interface AuthModalProps {
@@ -92,12 +92,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       const code = err?.code;
 
-      if (
+      if (code === 'auth/email-not-verified') {
+        setError(err?.message || 'Check your email for a verification link, then sign in again.');
+      } else if (
         code === 'auth/invalid-credential' ||
         code === 'auth/user-not-found' ||
         code === 'auth/wrong-password'
       ) {
-        setError('Incorrect email or password.');
+        setError('Incorrect email or password. If you forgot it, use “Forgot password?” to reset it.');
       } else if (code === 'auth/too-many-requests') {
         setError('Too many attempts. Please try again later.');
       } else {
@@ -132,25 +134,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const user = await registerWithEmailPassword(email, password);
 
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName: name.trim(),
-        });
+      if (!auth.currentUser) {
+        throw new Error('Account was created, but the sign-in session is unavailable. Please sign in.');
       }
 
-      finishAuthentication({
-        ...user,
-        name: name.trim(),
+      await updateProfile(auth.currentUser, {
+        displayName: name.trim(),
       });
+      await sendEmailVerification(auth.currentUser);
+      await signOut(auth);
+
+      setMode('login');
+      setPassword('');
+      setToast('Account created. A verification link has been sent to your email. Verify your email, then sign in.');
+      setEmail(email.trim());
     } catch (err: any) {
       if (err?.code === 'auth/email-already-in-use') {
-        setError('This email is already registered. Please sign in.');
+        // Move directly to the sign-in form and keep the email the user entered.
+        setEmail(email.trim());
+        setPassword('');
+        setMode('login');
+        setError('This email already has an account. Sign in with its existing password, or choose “Forgot password?” if you need to reset it.');
       } else if (err?.code === 'auth/weak-password') {
         setError('Please choose a stronger password.');
       } else if (err?.code === 'auth/invalid-email') {
         setError('Please enter a valid email address.');
       } else {
-        setError(err?.message || 'Registration failed.');
+        const code = typeof err?.code === 'string' ? ` (${err.code})` : '';
+        const message = typeof err?.message === 'string' ? err.message : 'Please try again.';
+        setError(`Registration failed${code}: ${message}`);
       }
     } finally {
       setLoading(false);

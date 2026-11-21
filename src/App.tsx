@@ -32,11 +32,11 @@ import {
 
 import { FilterState, MatrimonyProfile } from './types/matrimony';
 
-import { storageService } from './services/storageService';
 import { auth, db } from './services/firebase';
 
 import {
   logoutFirebaseUser,
+  deleteOwnAccount,
   saveProfileToFirestore,
 } from './services/firestoreService';
 
@@ -51,6 +51,7 @@ import {
 
 import { translations } from './utils/translations';
 import { CheckCircle2 } from 'lucide-react';
+import { isAdminUser } from './utils/admin';
 
 export default function App() {
   const [language, setLanguage] = useState<LanguageCode>(() => {
@@ -92,14 +93,8 @@ export default function App() {
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
   const [messagingTargetConvId, setMessagingTargetConvId] = useState<string | undefined>();
 
-  const [userInterests, setUserInterests] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('nikah_pakka_interests');
-      return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-    } catch {
-      return new Set<string>();
-    }
-  });
+  const [userInterests, setUserInterests] = useState<Set<string>>(() => new Set<string>());
+  const [interestsOwnerId, setInterestsOwnerId] = useState<string | null>(null);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const t = translations[language];
@@ -113,6 +108,8 @@ export default function App() {
         setAuthLoading(false);
         return;
       }
+
+      setAuthLoading(true);
 
       try {
         const token = await getIdTokenResult(firebaseUser, true);
@@ -137,24 +134,30 @@ export default function App() {
           status: 'active',
         };
 
+        // Preserve the authenticated session even if profile loading fails.
         setCurrentUser(user);
 
-        const profileSnapshot = await getDoc(
-          doc(db, 'registrations', firebaseUser.uid)
-        );
+        try {
+          const profileSnapshot = await getDoc(
+            doc(db, 'registrations', firebaseUser.uid)
+          );
 
-        if (profileSnapshot.exists()) {
-          const data = profileSnapshot.data() as UserProfile;
-          setMyProfile({
-            ...data,
-            id: firebaseUser.uid,
-            userId: firebaseUser.uid,
-          });
-        } else {
+          if (profileSnapshot.exists()) {
+            const data = profileSnapshot.data() as UserProfile;
+            setMyProfile({
+              ...data,
+              id: firebaseUser.uid,
+              userId: firebaseUser.uid,
+            });
+          } else {
+            setMyProfile(null);
+          }
+        } catch (profileError) {
+          console.error('Firebase profile load error:', profileError);
           setMyProfile(null);
         }
       } catch (error) {
-        console.error('Firebase session error:', error);
+        console.error('Firebase authentication session error:', error);
         setCurrentUser(null);
         setMyProfile(null);
       } finally {
@@ -174,17 +177,37 @@ export default function App() {
     }
   }, [language]);
 
-  // Save interests locally temporarily
+  // Keep each account's local shortlist separate on shared devices.
   useEffect(() => {
+    setInterestsOwnerId(null);
+
+    if (!currentUser) {
+      setUserInterests(new Set<string>());
+      return;
+    }
+
+    const storageKey = `nikah_pakka_interests_${currentUser.id}`;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      setUserInterests(saved ? new Set<string>(JSON.parse(saved)) : new Set<string>());
+    } catch (error) {
+      console.error('Failed to load this account’s saved interests:', error);
+      setUserInterests(new Set<string>());
+    }
+    setInterestsOwnerId(currentUser.id);
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser || interestsOwnerId !== currentUser.id) return;
     try {
       localStorage.setItem(
-        'nikah_pakka_interests',
+        `nikah_pakka_interests_${currentUser.id}`,
         JSON.stringify(Array.from(userInterests))
       );
     } catch (error) {
-      console.error('Failed to save interests:', error);
+      console.error('Failed to save this account’s interests:', error);
     }
-  }, [userInterests]);
+  }, [currentUser?.id, interestsOwnerId, userInterests]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -207,7 +230,8 @@ export default function App() {
     try {
       const profilesQuery = query(
         collection(db, 'publicProfiles'),
-        where('approvalStatus', '==', 'approved')
+        where('approvalStatus', '==', 'approved'),
+        where('isVerified', '==', true)
       );
 
       const snapshot = await getDocs(profilesQuery);
@@ -230,8 +254,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Approved public profiles are browseable without requiring an account.
     void refreshProfiles();
-  }, []);
+  }, [currentUser?.id]);
 
   // Load the signed-in user's profile
   const refreshMyProfile = async () => {
@@ -273,6 +298,8 @@ export default function App() {
       id: currentUser.id,
       userId: currentUser.id,
       candidateName: matrimonyProf.candidateName,
+      candidateConsentConfirmed: matrimonyProf.candidateConsentConfirmed === true,
+      candidateConsentAt: matrimonyProf.candidateConsentAt || new Date().toISOString(),
       gender: matrimonyProf.gender,
       dob: '',
       age: matrimonyProf.age,
@@ -281,16 +308,16 @@ export default function App() {
 
       religion: {
         sect: matrimonyProf.sect,
-        salah: matrimonyProf.religiousPractice.salah as any,
-        hijabOrBeard: matrimonyProf.religiousPractice.hijabOrBeard as any,
-        quranRecitation: '',
+        salah: (matrimonyProf.religiousPractice.salah || 'Not specified') as any,
+        hijabOrBeard: (matrimonyProf.religiousPractice.hijabOrBeard || 'Not specified') as any,
+        quranRecitation: 'Not specified',
         fastingRamadan: false,
         halalDiet: false,
       },
 
       education: matrimonyProf.education,
       profession: matrimonyProf.profession,
-      employedIn: matrimonyProf.employedIn as any,
+      employedIn: (matrimonyProf.employedIn || 'Not specified') as any,
       annualIncomeRange: matrimonyProf.annualIncomeRange,
 
       district: (matrimonyProf.city as DistrictAP) || 'Kakinada District',
@@ -305,8 +332,8 @@ export default function App() {
         sistersCount: matrimonyProf.familyDetails.sistersCount,
         sistersMarried: matrimonyProf.familyDetails.sistersMarried,
         nativePlace: matrimonyProf.familyDetails.nativePlace,
-        familyStatus: '',
-        familyValues: matrimonyProf.familyDetails.familyValues as any,
+        familyStatus: 'Not specified',
+        familyValues: (matrimonyProf.familyDetails.familyValues || 'Not specified') as any,
       },
 
       partnerPreferences: {
@@ -363,15 +390,11 @@ export default function App() {
           : 'Your profile has been submitted for admin review.'
       );
 
-      setIsRegisterOpen(false);
       setActiveTab('profile');
     } catch (error) {
       console.error('Profile submission failed:', error);
-      showToast(
-        error instanceof Error
-          ? error.message
-          : 'Unable to submit your profile. Please try again.'
-      );
+      // Let RegistrationModal display the failure and keep the entered form data.
+      throw error;
     }
   };
 
@@ -388,10 +411,10 @@ export default function App() {
 
       if (next.has(profileId)) {
         next.delete(profileId);
-        showToast('Proposal interest removed.');
+        showToast('Interest removed from this device.');
       } else {
         next.add(profileId);
-        showToast('Your proposal interest has been recorded.');
+        showToast('Interest saved on this device only. It has not been sent to the other family.');
       }
 
       return next;
@@ -399,22 +422,14 @@ export default function App() {
   };
 
   // Start a conversation only when both profiles are available
-  const handleStartChatWithProfile = (targetProfile: UserProfile) => {
+  const handleStartChatWithProfile = (_targetProfile: UserProfile) => {
     if (!currentUser) {
-      showToast('Please sign in to start a family conversation.');
+      showToast('Please sign in to continue.');
       setIsAuthOpen(true);
       return;
     }
 
-    if (!myProfile) {
-      showToast('Please complete your profile before starting a conversation.');
-      setIsRegisterOpen(true);
-      return;
-    }
-
-    showToast(
-      'Family messaging migration is not complete yet. Please try again later.'
-    );
+    showToast('Family messaging is not available yet. No message has been sent.');
   };
 
   const handleSignOut = async () => {
@@ -431,6 +446,24 @@ export default function App() {
       console.error('Sign-out failed:', error);
       showToast('Unable to sign out. Please try again.');
     }
+  };
+
+  const handleDeleteAccount = async (password?: string) => {
+    await deleteOwnAccount(password);
+    setCurrentUser(null);
+    setMyProfile(null);
+    setProfiles([]);
+    try {
+      localStorage.removeItem(`nikah_pakka_interests_${currentUser?.id || ''}`);
+    } catch (error) {
+      console.error('Could not clear the local shortlist after account deletion:', error);
+    }
+    setInterestsOwnerId(null);
+    setUserInterests(new Set<string>());
+    setIsMessagingOpen(false);
+    setIsAdminOpen(false);
+    setSelectedProfile(null);
+    showToast('Your account and profile records have been deleted.');
   };
 
   const handleOpenShare = () => {
@@ -488,16 +521,8 @@ export default function App() {
     return true;
   });
 
-  // Local messaging data is retained temporarily for unread count only
-  const unreadMessagesCount = currentUser
-    ? storageService
-        .getConversations(currentUser.id)
-        .reduce(
-          (total, conversation) =>
-            total + (conversation.unreadCount || 0),
-          0
-        )
-    : 0;
+  // Messaging is not enabled; do not read legacy local demo conversations.
+  const unreadMessagesCount = 0;
 
   const handleTabChange = (tab: AndroidTab) => {
     if (tab === 'messages') {
@@ -507,7 +532,7 @@ export default function App() {
         return;
       }
 
-      showToast('Messaging migration is not complete yet.');
+      showToast('Family messaging is not available yet. No message has been sent.');
       return;
     }
 
@@ -534,7 +559,10 @@ export default function App() {
         onToggleLanguage={handleToggleLanguage}
         currentUser={currentUser}
         onOpenDrawer={() => setIsDrawerOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAdmin={() => {
+          if (isAdminUser(currentUser)) setIsAdminOpen(true);
+          else showToast('Administrator access is required.');
+        }}
         activeScreen={activeTab}
         onNavigateHome={() => handleTabChange('home')}
       />
@@ -572,7 +600,7 @@ export default function App() {
                 <span className="hidden sm:inline text-amber-300">
                   {language === 'te'
                     ? 'ఖరీదైన సబ్‌స్క్రిప్షన్ల భారం లేదు · నేరుగా కుటుంబ పెద్దలతో సంప్రదింపులు'
-                    : 'Zero expensive subscriptions · Direct guardian communication'}
+                    : 'No paid subscription required · Family-led introductions'}
                 </span>
               </div>
             </div>
@@ -674,6 +702,7 @@ export default function App() {
         {activeTab === 'profile' && (
           <ProfileScreen
             currentUser={currentUser}
+            myProfile={myProfile}
             language={language}
             onToggleLanguage={handleToggleLanguage}
             onOpenAuth={() => setIsAuthOpen(true)}
@@ -689,6 +718,7 @@ export default function App() {
             onOpenAdmin={() => setIsAdminOpen(true)}
             onOpenShare={handleOpenShare}
             onSignOut={handleSignOut}
+            onDeleteAccount={handleDeleteAccount}
           />
         )}
       </main>
@@ -749,7 +779,7 @@ export default function App() {
       />
 
       <AdminDashboardModal
-        isOpen={isAdminOpen && currentUser?.role === 'admin'}
+        isOpen={isAdminOpen && isAdminUser(currentUser)}
         onClose={() => setIsAdminOpen(false)}
         currentUser={currentUser}
         onProfileStatusChanged={() => {

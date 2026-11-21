@@ -3,6 +3,7 @@ import { Menu, Globe, ShieldCheck, Heart, ArrowLeft, Download, Bell } from 'luci
 import { LanguageCode, UserAccount } from '../../types/database';
 import { translations } from '../../utils/translations';
 import { PWAInstallButton } from '../PWAInstallButton';
+import { isAdminUser } from '../../utils/admin';
 
 interface AndroidTopBarProps {
   language: LanguageCode;
@@ -25,9 +26,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
 }) => {
   const t = translations[language];
   const isTelugu = language === 'te';
-  const isAdmin =
-    currentUser?.role === 'admin' ||
-    currentUser?.email.toLowerCase() === 'jafarmd0007@gmail.com';
+  const isAdmin = isAdminUser(currentUser);
 
   const isSubScreen = activeScreen !== 'home';
 
@@ -67,12 +66,14 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
           )}
 
           {/* App Wordmark */}
-          <div
+          <button
+            type="button"
             onClick={() => {
               triggerHaptic();
               onNavigateHome();
             }}
-            className="flex items-center gap-2 cursor-pointer select-none"
+            className="flex items-center gap-2 cursor-pointer select-none text-left"
+            aria-label="Go to Nikah Pakka home"
           >
             <div className="w-8 h-8 rounded-lg bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-sm shadow-xs border border-emerald-700">
               🌙
@@ -86,7 +87,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
                 {isTelugu ? 'యానాం & గోదావరి' : 'Yanam & Godavari'}
               </span>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Right Actions */}
@@ -108,6 +109,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
           </button>
 
           {/* Admin badge button */}
+          {isAdmin && (
           <button
             onClick={() => {
               triggerHaptic();
@@ -119,6 +121,7 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
             <ShieldCheck className="w-3.5 h-3.5 text-stone-950" />
             <span>Admin</span>
           </button>
+          )}
         </div>
       </div>
     </header>

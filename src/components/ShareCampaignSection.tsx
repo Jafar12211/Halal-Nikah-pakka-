@@ -8,27 +8,23 @@ interface ShareCampaignSectionProps {
 
 export const ShareCampaignSection: React.FC<ShareCampaignSectionProps> = ({ onOpenRegister }) => {
   const [copied, setCopied] = useState(false);
-  const [blessingCount, setBlessingCount] = useState(148);
-  const [hasBlessed, setHasBlessed] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(
-      `Assalamu Alaikum! ❤️ Check out Nikah Pakka - genuine Muslim matrimony with family involvement & affordable matchmaking: ${OFFICIAL_REGISTRATION_URL}`
-    );
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `Assalamu Alaikum! ❤️ Check out Nikah Pakka - a community matrimony directory with family involvement: ${OFFICIAL_REGISTRATION_URL}`
+      );
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+      window.alert('Your browser did not allow copying. Please copy the registration link manually.');
+    }
   };
 
   const handleWhatsAppShare = () => {
     const encoded = generateWhatsAppShareMessage();
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
-  };
-
-  const handleBlessingClick = () => {
-    if (!hasBlessed) {
-      setBlessingCount((prev) => prev + 1);
-      setHasBlessed(true);
-    }
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -157,23 +153,17 @@ export const ShareCampaignSection: React.FC<ShareCampaignSectionProps> = ({ onOp
             </div>
           </div>
 
-          {/* Community pledge banner */}
+          {/* Community sharing note: no unverified participation counts are displayed. */}
           <div className="mt-6 pt-6 border-t border-stone-200 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-emerald-700" />
-              <span><strong>{blessingCount} families</strong> have forwarded Nikah Pakka to their circles this week.</span>
+              <span>Share this directory with families who may find it useful. No sharing or referral count is tracked here.</span>
             </div>
-
             <button
-              onClick={handleBlessingClick}
-              disabled={hasBlessed}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                hasBlessed
-                  ? 'bg-emerald-100 text-emerald-800 cursor-default'
-                  : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
-              }`}
+              onClick={handleWhatsAppShare}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-800 text-white transition-colors"
             >
-              {hasBlessed ? '✓ You pledged to share! JazakAllah Khair' : '+ I will share with 3 families'}
+              Share with family
             </button>
           </div>
         </div>

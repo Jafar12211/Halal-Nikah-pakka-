@@ -13,12 +13,11 @@ import {
 } from 'lucide-react';
 import { auth } from '../services/firebase';
 import { MatrimonyProfile, RegisteredByRole } from '../types/matrimony';
-import { OFFICIAL_REGISTRATION_URL } from '../utils/matrimony';
 
 interface RegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProfileCreated: (newProfile: MatrimonyProfile) => void;
+  onProfileCreated: (newProfile: MatrimonyProfile) => Promise<void>;
 }
 
 type RegistrationForm = {
@@ -175,6 +174,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           formData.guardianName.trim() ||
           formData.candidateName.trim(),
         candidateName: formData.candidateName.trim(),
+        candidateConsentConfirmed: formData.consentConfirmed,
+        candidateConsentAt: new Date().toISOString(),
         gender: formData.gender,
         age: Number(formData.age),
         height: formData.height,
@@ -227,7 +228,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         interestsCount: 0,
       } as unknown as MatrimonyProfile;
 
-      onProfileCreated(newProfile);
+      await onProfileCreated(newProfile);
       setSubmittedSuccess(true);
     } catch (error) {
       console.error('Registration submission failed:', error);
@@ -272,17 +273,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           </button>
         </div>
 
-        <div className="bg-amber-50 px-6 py-2.5 border-b border-amber-200 flex items-center justify-between text-xs text-amber-900">
-          <span>Prefer the external registration portal?</span>
-          <a
-            href={OFFICIAL_REGISTRATION_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-emerald-800 underline"
-          >
-            Open External Portal
-          </a>
-        </div>
+
 
         {submittedSuccess ? (
           <div className="p-8 text-center space-y-4">
