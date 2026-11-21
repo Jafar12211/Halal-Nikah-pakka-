@@ -63,9 +63,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const user = await signInWithGoogleAccount();
       finishAuthentication(user);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : 'Google sign-in failed.'
-      );
+      const code = (err as { code?: string })?.code;
+      if (code === 'auth/popup-closed-by-user') {
+        setError('Google sign-in was cancelled before completion. You can try Google again or create an account using the email form below.');
+      } else if (code === 'auth/popup-blocked') {
+        setError('Your browser blocked the Google sign-in popup. Allow popups for this site and try again, or use email registration below.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again or use email registration.');
+      }
     } finally {
       setLoading(false);
     }
@@ -200,8 +205,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/70 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4">
+      <div className="relative my-auto bg-white w-full max-w-md max-h-[calc(100dvh-1.5rem)] rounded-2xl shadow-2xl border border-stone-200 overflow-y-auto overscroll-contain">
 
         {/* Header */}
         <div className="bg-emerald-950 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-900">
