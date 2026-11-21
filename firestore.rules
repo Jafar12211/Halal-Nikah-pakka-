@@ -83,6 +83,17 @@ function validUserDocument(item, uid) {
         && (items.size() < 5 || validUserDocument(items[4], uid));
     }
 
+    // Approval requires every submitted identity document to have been
+    // explicitly reviewed by an administrator, not merely attached.
+    function allIdentityDocumentsVerified(items) {
+      return items is list && items.size() > 0 && items.size() <= 5
+        && items[0].verified == true
+        && (items.size() < 2 || items[1].verified == true)
+        && (items.size() < 3 || items[2].verified == true)
+        && (items.size() < 4 || items[3].verified == true)
+        && (items.size() < 5 || items[4].verified == true);
+    }
+
     // Private registration documents may contain guardian contacts and verification metadata.
     // Never expose these documents to other members. Publish a separately sanitized publicProfiles
     // document from a trusted backend before enabling public profile discovery.
@@ -139,8 +150,8 @@ function validUserDocument(item, uid) {
             && resource.data.age >= 18
             && resource.data.photos is list
             && resource.data.photos.size() > 0
-            && resource.data.documents is list
-            && resource.data.documents.size() > 0
+            && request.resource.data.documents is list
+            && allIdentityDocumentsVerified(request.resource.data.documents)
           ))
       );
       allow delete: if owner(uid) || admin();
