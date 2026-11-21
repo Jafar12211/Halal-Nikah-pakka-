@@ -194,6 +194,64 @@ test("An administrator can verify a government ID", async () => {
   );
 });
 
+test("An administrator cannot approve a profile while its government ID is unverified", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "registrations/member1"),
+      {
+        ...validRegistration("member1"),
+        photos: ["profilePhotos/member1/test-photo.png"]
+      }
+    );
+  });
+
+  const adminDb = testEnv.authenticatedContext(
+    "admin1",
+    { admin: true, email: "admin@example.com" }
+  ).firestore();
+
+  await assertFails(
+    updateDoc(doc(adminDb, "registrations/member1"), {
+      approvalStatus: "approved",
+      isVerified: true,
+      approvalNotes: "QA test",
+      updatedAt: serverTimestamp()
+    })
+  );
+});
+
+test("An administrator can approve a profile only while marking its government ID verified", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "registrations/member1"),
+      {
+        ...validRegistration("member1"),
+        photos: ["profilePhotos/member1/test-photo.png"]
+      }
+    );
+  });
+
+  const adminDb = testEnv.authenticatedContext(
+    "admin1",
+    { admin: true, email: "admin@example.com" }
+  ).firestore();
+
+  await assertSucceeds(
+    updateDoc(doc(adminDb, "registrations/member1"), {
+      approvalStatus: "approved",
+      isVerified: true,
+      approvalNotes: "QA test: dummy document reviewed",
+      updatedAt: serverTimestamp(),
+      documents: [{
+        ...documentMetadata,
+        storagePath: "identityDocuments/member1/identity.pdf",
+        verified: true,
+        verifiedBy: "admin@example.com"
+      }]
+    })
+  );
+});
+
 test("An administrator cannot add unexpected identity-document fields", async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(
