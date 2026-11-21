@@ -65,7 +65,7 @@ export default function App() {
   const [language, setLanguage] = useState<LanguageCode>(() => {
     try {
       const saved = localStorage.getItem('nikah_godavari_language');
-      return saved === 'te' ? 'te' : 'en';
+      return saved === 'te' || saved === 'ur' ? saved : 'en';
     } catch {
       return 'en';
     }
