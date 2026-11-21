@@ -504,6 +504,31 @@ export async function updateProfileApprovalStatusFirestore(
 }
 
 // --------------------------------------------------
+// ADMIN: DELETE PRIVATE PROFILE DATA (AUTH ACCOUNT IS NOT DELETED)
+// --------------------------------------------------
+
+export async function deleteRegistrationAsAdmin(userId: string): Promise<void> {
+  const adminUser = await requireAdmin();
+  if (!adminUser.email) throw new Error('Administrator account must have an email address.');
+  if (!userId || userId.length > 128) throw new Error('Invalid candidate account ID.');
+
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'registrations', userId));
+  batch.delete(doc(db, 'publicProfiles', userId));
+
+  const auditRef = doc(collection(db, 'auditLogs'));
+  batch.set(auditRef, {
+    action: 'PROFILE_DELETED',
+    performedBy: adminUser.email,
+    targetId: userId,
+    details: 'Private registration and public profile records deleted by administrator. Firebase Authentication account is retained.',
+    timestamp: serverTimestamp(),
+  });
+
+  await batch.commit();
+}
+
+// --------------------------------------------------
 // MEMBER: FIRESTORE-BACKED INTEREST REQUESTS
 // --------------------------------------------------
 

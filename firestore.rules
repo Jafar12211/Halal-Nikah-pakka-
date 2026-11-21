@@ -300,7 +300,7 @@ function validUserDocument(item, uid) {
       allow create: if admin()
         && request.resource.data.performedBy == request.auth.token.email
         && request.resource.data.targetId is string
-        && request.resource.data.action in ['PROFILE_APPROVED', 'PROFILE_REJECTED', 'PROFILE_SUSPENDED', 'DOCUMENT_VERIFIED']
+        && request.resource.data.action in ['PROFILE_APPROVED', 'PROFILE_REJECTED', 'PROFILE_SUSPENDED', 'DOCUMENT_VERIFIED', 'PROFILE_DELETED']
         && request.resource.data.details is string;
       allow update, delete: if false;
     }

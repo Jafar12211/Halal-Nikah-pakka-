@@ -161,7 +161,7 @@ export interface Conversation {
 
 export interface AuditLog {
   id: string;
-  action: 'PROFILE_APPROVED' | 'PROFILE_REJECTED' | 'PROFILE_SUSPENDED' | 'DOCUMENT_VERIFIED' | 'USER_LOGIN' | 'INTEREST_EXPRESSED';
+  action: 'PROFILE_APPROVED' | 'PROFILE_REJECTED' | 'PROFILE_SUSPENDED' | 'DOCUMENT_VERIFIED' | 'PROFILE_DELETED' | 'USER_LOGIN' | 'INTEREST_EXPRESSED';
   performedBy: string;
   targetId: string;
   details: string;
