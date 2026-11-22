@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
+import { auth } from '../services/firebase';
 import {
   X,
   Lock,
@@ -45,6 +47,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       setError(null);
       const user = await signInWithGoogleAccount();
+      if (!user.emailVerified) throw new Error('Please verify your Google account email before continuing.');
       storageService.setCurrentUser(user);
       onAuthSuccess(user);
       onClose();
@@ -53,56 +56,96 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const toUserAccount = (firebaseUser: import('firebase/auth').User): UserAccount => {
+    const emailAddress = firebaseUser.email || '';
+    return {
+      id: firebaseUser.uid,
+      email: emailAddress,
+      phone: firebaseUser.phoneNumber || phone,
+      name: firebaseUser.displayName || emailAddress.split('@')[0],
+      role: emailAddress.toLowerCase() === 'jafarmd0007@gmail.com' ? 'admin' : 'member',
+      emailVerified: firebaseUser.emailVerified,
+      phoneVerified: Boolean(firebaseUser.phoneNumber),
+      authProvider: 'email',
+      createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+      status: 'active',
+    };
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!email.trim() || !password.trim()) {
+    if (!email.trim() || !password) {
       setError(isTelugu ? 'దయచేసి ఈమెయిల్ మరియు పాస్‌వర్డ్ నమోదు చేయండి.' : 'Please enter your email and password.');
       return;
     }
-
-    const isAdmin = email.trim().toLowerCase() === 'jafarmd0007@gmail.com';
-    const user = storageService.registerWithEmailAndPhone(
-      email.split('@')[0],
-      email.trim(),
-      '+91 98480 00000',
-      isAdmin ? 'admin' : 'member'
-    );
-    user.status = 'active';
-    user.emailVerified = true;
-    user.phoneVerified = true;
-    storageService.setCurrentUser(user);
-    onAuthSuccess(user);
-    onClose();
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (!credential.user.emailVerified) {
+        await sendEmailVerification(credential.user);
+        await signOut(auth);
+        setError(isTelugu
+          ? 'మీ ఈమెయిల్ ఇంకా ధృవీకరించబడలేదు. మీ ఇన్‌బాక్స్‌లోని లింక్‌ను తెరిచి మళ్లీ లాగిన్ అవ్వండి.'
+          : 'Please verify your email using the link sent to your inbox, then sign in again. A fresh verification email has been sent.');
+        return;
+      }
+      const user = toUserAccount(credential.user);
+      storageService.setCurrentUser(user);
+      onAuthSuccess(user);
+      onClose();
+    } catch (err: any) {
+      const code = err?.code;
+      setError(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'
+        ? (isTelugu ? 'ఈమెయిల్ లేదా పాస్‌వర్డ్ తప్పు.' : 'Incorrect email or password.')
+        : err?.message || 'Sign in failed. Please try again.');
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
       setError(isTelugu ? 'దయచేసి అన్ని వివరాలను పూరించండి.' : 'Please fill in all required fields.');
       return;
     }
-    if (phone.replace(/\D/g, '').length < 10) {
+    if (phone.replace(/\\D/g, '').length < 10) {
       setError(isTelugu ? 'సరైన 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి.' : 'Please enter a valid 10-digit mobile number.');
       return;
     }
-
-    const user = storageService.registerWithEmailAndPhone(name, email, phone, 'member');
-    setPendingUser(user);
-    setMode('otp');
-    setToast(isTelugu ? 'OTP మీ నంబర్‌కు పంపబడింది (టెస్ట్ కోడ్: 786786)' : 'OTP sent to mobile! (Test code: 786786)');
+    if (password.length < 6) {
+      setError(isTelugu ? 'పాస్‌వర్డ్ కనీసం 6 అక్షరాలు ఉండాలి.' : 'Password must be at least 6 characters.');
+      return;
+    }
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      await updateProfile(credential.user, { displayName: name.trim() });
+      await sendEmailVerification(credential.user);
+      await signOut(auth);
+      setPassword('');
+      setMode('login');
+      setToast(isTelugu
+        ? 'ఖాతా సృష్టించబడింది. మీ ఈమెయిల్‌లోని ధృవీకరణ లింక్‌ను తెరిచి, ఆపై లాగిన్ అవ్వండి.'
+        : 'Account created. Open the verification link sent to your email, then sign in. Your account will not be signed in until verified.');
+    } catch (err: any) {
+      const code = err?.code;
+      setError(code === 'auth/email-already-in-use'
+        ? (isTelugu ? 'ఈ ఈమెయిల్‌తో ఇప్పటికే ఖాతా ఉంది. లాగిన్ అవ్వండి.' : 'An account already exists for this email. Please sign in.')
+        : err?.message || 'Registration failed. Please try again.');
+    }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pendingUser) return;
-    if (otp === '786786' || otp.length === 6) {
-      storageService.verifyPhoneOTP(pendingUser.id, otp);
-      onAuthSuccess(pendingUser);
-      onClose();
-    } else {
-      setError(isTelugu ? 'తప్పు OTP కోడ్. టెస్ట్ కోడ్ 786786 ఉపయోగించండి.' : 'Invalid OTP. Please use test code: 786786');
+  const handlePasswordReset = async () => {
+    setError(null);
+    if (!email.trim()) {
+      setError(isTelugu ? 'ముందుగా మీ ఈమెయిల్ నమోదు చేయండి.' : 'Enter your email address first.');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setToast(isTelugu ? 'పాస్‌వర్డ్ రీసెట్ లింక్ పంపబడింది.' : 'Password reset link sent. Check your email.');
+    } catch (err: any) {
+      setError(err?.message || 'Unable to send password reset email.');
     }
   };
 
@@ -260,6 +303,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{isTelugu ? 'ఖాతాలోకి ప్రవేశించండి' : 'Sign In to Account'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
+              <button type="button" onClick={handlePasswordReset} className="w-full text-emerald-800 hover:underline text-xs font-semibold">
+                {isTelugu ? 'పాస్‌వర్డ్ మర్చిపోయారా?' : 'Forgot password? Send reset link'}
+              </button>
             </form>
           )}
 
@@ -302,7 +348,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div>
                 <label className="block font-semibold text-stone-700 mb-1">
-                  {isTelugu ? 'మొబైల్ నంబర్ (OTP ధృవీకరణ కోసం)' : 'Mobile Number (For OTP verification)'}
+                  {isTelugu ? 'మొబైల్ నంబర్' : 'Mobile Number'}
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
@@ -338,56 +384,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 type="submit"
                 className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg shadow-sm transition-colors text-xs flex items-center justify-center gap-1.5"
               >
-                <span>{isTelugu ? 'OTP కోడ్ పొందండి' : 'Send Mobile OTP'}</span>
+                <span>{isTelugu ? 'ఈమెయిల్ ద్వారా ఖాతా ధృవీకరించండి' : 'Create Account & Verify Email'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </form>
           )}
 
-          {/* Form: OTP Verification */}
           {mode === 'otp' && (
-            <form onSubmit={handleVerifyOtp} className="space-y-4 text-xs">
-              <div className="text-center py-2">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto mb-2">
-                  <Key className="w-6 h-6" />
-                </div>
-                <h4 className="font-bold text-sm text-stone-900">
-                  {isTelugu ? 'మొబైల్ OTP నమోదు చేయండి' : 'Enter 6-Digit Mobile OTP'}
-                </h4>
-                <p className="text-stone-500 text-[11px] mt-1">
-                  {isTelugu
-                    ? `${phone} నంబర్‌కు కోడ్ పంపబడింది. (డెమో కోడ్: 786786)`
-                    : `Code sent to ${phone}. (Enter test code: 786786)`}
-                </p>
-              </div>
-
-              <div>
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="786786"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="w-full tracking-widest text-center text-lg font-mono font-bold py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 focus:ring-2 focus:ring-emerald-700"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMode('register')}
-                  className="w-1/3 py-2 bg-stone-100 text-stone-700 font-medium rounded-lg text-xs"
-                >
-                  {isTelugu ? 'వెనుకకు' : 'Back'}
-                </button>
-                <button
-                  type="submit"
-                  className="w-2/3 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg text-xs"
-                >
-                  {isTelugu ? 'ధృవీకరించండి' : 'Verify & Continue'}
-                </button>
-              </div>
-            </form>
+            <div className="space-y-4 text-xs text-center">
+              <p className="text-stone-700">Email verification is now used instead of demo SMS codes. Please sign in after verifying your email.</p>
+              <button type="button" onClick={() => setMode('login')} className="w-full py-2 bg-emerald-800 text-white rounded-lg">Back to Sign In</button>
+            </div>
           )}
 
           {/* Privacy footer */}
