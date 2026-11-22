@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { isCloudAccountDeletionEnabled } from '../../utils/featureFlags';
+import { getStorageFileBlob } from '../../services/firebaseStorageService';
 import {
   User,
   ShieldCheck,
@@ -54,7 +55,38 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [deletePassword, setDeletePassword] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const isTelugu = language === 'te';
+
+  // Load the signed-in customer's own private photo through Firebase Storage
+  // rules. Do not use public download-token URLs for identity-linked photos.
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    const photoPath = myProfile?.photos?.find(
+      (photo) => typeof photo === 'string' && photo.startsWith('profilePhotos/'),
+    );
+
+    setProfilePhotoUrl(null);
+    if (!currentUser || !photoPath) return;
+
+    void getStorageFileBlob(photoPath)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setProfilePhotoUrl(objectUrl);
+      })
+      .catch((error) => {
+        // Keep the initials fallback when the user has not uploaded a photo
+        // or when the private file is unavailable in no-billing staging.
+        console.warn('Signed-in profile photo could not be loaded:', error);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [currentUser?.id, myProfile?.photos]);
   const t = translations[language];
 
   const isAdmin = currentUser?.role === 'admin';
@@ -71,8 +103,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       {currentUser ? (
         <div className="bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 text-white rounded-3xl p-5 shadow-sm border border-emerald-800">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-2xl border-2 border-amber-400/30 shadow-md">
-              {currentUser.name ? currentUser.name[0].toUpperCase() : 'U'}
+            <div className="w-16 h-16 rounded-2xl bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-2xl border-2 border-amber-400/30 shadow-md overflow-hidden shrink-0">
+              {profilePhotoUrl ? (
+                <img
+                  src={profilePhotoUrl}
+                  alt={myProfile?.candidateName || currentUser.name || 'Your profile photo'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                currentUser.name ? currentUser.name[0].toUpperCase() : 'U'
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
