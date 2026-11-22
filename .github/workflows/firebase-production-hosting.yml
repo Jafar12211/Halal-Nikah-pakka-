@@ -1,0 +1,88 @@
+name: Permanent production Hosting deployment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nikah-pakka-production-hosting
+  cancel-in-progress: false
+
+jobs:
+  deploy-production-hosting:
+    name: Build and deploy Hosting only
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check out approved staging application code
+        uses: actions/checkout@v4
+        with:
+          ref: staging/nikah-pakka-firebase
+
+      - name: Verify production credential is present and belongs to the correct project
+        shell: bash
+        env:
+          FIREBASE_SERVICE_ACCOUNT_PRODUCTION: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PRODUCTION }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$FIREBASE_SERVICE_ACCOUNT_PRODUCTION" ]]; then
+            echo "::error::Missing FIREBASE_SERVICE_ACCOUNT_PRODUCTION repository secret."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_PRODUCTION" > "$RUNNER_TEMP/firebase-production-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-production-service-account.json"
+          node - "$RUNNER_TEMP/firebase-production-service-account.json" <<'NODE'
+          const fs = require('node:fs');
+          const key = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (key.project_id !== 'nikah-pakka' || !key.client_email || !key.private_key) {
+            throw new Error('Production service-account JSON is invalid or belongs to another Firebase project.');
+          }
+          console.log('Production service-account project ID verified.');
+          NODE
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-production-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate committed staging config before production substitution
+        run: node scripts/validate-staging-config.cjs
+
+      - name: Run TypeScript validation
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run admin and feature-flag tests
+        run: npm run test:admin
+
+      - name: Write and validate production Firebase Web App config
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > firebase-applet-config.json <<'CONFIG'
+          {
+            "projectId": "nikah-pakka",
+            "apiKey": "AIzaSyBwKZSFo38TOAVY6RgD6dXJ9wp77vb4nds",
+            "authDomain": "nikah-pakka.firebaseapp.com",
+            "storageBucket": "nikah-pakka.firebasestorage.app",
+            "messagingSenderId": "655818278889",
+            "appId": "1:655818278889:web:41569b3545534e9e4d6d78",
+            "measurementId": "G-JX04VDG5VS"
+          }
+          CONFIG
+          node -e "const c=require('./firebase-applet-config.json'); if(c.projectId!=='nikah-pakka'||c.authDomain!=='nikah-pakka.firebaseapp.com'||c.messagingSenderId!=='655818278889') process.exit(1); console.log('Production Firebase Web App config validated.')"
+
+      - name: Build production website
+        run: npm run build
+
+      - name: Deploy Firebase Hosting only
+        run: npx --yes firebase-tools@15.35.0 deploy --only hosting --project nikah-pakka --non-interactive
