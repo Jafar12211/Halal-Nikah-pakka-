@@ -361,7 +361,6 @@ export default function App() {
         onToggleLanguage={handleToggleLanguage}
         currentUser={currentUser}
         onOpenDrawer={() => setIsDrawerOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
         activeScreen={activeTab}
         onNavigateHome={() => handleTabChange('home')}
       />
@@ -374,7 +373,6 @@ export default function App() {
         language={language}
         onNavigateTab={(tab) => handleTabChange(tab)}
         onOpenAuth={() => setIsAuthOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenRegister={() => setIsRegisterOpen(true)}
         onOpenShare={handleOpenShare}
         onSignOut={handleSignOut}
