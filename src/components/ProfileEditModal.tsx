@@ -261,7 +261,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     setUploadingDocument(true); setErrorMsg('');
     try {
       const typeMap: Record<ValidGovtDocType, GovernmentDocumentType> = {
-        'Aadhaar Card': 'aadhaar', 'PAN Card': 'pan', Passport: 'passport', 'Driving Licence': 'driving_license',
+        'Aadhaar Card': 'aadhaar', 'PAN Card': 'pan', Passport: 'passport', 'Driving Licence': 'driving_license', 'Voter ID': 'voter_id', 'Other Government ID': 'other',
       };
       const uploaded = await uploadGovernmentId(currentUser.id, file, typeMap[documentType]);
       setDocuments((old) => [...old, { id: crypto.randomUUID(), type: documentType, fileName: uploaded.fileName, storagePath: uploaded.storagePath, maskedId: maskedDocumentId.trim(), uploadedAt: new Date().toISOString(), verified: false, isRestricted: true }]);
@@ -1097,7 +1097,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   <p className="text-stone-600">Upload Aadhaar, PAN, Passport or Driving Licence for admin review. Files are private. Enter only a masked reference, never the full ID number.</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <select className={inputClass} value={documentType} onChange={(e) => setDocumentType(e.target.value as ValidGovtDocType)}>
-                      <option>Aadhaar Card</option><option>PAN Card</option><option>Passport</option><option>Driving Licence</option>
+                      <option>Aadhaar Card</option><option>PAN Card</option><option>Passport</option><option>Driving Licence</option><option>Voter ID</option><option>Other Government ID</option>
                     </select>
                     <input className={inputClass} value={maskedDocumentId} onChange={(e) => setMaskedDocumentId(e.target.value)} placeholder="Masked ID (e.g. XXXX-1234)" maxLength={32} />
                   </div>
