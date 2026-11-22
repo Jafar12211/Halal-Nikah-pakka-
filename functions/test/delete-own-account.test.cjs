@@ -98,6 +98,14 @@ async function seedOwnedData(uid, otherUid) {
     participantUserIds: [otherUid, 'unrelated-user'],
   });
 
+  // The live Spark-compatible uploader stores media in Firestore subcollections.
+  await db.doc(`profilePhotos/${uid}/items/test-photo`).set({
+    ownerUid: uid, dataUrl: 'data:image/webp;base64,dGVzdA==', contentType: 'image/webp',
+  });
+  await db.doc(`identityDocuments/${uid}/items/test-id`).set({
+    ownerUid: uid, dataUrl: 'data:image/webp;base64,dGVzdA==', contentType: 'image/webp',
+  });
+
   await bucket.file(`profilePhotos/${uid}/test-photo.png`).save(Buffer.from('test-photo'));
   await bucket.file(`identityDocuments/${uid}/test-id.pdf`).save(Buffer.from('test-id'));
 }
@@ -160,6 +168,8 @@ test('a signed-in member can delete only their own account and linked data', asy
     `publicProfiles/${owner.uid}`,
     `users/${owner.uid}`,
     `users/${owner.uid}/savedProfiles/${otherUser.uid}`,
+    `profilePhotos/${owner.uid}/items/test-photo`,
+    `identityDocuments/${owner.uid}/items/test-id`,
     'interestRequests/sent-by-owner',
     'interestRequests/received-by-owner',
     'conversations/owned-conversation',
