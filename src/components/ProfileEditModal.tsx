@@ -103,7 +103,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     useState<UserProfile['photoPrivacy']>('blurred_until_request');
   const [candidateConsentConfirmed, setCandidateConsentConfirmed] = useState(false);
 
-  // Files are stored privately in Firebase Storage; only paths are persisted.
+  // Compressed profile photos are stored in private Firestore photo documents; only paths are persisted.
   const [photos, setPhotos] = useState<string[]>([]);
   const [documents, setDocuments] = useState<UserProfile['documents']>([]);
   const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>({});
@@ -1048,7 +1048,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   </div>
 
                   <p className="text-stone-600">
-                    Upload up to five JPG, PNG or WEBP photographs (maximum 5 MB each). Photos are stored privately and are accessible to other signed-in members only after approval and when you select visible.
+                    Upload up to five JPG, PNG or WEBP photographs (maximum 5 MB each). Photos are compressed and stored in private Firestore records. Other signed-in members can view them only after approval and when you select visible.
                   </p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -1086,8 +1086,8 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     </label>
                   ) : (
                     <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
-                      <p className="font-semibold">Profile photo uploads are temporarily unavailable in staging.</p>
-                      <p className="text-[11px] text-amber-800 mt-0.5">A secure placeholder avatar is automatically used for candidate profiles.</p>
+                      <p className="font-semibold">Photo uploads are available on staging.</p>
+                      <p className="text-[11px] text-amber-800 mt-0.5">Choose up to five photos. Each is compressed before being saved securely.</p>
                     </div>
                   )}
                 </div>
