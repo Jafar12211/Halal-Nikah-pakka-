@@ -64,9 +64,13 @@ export const ProfilePhotoCarousel: React.FC<ProfilePhotoCarouselProps> = ({
     return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [currentPhoto]);
 
+  // Require a real photo path before reading its resolved object URL. Without
+  // this guard, undefined === undefined could pass while resolvedPhoto is null.
   const currentPhotoUrl = currentPhoto && /^https:\/\//i.test(currentPhoto)
     ? currentPhoto
-    : resolvedPhoto?.path === currentPhoto ? resolvedPhoto.url : '';
+    : currentPhoto && resolvedPhoto && resolvedPhoto.path === currentPhoto
+      ? resolvedPhoto.url
+      : '';
   const canDisplayPhoto = Boolean(currentPhoto && currentPhotoUrl && !failedPhotos.has(currentPhoto));
 
   return (
