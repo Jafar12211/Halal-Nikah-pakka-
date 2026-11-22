@@ -860,8 +860,12 @@ export default function App() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onAuthSuccess={(user: UserAccount) => {
+          // Close the sign-in dialog and take every newly authenticated member
+          // straight to their account profile, including Google sign-in.
           setCurrentUser(user);
           setIsAuthOpen(false);
+          setIsDrawerOpen(false);
+          setActiveTab('profile');
           showToast(`Assalamu Alaikum, ${user.name}!`);
           void refreshMyProfile();
         }}
