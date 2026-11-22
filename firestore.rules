@@ -21,7 +21,7 @@ function validUserDocument(item, uid) {
     && item.id.size() > 0
     && item.id.size() <= 128
     && item.type in [
-      'Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence'
+      'Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence', 'Voter ID', 'Other Government ID'
     ]
     && item.fileName is string
     && item.fileName.size() > 0
