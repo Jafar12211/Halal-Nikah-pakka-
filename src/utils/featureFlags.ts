@@ -18,9 +18,8 @@ export const isFirebaseStorageEmulatorEnabled = (): boolean => {
   }
 };
 
-/** Profile-photo controls are enabled only for local emulator testing. */
-export const isPhotoUploadEnabled = (): boolean =>
-  isFirebaseStorageEmulatorEnabled();
+/** Profile photos use bounded Firestore documents and do not require Storage billing. */
+export const isPhotoUploadEnabled = (): boolean => true;
 
 /**
  * Account deletion needs the trusted deleteOwnAccount callable. In no-billing
