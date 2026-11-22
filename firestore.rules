@@ -274,9 +274,10 @@ function validUserDocument(item, uid) {
     // Only approved, sanitized documents can be read by the public.
     // Admin writes are schema-constrained; owners may remove their own listing.
     match /publicProfiles/{uid} {
-      // Approved directory listings require a signed-in member account.
-      // Private registration records remain owner/admin-only in their own collection.
-      allow read: if signedIn()
+      // Until server-verified membership entitlements are active, only the
+      // profile owner and administrators may read public-profile documents.
+      // This prevents unmetered cross-member directory access during setup.
+      allow read: if (owner(uid) || admin())
         && resource.data.approvalStatus == 'approved'
         && resource.data.isVerified == true;
       allow create, update: if admin() && validPublicProfile(uid);
