@@ -27,7 +27,7 @@ export interface UserAccount {
   status: 'active' | 'suspended' | 'pending';
 }
 
-export type ValidGovtDocType = 'Aadhaar Card' | 'PAN Card' | 'Passport' | 'Driving Licence';
+export type ValidGovtDocType = 'Aadhaar Card' | 'PAN Card' | 'Passport' | 'Driving Licence' | 'Voter ID' | 'Other Government ID';
 
 export interface DocumentRecord {
   id: string;

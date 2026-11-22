@@ -151,13 +151,15 @@ export function calculateCompatibilityScore(
 }
 
 /**
- * Supported government identity documents strictly limited to Aadhaar, PAN, Passport, and Driving Licence.
+ * Supported government identity document types available for administrator review.
  */
 export const VALID_GOVT_DOC_TYPES = [
   'Aadhaar Card',
   'PAN Card',
   'Passport',
   'Driving Licence',
+  'Voter ID',
+  'Other Government ID',
 ] as const;
 
 export type ValidGovtDoc = (typeof VALID_GOVT_DOC_TYPES)[number];

@@ -13,8 +13,8 @@ test("emulator mode accepts only the explicit true string", () => {
   assert.equal(isFirebaseStorageEmulatorMode(true), false);
 });
 
-test("photo uploads fail closed outside the local Storage Emulator", () => {
-  assert.equal(isPhotoUploadEnabled(), false);
+test("profile photo uploads use the bounded no-billing Firestore path", () => {
+  assert.equal(isPhotoUploadEnabled(), true);
 });
 
 test("cloud account deletion stays disabled unless its backend is explicitly enabled", () => {
