@@ -50,7 +50,7 @@ function validUserDocument(item, uid) {
           'maskedId', 'uploadedAt', 'verified', 'isRestricted', 'verifiedBy'
         ])
         && item.id is string && item.id.size() > 0 && item.id.size() <= 128
-        && item.type in ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence']
+        && item.type in ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence', 'Voter ID', 'Other Government ID']
         && item.fileName is string && item.fileName.size() > 0 && item.fileName.size() <= 180
         && item.storagePath is string
         && item.storagePath.matches('identityDocuments/' + uid + '/[^/]+')
