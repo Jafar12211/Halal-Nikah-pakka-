@@ -463,6 +463,83 @@ test("Other members can read approved and visible profile photos", async () => {
   );
 });
 
+test("A member can create and read their own compressed Firestore profile photo", async () => {
+  const db = testEnv.authenticatedContext("member1").firestore();
+  const photo = doc(db, "profilePhotos/member1/items/photo.webp");
+  await assertSucceeds(setDoc(photo, {
+    ownerUid: "member1",
+    dataUrl: "data:image/webp;base64,AQID",
+    contentType: "image/webp",
+    byteSize: 3,
+    createdAt: serverTimestamp()
+  }));
+  await assertSucceeds(getDoc(photo));
+});
+
+test("Other members cannot read an unapproved Firestore profile photo", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "profilePhotos/member1/items/photo.webp"), {
+      ownerUid: "member1",
+      dataUrl: "data:image/webp;base64,AQID",
+      contentType: "image/webp",
+      byteSize: 3,
+      createdAt: new Date()
+    });
+  });
+  const otherDb = testEnv.authenticatedContext("member2").firestore();
+  await assertFails(getDoc(doc(otherDb, "profilePhotos/member1/items/photo.webp")));
+});
+
+test("Other members can read only published photos on approved visible profiles", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/member1"), {
+      approvalStatus: "approved",
+      isVerified: true,
+      photoPrivacy: "visible",
+      photos: ["profilePhotos/member1/photo.webp"]
+    });
+    await setDoc(doc(context.firestore(), "profilePhotos/member1/items/photo.webp"), {
+      ownerUid: "member1",
+      dataUrl: "data:image/webp;base64,AQID",
+      contentType: "image/webp",
+      byteSize: 3,
+      createdAt: new Date()
+    });
+    await setDoc(doc(context.firestore(), "profilePhotos/member1/items/unpublished.webp"), {
+      ownerUid: "member1",
+      dataUrl: "data:image/webp;base64,AQID",
+      contentType: "image/webp",
+      byteSize: 3,
+      createdAt: new Date()
+    });
+  });
+  const otherDb = testEnv.authenticatedContext("member2").firestore();
+  await assertSucceeds(getDoc(doc(otherDb, "profilePhotos/member1/items/photo.webp")));
+  await assertFails(getDoc(doc(otherDb, "profilePhotos/member1/items/unpublished.webp")));
+});
+
+test("A member cannot create a Firestore profile photo for another account", async () => {
+  const db = testEnv.authenticatedContext("member2").firestore();
+  await assertFails(setDoc(doc(db, "profilePhotos/member1/items/forged.webp"), {
+    ownerUid: "member1",
+    dataUrl: "data:image/webp;base64,AQID",
+    contentType: "image/webp",
+    byteSize: 3,
+    createdAt: serverTimestamp()
+  }));
+});
+
+test("Firestore profile photo documents reject images over the compressed size limit", async () => {
+  const db = testEnv.authenticatedContext("member1").firestore();
+  await assertFails(setDoc(doc(db, "profilePhotos/member1/items/oversized.webp"), {
+    ownerUid: "member1",
+    dataUrl: `data:image/webp;base64,${"A".repeat(850001)}`,
+    contentType: "image/webp",
+    byteSize: 614401,
+    createdAt: serverTimestamp()
+  }));
+});
+
 test("Users cannot upload oversized profile photos", async () => {
   const storage = testEnv.authenticatedContext("member1").storage();
 
