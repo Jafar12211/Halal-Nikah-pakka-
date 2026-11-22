@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import familyMeetingImage from '../assets/images/family_assisted_meeting_1793883128679.jpg';
+import communityNikahImage from '../assets/images/islamic_community_nikah_1793883128899.jpg';
+import celebrationImage from '../assets/images/nikah_hero_celebration_1793883128650.jpg';
 import { Search, Heart, ShieldCheck, Users, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { FilterState } from '../types/matrimony';
 import { LanguageCode } from '../types/database';
@@ -23,18 +26,65 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onSearchClick,
 }) => {
   const t = translations[language];
+  const heroSlides = [
+    {
+      image: celebrationImage,
+      alt: 'A joyful Muslim wedding celebration',
+      label: language === 'te' ? 'ఆనందకరమైన కొత్త ఆరంభం' : 'A joyful new beginning',
+    },
+    {
+      image: familyMeetingImage,
+      alt: 'Families meeting together with warmth and happiness',
+      label: language === 'te' ? 'కుటుంబాల కలయికతో బంధాలు' : 'Families coming together',
+    },
+    {
+      image: communityNikahImage,
+      alt: 'A warm Muslim nikah and community celebration',
+      label: language === 'te' ? 'నమ్మకం మరియు ఆనందంతో నికాహ్' : 'A nikah built on trust and joy',
+    },
+  ];
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveHeroSlide((current) => (current + 1) % heroSlides.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [heroSlides.length]);
 
   return (
     <section id="home" className="relative overflow-hidden bg-stone-900 text-white">
-      {/* Background Image with carefully calibrated contrast scrim */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src="/src/assets/images/nikah_hero_celebration_1793883128650.jpg"
-          alt="Dignified Muslim wedding celebration in Godavari"
-          className="w-full h-full object-cover object-center brightness-[0.42] scale-105 transition-transform duration-1000 ease-out"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/65 to-stone-950/45" />
+      {/* Rotating family and nikah gallery */}
+      <div className="absolute inset-0 z-0 overflow-hidden" aria-label="Nikah Pakka family and wedding photo gallery">
+        {heroSlides.map((slide, index) => (
+          <img
+            key={slide.image}
+            src={slide.image}
+            alt={slide.alt}
+            aria-hidden={index !== activeHeroSlide}
+            className={`absolute inset-0 h-full w-full object-cover object-center brightness-[0.48] transition-opacity duration-1000 ease-in-out ${index === activeHeroSlide ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`}
+            loading={index === 0 ? 'eager' : 'lazy'}
+            fetchPriority={index === 0 ? 'high' : 'auto'}
+          />
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/60 to-stone-950/35" />
+        <div className="absolute bottom-6 right-5 sm:right-8 z-10 flex items-center gap-3 rounded-full bg-black/30 px-3 py-2 backdrop-blur-sm">
+          <span className="hidden sm:inline text-xs font-medium text-white/90" aria-live="polite">
+            {heroSlides[activeHeroSlide].label}
+          </span>
+          <div className="flex items-center gap-1.5" aria-label="Choose gallery image">
+            {heroSlides.map((slide, index) => (
+              <button
+                key={slide.image}
+                type="button"
+                onClick={() => setActiveHeroSlide(index)}
+                aria-label={`Show image ${index + 1}: ${slide.alt}`}
+                aria-pressed={index === activeHeroSlide}
+                className={`h-2 rounded-full transition-all duration-300 ${index === activeHeroSlide ? 'w-6 bg-amber-300' : 'w-2 bg-white/65 hover:bg-white'}`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
