@@ -36,17 +36,6 @@ function requireOwner(uid: string): void {
   }
 }
 
-function safeExtension(file: File): string {
-  const extensions: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-  };
-  const extension = extensions[file.type];
-  if (!extension) throw new Error('Unsupported file type. Use JPG, PNG, WEBP or PDF as permitted.');
-  return extension;
-}
-
 function createFileName(extension: string): string {
   return `${Date.now()}-${crypto.randomUUID()}.${extension}`;
 }
