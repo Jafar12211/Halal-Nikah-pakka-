@@ -77,6 +77,12 @@ async function seedOwnedData(uid, otherUid) {
   await db.doc(`publicProfiles/${uid}`).set({ userId: uid, approvalStatus: 'approved' });
   await db.doc(`users/${uid}`).set({ uid });
   await db.doc(`users/${uid}/savedProfiles/${otherUid}`).set({ profileId: otherUid });
+  await db.doc(`profilePhotos/${uid}/items/test-photo`).set({
+    ownerUid: uid, dataUrl: 'data:image/webp;base64,dGVzdA==', contentType: 'image/webp', byteSize: 4,
+  });
+  await db.doc(`identityDocuments/${uid}/items/test-id`).set({
+    ownerUid: uid, dataUrl: 'data:image/webp;base64,dGVzdA==', contentType: 'image/webp', byteSize: 4,
+  });
 
   await db.doc('interestRequests/sent-by-owner').set({
     senderUserId: uid, receiverUserId: otherUid, status: 'pending',
@@ -122,6 +128,8 @@ after(async () => {
       await db.recursiveDelete(db.doc(`registrations/${uid}`));
       await db.recursiveDelete(db.doc(`publicProfiles/${uid}`));
       await db.recursiveDelete(db.doc(`users/${uid}`));
+      await db.recursiveDelete(db.doc(`profilePhotos/${uid}`));
+      await db.recursiveDelete(db.doc(`identityDocuments/${uid}`));
       await bucket.deleteFiles({ prefix: `profilePhotos/${uid}/` });
       await bucket.deleteFiles({ prefix: `identityDocuments/${uid}/` });
       await auth.deleteUser(uid);
@@ -160,6 +168,8 @@ test('a signed-in member can delete only their own account and linked data', asy
     `publicProfiles/${owner.uid}`,
     `users/${owner.uid}`,
     `users/${owner.uid}/savedProfiles/${otherUser.uid}`,
+    `profilePhotos/${owner.uid}/items/test-photo`,
+    `identityDocuments/${owner.uid}/items/test-id`,
     'interestRequests/sent-by-owner',
     'interestRequests/received-by-owner',
     'conversations/owned-conversation',
