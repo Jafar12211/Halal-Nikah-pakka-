@@ -53,6 +53,12 @@ async function deleteUserFirestoreData(uid) {
   await recursivelyDeleteDocument(`publicProfiles/${uid}`);
   await recursivelyDeleteDocument(`users/${uid}`);
 
+  // Profile photos and private identity documents are stored in Firestore
+  // on the no-billing staging path, not only in Cloud Storage. Remove each
+  // account-owned parent and all nested item documents during account deletion.
+  await recursivelyDeleteDocument(`profilePhotos/${uid}`);
+  await recursivelyDeleteDocument(`identityDocuments/${uid}`);
+
   // Remove both sides of private requests involving this account.
   await deleteMatchingDocuments(
     db.collection('interestRequests').where('senderUserId', '==', uid),
