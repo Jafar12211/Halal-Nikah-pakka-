@@ -241,11 +241,16 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     if (photos.length + files.length > 5) { setErrorMsg('You can upload a maximum of 5 photos.'); return; }
     setUploadingPhoto(true); setErrorMsg('');
     try {
-      const paths = await Promise.all(files.map((file) => uploadProfilePhoto(currentUser.id, file)));
-      setPhotos((old) => [...old, ...paths]);
-      setStatusMsg('Photographs uploaded securely. Save your profile to submit them for review.');
-    } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Photo upload failed.'); }
-    finally { setUploadingPhoto(false); }
+      let uploadedCount = 0;
+      for (const file of files) {
+        const path = await uploadProfilePhoto(currentUser.id, file);
+        setPhotos((old) => [...old, path]);
+        uploadedCount += 1;
+      }
+      setStatusMsg(`${uploadedCount} photograph${uploadedCount === 1 ? '' : 's'} uploaded securely. Save your profile to submit them for review.`);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Photo upload failed. Any photographs already uploaded remain in your profile draft.');
+    } finally { setUploadingPhoto(false); }
   };
 
   const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
