@@ -193,17 +193,19 @@ test('generateBiodataText produces complete structured biodata with Wali contact
   assert.ok(text.includes('5 times daily'));
 });
 
-test('VALID_GOVT_DOC_TYPES strictly accepts only Aadhaar, PAN, Passport, and Driving Licence', async () => {
+test('VALID_GOVT_DOC_TYPES accepts supported government identity documents', async () => {
   const { VALID_GOVT_DOC_TYPES, isValidGovtDocType, maskGovtIdNumber } = await import('./matrimony');
 
-  assert.deepEqual([...VALID_GOVT_DOC_TYPES], ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence']);
+  assert.deepEqual([...VALID_GOVT_DOC_TYPES], ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence', 'Voter ID', 'Other Government ID']);
   assert.equal(isValidGovtDocType('Aadhaar Card'), true);
   assert.equal(isValidGovtDocType('PAN Card'), true);
   assert.equal(isValidGovtDocType('Passport'), true);
   assert.equal(isValidGovtDocType('Driving Licence'), true);
 
-  // Rejects other document types
-  assert.equal(isValidGovtDocType('Voter ID'), false);
+  assert.equal(isValidGovtDocType('Voter ID'), true);
+  assert.equal(isValidGovtDocType('Other Government ID'), true);
+
+  // Rejects unsupported document types
   assert.equal(isValidGovtDocType('Ration Card'), false);
   assert.equal(isValidGovtDocType('College ID'), false);
 
