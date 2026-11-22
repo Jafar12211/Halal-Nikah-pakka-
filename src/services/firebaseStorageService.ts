@@ -112,13 +112,14 @@ async function compressProfilePhoto(file: File): Promise<{ dataUrl: string; byte
       if (blob && blob.size <= MAX_COMPRESSED_PHOTO_BYTES) break;
       quality = Math.max(0.35, quality - 0.08);
       if (attempt === 3 || attempt === 5) {
-        canvas.width = Math.max(320, Math.round(canvas.width * 0.8));
-        canvas.height = Math.max(320, Math.round(canvas.height * 0.8));
+        canvas.width = Math.max(1, Math.round(canvas.width * 0.8));
+        canvas.height = Math.max(1, Math.round(canvas.height * 0.8));
         context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       }
     }
 
-    if (!blob || blob.size > MAX_COMPRESSED_PHOTO_BYTES) {
+    const compressedBlob = blob;
+    if (!compressedBlob || compressedBlob.size > MAX_COMPRESSED_PHOTO_BYTES) {
       throw new Error('This photograph could not be compressed enough. Please choose a smaller image.');
     }
 
@@ -126,9 +127,9 @@ async function compressProfilePhoto(file: File): Promise<{ dataUrl: string; byte
       const reader = new FileReader();
       reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read compressed photograph.'));
       reader.onerror = () => reject(new Error('Could not read compressed photograph.'));
-      reader.readAsDataURL(blob);
+      reader.readAsDataURL(compressedBlob);
     });
-    return { dataUrl, byteSize: blob.size };
+    return { dataUrl, byteSize: compressedBlob.size };
   } finally {
     bitmap.close();
   }
