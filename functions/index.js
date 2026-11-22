@@ -53,6 +53,16 @@ async function deleteUserFirestoreData(uid) {
   await recursivelyDeleteDocument(`publicProfiles/${uid}`);
   await recursivelyDeleteDocument(`users/${uid}`);
 
+  // Photos and identity documents are stored in Firestore subcollections
+  // (not Cloud Storage) by the current Spark-compatible upload implementation.
+  // Delete these records explicitly so account deletion removes the actual files.
+  await deleteMatchingDocuments(
+    db.collection('profilePhotos').doc(uid).collection('items'),
+  );
+  await deleteMatchingDocuments(
+    db.collection('identityDocuments').doc(uid).collection('items'),
+  );
+
   // Remove both sides of private requests involving this account.
   await deleteMatchingDocuments(
     db.collection('interestRequests').where('senderUserId', '==', uid),
