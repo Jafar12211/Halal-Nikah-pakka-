@@ -109,7 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setError(isTelugu ? 'దయచేసి అన్ని వివరాలను పూరించండి.' : 'Please fill in all required fields.');
       return;
     }
-    if (phone.replace(/\\D/g, '').length < 10) {
+    if (phone.replace(/\D/g, '').length < 10) {
       setError(isTelugu ? 'సరైన 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి.' : 'Please enter a valid 10-digit mobile number.');
       return;
     }
