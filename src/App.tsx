@@ -278,7 +278,10 @@ export default function App() {
 
   // Load approved public profiles from Firestore
   const refreshProfiles = async () => {
-    if (!currentUser) {
+    // Until trusted membership enforcement is deployed, only administrators
+    // may browse the full candidate directory. Members retain their private
+    // account profile and cannot receive unlimited unmetered directory access.
+    if (!isAdminUser(currentUser)) {
       setProfiles([]);
       setSelectedProfile(null);
       return;
@@ -781,7 +784,7 @@ export default function App() {
 
         {activeTab === 'matches' && (
           <div className="py-2">
-            <ProfilesList
+            {isAdminUser(currentUser) ? <ProfilesList
               profiles={filteredProfiles}
               filters={filters}
               setFilters={setFilters}
@@ -790,7 +793,7 @@ export default function App() {
               userInterests={userInterests}
               language={language}
               onStartChat={handleStartChatWithProfile}
-            />
+            /> : <div className="max-w-3xl mx-auto rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-sm"><h3 className="font-serif text-lg font-bold text-emerald-950">Member profile discovery</h3><p className="mt-2 text-sm text-stone-600">Candidate browsing will open with the five-profile free allowance and membership access controls once secure membership verification is enabled. Your private profile remains available in your account.</p></div>}
           </div>
         )}
 
