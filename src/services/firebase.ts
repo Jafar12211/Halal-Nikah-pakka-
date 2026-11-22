@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
@@ -7,11 +7,11 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
-});
+// Use Firestore's standard browser memory cache during startup. Persistent
+// IndexedDB cache initialization can fail in restricted browsers or WebViews
+// and prevent React from mounting. Cloud Firestore remains the source of truth;
+// this changes only the local browser cache, not stored account/profile data.
+export const db = getFirestore(app);
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
