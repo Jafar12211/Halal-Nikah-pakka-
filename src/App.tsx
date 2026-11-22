@@ -4,6 +4,7 @@ import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
 
 import { HeroSection } from './components/HeroSection';
 import { MissionBanner } from './components/MissionBanner';
+import { MembershipPlans } from './components/MembershipPlans';
 import { ProfilesList } from './components/ProfilesList';
 import { ProfileDetailModal } from './components/ProfileDetailModal';
 import { RegistrationModal } from './components/RegistrationModal';
@@ -576,6 +577,7 @@ export default function App() {
 
   // Filter available public profiles
   const filteredProfiles = profiles.filter((profile) => {
+    if (currentUser && profile.userId === currentUser.id) return false;
     if (filters.gender !== 'all' && profile.gender !== filters.gender) {
       return false;
     }
@@ -719,6 +721,8 @@ export default function App() {
                 }}
               />
             </div>
+
+            <MembershipPlans />
 
             <div id="matches-section">
               <ProfilesList
