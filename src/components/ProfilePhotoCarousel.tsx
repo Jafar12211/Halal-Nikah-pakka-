@@ -13,7 +13,7 @@ interface ProfilePhotoCarouselProps {
 
 /**
  * Automatically rotates through candidate-provided photos.
- * Private Firebase Storage paths are fetched through the authenticated SDK; failures fall back to the monogram.
+ * Private Firestore photo records are fetched through authenticated reads; failures fall back to the monogram.
  */
 export const ProfilePhotoCarousel: React.FC<ProfilePhotoCarouselProps> = ({
   photos = [],
