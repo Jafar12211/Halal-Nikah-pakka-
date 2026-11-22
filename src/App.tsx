@@ -737,7 +737,7 @@ export default function App() {
             <MembershipPlans />
 
             <div id="matches-section">
-              <ProfilesList
+              {isAdminUser(currentUser) ? <ProfilesList
                 profiles={filteredProfiles}
                 filters={filters}
                 setFilters={setFilters}
@@ -746,7 +746,7 @@ export default function App() {
                 userInterests={userInterests}
                 language={language}
                 onStartChat={handleStartChatWithProfile}
-              />
+              /> : <div className="rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-sm"><h3 className="font-serif text-lg font-bold text-emerald-950">Member profile discovery</h3><p className="mt-2 text-sm text-stone-600">Candidate browsing will open with the five-profile free allowance and membership access controls once secure membership verification is enabled. Your private profile remains available in your account.</p></div>}
             </div>
 
             <div id="faqs-section">
