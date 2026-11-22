@@ -7,15 +7,7 @@ import {
   setDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import {
-  deleteObject,
-  getBlob,
-  listAll,
-  ref,
-  uploadBytes,
-  type StorageReference,
-} from 'firebase/storage';
-import { auth, db, storage } from './firebase';
+import { auth, db } from './firebase';
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_COMPRESSED_PHOTO_BYTES = 600 * 1024;
@@ -263,11 +255,6 @@ export async function deleteStorageFile(storagePath: string): Promise<void> {
   await deleteDoc(doc(db, 'identityDocuments', uid, 'items', fileName));
 }
 
-async function deleteFolderContents(folderRef: StorageReference): Promise<void> {
-  const result = await listAll(folderRef);
-  await Promise.all(result.items.map((item) => deleteObject(item)));
-  await Promise.all(result.prefixes.map((prefix) => deleteFolderContents(prefix)));
-}
 
 /** Removes the account's Firestore photos and private ID files before deletion. */
 export async function deleteUserStorageObjects(uid: string): Promise<void> {
