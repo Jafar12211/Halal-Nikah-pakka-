@@ -58,8 +58,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const isTelugu = language === 'te';
 
-  // Load the signed-in customer's own private photo through Firebase Storage
-  // rules. Do not use public download-token URLs for identity-linked photos.
+  // Load the signed-in customer's own private Firestore photo record.
+  // Firestore rules enforce owner/admin and approved-visible member access.
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
