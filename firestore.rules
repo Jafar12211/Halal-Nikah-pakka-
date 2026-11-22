@@ -83,6 +83,40 @@ function validUserDocument(item, uid) {
         && (items.size() < 5 || validUserDocument(items[4], uid));
     }
 
+
+    // Compressed profile photographs are stored as one small Firestore document
+    // per image, avoiding Cloud Storage's hosted Blaze-plan requirement.
+    function approvedPhotoVisible(uid, photoId) {
+      let profilePath = /databases/$(database)/documents/publicProfiles/$(uid);
+      let photoPath = 'profilePhotos/' + uid + '/' + photoId;
+      return signedIn()
+        && exists(profilePath)
+        && get(profilePath).data.approvalStatus == 'approved'
+        && get(profilePath).data.isVerified == true
+        && get(profilePath).data.photoPrivacy == 'visible'
+        && get(profilePath).data.photos is list
+        && get(profilePath).data.photos.hasAny([photoPath]);
+    }
+
+    match /profilePhotos/{uid}/items/{photoId} {
+      allow get: if owner(uid) || admin() || approvedPhotoVisible(uid, photoId);
+      allow list: if owner(uid) || admin();
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasAll(['ownerUid', 'dataUrl', 'contentType', 'byteSize', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['ownerUid', 'dataUrl', 'contentType', 'byteSize', 'createdAt'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.contentType == 'image/webp'
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.matches('data:image/webp;base64,[A-Za-z0-9+/=]+')
+        && request.resource.data.dataUrl.size() <= 850000
+        && request.resource.data.byteSize is int
+        && request.resource.data.byteSize > 0
+        && request.resource.data.byteSize <= 614400
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if owner(uid) || admin();
+    }
+
     // Private registration documents may contain guardian contacts and verification metadata.
     // Never expose these documents to other members. Publish a separately sanitized publicProfiles
     // document from a trusted backend before enabling public profile discovery.
