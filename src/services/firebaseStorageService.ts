@@ -16,11 +16,11 @@ import {
   type StorageReference,
 } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
-import { isFirebaseStorageEmulatorEnabled } from '../utils/featureFlags';
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_COMPRESSED_PHOTO_BYTES = 600 * 1024;
-const MAX_ID_DOCUMENT_BYTES = 10 * 1024 * 1024;
+const MAX_ID_DOCUMENT_BYTES = 5 * 1024 * 1024;
+const MAX_COMPRESSED_ID_BYTES = 600 * 1024;
 
 export type GovernmentDocumentType =
   | 'aadhaar'
@@ -44,20 +44,11 @@ function requireOwner(uid: string): void {
   }
 }
 
-function requireLocalStorageEmulator(): void {
-  if (!isFirebaseStorageEmulatorEnabled()) {
-    throw new Error(
-      'Private identity-document uploads are disabled on hosted staging to prevent Firebase Storage charges. Use the local Firebase Storage Emulator for ID-document testing.',
-    );
-  }
-}
-
 function safeExtension(file: File): string {
   const extensions: Record<string, string> = {
     'image/jpeg': 'jpg',
     'image/png': 'png',
     'image/webp': 'webp',
-    'application/pdf': 'pdf',
   };
   const extension = extensions[file.type];
   if (!extension) throw new Error('Unsupported file type. Use JPG, PNG, WEBP or PDF as permitted.');
@@ -78,11 +69,11 @@ function assertImage(file: File, maxBytes: number): void {
 }
 
 function assertIdentityDocument(file: File): void {
-  if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    throw new Error('Identity documents must be PDF, JPG, PNG or WEBP files.');
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('For secure no-billing uploads, identity documents must be clear JPG, PNG or WEBP images.');
   }
   if (file.size <= 0 || file.size > MAX_ID_DOCUMENT_BYTES) {
-    throw new Error('The identity document must be 10 MB or smaller.');
+    throw new Error('The identity document image must be 5 MB or smaller.');
   }
 }
 
@@ -158,25 +149,74 @@ export async function uploadProfilePhoto(uid: string, file: File): Promise<strin
   return `profilePhotos/${uid}/${fileName}`;
 }
 
-/** Uploads an ID file into a restricted Storage path; never marks it verified. */
+/**
+ * Stores a compressed identity image in a private Firestore document. This
+ * keeps hosted staging on the Firebase Spark plan without exposing files publicly.
+ * The image is never marked verified by the upload operation.
+ */
+async function compressIdentityImage(file: File): Promise<{ dataUrl: string; byteSize: number }> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    let width = bitmap.width;
+    let height = bitmap.height;
+    const longestSide = Math.max(width, height);
+    if (longestSide > 1800) {
+      const scale = 1800 / longestSide;
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Your browser could not prepare this ID image.');
+    canvas.width = width;
+    canvas.height = height;
+    context.drawImage(bitmap, 0, 0, width, height);
+    let quality = 0.94;
+    let blob: Blob | null = null;
+    for (let attempt = 0; attempt < 7; attempt += 1) {
+      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+      if (blob && blob.size <= MAX_COMPRESSED_ID_BYTES) break;
+      quality = Math.max(0.72, quality - 0.035);
+      if (attempt === 3) {
+        canvas.width = Math.max(1, Math.round(canvas.width * 0.9));
+        canvas.height = Math.max(1, Math.round(canvas.height * 0.9));
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      }
+    }
+    if (!blob || blob.size > MAX_COMPRESSED_ID_BYTES) {
+      throw new Error('This ID image is too large to store securely on the free plan. Please take a clear, closer photo and try again.');
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read the ID image.'));
+      reader.onerror = () => reject(new Error('Could not read the ID image.'));
+      reader.readAsDataURL(blob as Blob);
+    });
+    return { dataUrl, byteSize: blob.size };
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** Uploads a private ID image to Firestore; admin review is a separate action. */
 export async function uploadGovernmentId(
   uid: string,
   file: File,
   documentType: GovernmentDocumentType,
 ): Promise<UploadedIdentityDocument> {
   requireOwner(uid);
-  requireLocalStorageEmulator();
   assertIdentityDocument(file);
-
-  const fileName = createFileName(safeExtension(file));
+  const { dataUrl, byteSize } = await compressIdentityImage(file);
+  const fileName = createFileName('webp');
   const storagePath = `identityDocuments/${uid}/${fileName}`;
-  const fileRef = ref(storage, storagePath);
-
-  await uploadBytes(fileRef, file, {
-    contentType: file.type,
-    customMetadata: { ownerUid: uid, purpose: 'identity-document', documentType },
+  await setDoc(doc(db, 'identityDocuments', uid, 'items', fileName), {
+    ownerUid: uid,
+    dataUrl,
+    contentType: 'image/webp',
+    byteSize,
+    documentType,
+    createdAt: serverTimestamp(),
   });
-
   return { storagePath, fileName, type: documentType, verified: false, isRestricted: true };
 }
 
@@ -196,8 +236,16 @@ export async function getStorageFileBlob(storagePath: string): Promise<Blob> {
     return response.blob();
   }
 
-  if (!storagePath.startsWith('identityDocuments/')) throw new Error('Invalid private file path.');
-  return getBlob(ref(storage, storagePath));
+  const identityMatch = /^identityDocuments\/([^/]+)\/([^/]+)$/.exec(storagePath);
+  if (!identityMatch) throw new Error('Invalid private file path.');
+  const [, uid, fileName] = identityMatch;
+  const snapshot = await getDoc(doc(db, 'identityDocuments', uid, 'items', fileName));
+  if (!snapshot.exists()) throw new Error('This identity document is no longer available.');
+  const data = snapshot.data();
+  if (typeof data.dataUrl !== 'string' || data.contentType !== 'image/webp') throw new Error('The stored identity document is invalid.');
+  const response = await fetch(data.dataUrl);
+  if (!response.ok) throw new Error('Could not read the stored identity document.');
+  return response.blob();
 }
 
 export async function deleteStorageFile(storagePath: string): Promise<void> {
@@ -208,8 +256,11 @@ export async function deleteStorageFile(storagePath: string): Promise<void> {
     await deleteDoc(doc(db, 'profilePhotos', uid, 'items', fileName));
     return;
   }
-  if (!storagePath.startsWith('identityDocuments/')) throw new Error('Invalid private file path.');
-  await deleteObject(ref(storage, storagePath));
+  const identityMatch = /^identityDocuments\/([^/]+)\/([^/]+)$/.exec(storagePath);
+  if (!identityMatch) throw new Error('Invalid private file path.');
+  const [, uid, fileName] = identityMatch;
+  requireOwner(uid);
+  await deleteDoc(doc(db, 'identityDocuments', uid, 'items', fileName));
 }
 
 async function deleteFolderContents(folderRef: StorageReference): Promise<void> {
@@ -223,5 +274,6 @@ export async function deleteUserStorageObjects(uid: string): Promise<void> {
   requireOwner(uid);
   const photoDocs = await getDocs(collection(db, 'profilePhotos', uid, 'items'));
   await Promise.all(photoDocs.docs.map((entry) => deleteDoc(entry.ref)));
-  await deleteFolderContents(ref(storage, `identityDocuments/${uid}`));
+  const identityDocs = await getDocs(collection(db, 'identityDocuments', uid, 'items'));
+  await Promise.all(identityDocs.docs.map((entry) => deleteDoc(entry.ref)));
 }
