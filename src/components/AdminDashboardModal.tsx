@@ -262,6 +262,34 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
           </button>
         </div>
 
+        {/* Distinct administrator identity panel */}
+        <section className="relative overflow-hidden bg-gradient-to-r from-stone-950 via-emerald-950 to-emerald-900 px-5 sm:px-6 py-5 text-white border-b border-amber-500/30">
+          <div className="pointer-events-none absolute -right-8 -top-14 h-44 w-44 rounded-full border border-amber-300/15" />
+          <div className="pointer-events-none absolute -right-1 -top-7 h-32 w-32 rounded-full border border-amber-300/15" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="h-16 w-16 shrink-0 rounded-2xl border border-amber-300/60 bg-gradient-to-br from-amber-200 via-amber-400 to-amber-700 p-[2px] shadow-lg shadow-black/20">
+              <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-emerald-950 text-2xl font-serif font-bold tracking-wide text-amber-200">
+                {(currentUser?.name || currentUser?.email || 'A').trim().charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <span className="text-[10px] uppercase tracking-[0.22em] font-bold text-amber-300">Administrator profile</span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/30 bg-emerald-800/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
+                  <ShieldCheck className="h-3 w-3" /> ADMIN ACCESS ACTIVE
+                </span>
+              </div>
+              <h3 className="truncate text-xl sm:text-2xl font-serif font-bold text-white">{currentUser?.name || 'Nikah Pakka Administrator'}</h3>
+              <p className="mt-0.5 truncate text-xs sm:text-sm text-emerald-100/80">{currentUser?.email || 'Administrator account'}</p>
+            </div>
+            <div className="sm:ml-auto sm:text-right">
+              <p className="text-[10px] uppercase tracking-widest text-amber-300/90">Control centre</p>
+              <p className="mt-1 text-sm font-semibold text-white">Platform oversight</p>
+              <p className="mt-0.5 text-[10px] text-emerald-100/70">Secure role-based access</p>
+            </div>
+          </div>
+        </section>
+
         {/* Metrics Bar */}
         <div className="bg-stone-50 border-b border-stone-200 px-6 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs shrink-0">
           <button
