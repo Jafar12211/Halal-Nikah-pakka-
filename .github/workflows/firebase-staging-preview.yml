@@ -117,7 +117,7 @@ jobs:
       - name: Deploy firestore rules (Spark plan compatible only; NO Storage, NO Functions)
         id: deploy_firestore_rules
         # Firestore rules are project-wide, not Hosting-channel scoped. Only the canonical staging branch may change them.
-        if: steps.staging.outputs.ready == 'true' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/staging/nikah-pakka-firebase'
+        if: steps.staging.outputs.ready == 'true' && github.ref == 'refs/heads/staging/nikah-pakka-firebase'
         run: npx --yes firebase-tools@15.35.0 deploy --only firestore:rules --project "$STAGING_PROJECT_ID" --non-interactive
 
       - name: Deploy temporary Firebase Hosting preview channel
@@ -131,7 +131,7 @@ jobs:
         shell: bash
         env:
           STAGING_READY: ${{ steps.staging.outputs.ready }}
-          RULES_DEPLOY_ALLOWED: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/staging/nikah-pakka-firebase' && steps.staging.outputs.ready == 'true' }}
+          RULES_DEPLOY_ALLOWED: ${{ github.ref == 'refs/heads/staging/nikah-pakka-firebase' && steps.staging.outputs.ready == 'true' }}
           RULES_OUTCOME: ${{ steps.deploy_firestore_rules.outcome }}
           HOSTING_OUTCOME: ${{ steps.deploy_hosting_preview.outcome }}
         run: |
