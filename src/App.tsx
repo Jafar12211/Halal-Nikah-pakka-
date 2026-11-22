@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './services/firebase';
+import { logoutFirebaseUser } from './services/firestoreService';
 import { HeroSection } from './components/HeroSection';
 import { MissionBanner } from './components/MissionBanner';
 import { ProfilesList } from './components/ProfilesList';
@@ -38,9 +41,36 @@ export default function App() {
     }
   });
 
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    return storageService.getCurrentUser();
-  });
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+
+  // Firebase Authentication is the source of truth; do not restore a
+  // browser-local session that could falsely appear to be an authenticated admin.
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser || !firebaseUser.emailVerified) {
+        storageService.setCurrentUser(null);
+        setCurrentUser(null);
+        return;
+      }
+      const email = firebaseUser.email || '';
+      const account: UserAccount = {
+        id: firebaseUser.uid,
+        email,
+        phone: firebaseUser.phoneNumber || '',
+        name: firebaseUser.displayName || email.split('@')[0],
+        role: email.toLowerCase() === 'jafarmd0007@gmail.com' ? 'admin' : 'member',
+        emailVerified: firebaseUser.emailVerified,
+        phoneVerified: Boolean(firebaseUser.phoneNumber),
+        authProvider: firebaseUser.providerData.some((p) => p.providerId === 'google.com') ? 'google' : 'email',
+        createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+        status: 'active',
+      };
+      storageService.setCurrentUser(account);
+      setCurrentUser(account);
+    });
+    return unsubscribe;
+  }, []);
 
   const [profiles, setProfiles] = useState<UserProfile[]>(() => {
     return storageService.getApprovedProfiles();
@@ -266,10 +296,16 @@ export default function App() {
     setIsMessagingOpen(true);
   };
 
-  const handleSignOut = () => {
-    storageService.setCurrentUser(null);
-    setCurrentUser(null);
-    showToast(language === 'te' ? 'విజయవంతంగా లాగౌట్ అయ్యారు.' : 'Signed out successfully.');
+  const handleSignOut = async () => {
+    try {
+      await logoutFirebaseUser();
+      storageService.setCurrentUser(null);
+      setCurrentUser(null);
+      showToast(language === 'te' ? 'విజయవంతంగా లాగౌట్ అయ్యారు.' : 'Signed out successfully.');
+    } catch (error) {
+      console.error('Firebase sign-out failed:', error);
+      showToast(language === 'te' ? 'లాగౌట్ కాలేదు. మళ్లీ ప్రయత్నించండి.' : 'Unable to sign out. Please try again.');
+    }
   };
 
   const handleOpenShare = () => {

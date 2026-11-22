@@ -50,18 +50,34 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [selectedRejectionReason, setSelectedRejectionReason] = useState('Candidate photo does not meet clarity or modesty guidelines');
   const [showRejectDrawer, setShowRejectDrawer] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Keep every hook unconditional. The previous early return above these
+  // hooks caused React to see a different hook count when the modal opened.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    setLoading(true);
+    fetchAllRegistrations()
+      .then((data) => {
+        if (!cancelled) setProfiles(data);
+      })
+      .catch((error) => {
+        console.error('Failed to load admin registrations:', error);
+        if (!cancelled) setStatusMessage('Unable to load registrations. Please check administrator access and try again.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchAllRegistrations().then((data) => {
-      setProfiles(data);
-      setLoading(false);
-    });
-  }, []);
 
   const auditLogs = storageService.getAuditLogs();
 
