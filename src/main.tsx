@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-class StartupErrorBoundary extends Component<PropsWithChildren, { hasError: boolean; errorMessage: string }> {
-  state = { hasError: false, errorMessage: '' };
+class StartupErrorBoundary extends Component<PropsWithChildren, { hasError: boolean; errorMessage: string; componentStack: string }> {
+  state = { hasError: false, errorMessage: '', componentStack: '' };
 
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, errorMessage: error?.message || 'Unknown application rendering error' };
@@ -12,6 +12,7 @@ class StartupErrorBoundary extends Component<PropsWithChildren, { hasError: bool
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Nikah Pakka application render failure:', error, info.componentStack);
+    this.setState({ componentStack: info.componentStack || 'React did not provide a component stack.' });
   }
 
   render() {
@@ -23,7 +24,7 @@ class StartupErrorBoundary extends Component<PropsWithChildren, { hasError: bool
             <p style={{ lineHeight: 1.6 }}>The page encountered an unexpected error. Your account data has not been deleted. Please reload the page or try again shortly.</p>
             <details style={{ marginTop: 16, textAlign: 'left', fontSize: 12, color: '#475569', overflowWrap: 'anywhere' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Technical error details (staging diagnosis)</summary>
-              <pre style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>{this.state.errorMessage}</pre>
+              <pre style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>{this.state.errorMessage}{'\\n\\nComponent stack:\\n'}{this.state.componentStack}</pre>
             </details>
             <button type="button" onClick={() => window.location.reload()} style={{ marginTop: 12, borderRadius: 8, padding: '12px 20px', background: '#065f46', color: '#fff', fontWeight: 600 }}>Reload website</button>
           </section>
