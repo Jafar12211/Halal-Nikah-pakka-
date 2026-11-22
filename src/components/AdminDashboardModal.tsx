@@ -501,7 +501,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             </p>
 
                             <p className="text-xs text-emerald-800 font-medium">
-                              📍 {p.district} ({p.mandalCity}) · {p.religion.sect} · {p.religion.salah}
+                              📍 {p.district} ({p.mandalCity}) · {p.religion?.sect || 'Deen details not provided'} · {p.religion?.salah || 'Salah details not provided'}
                             </p>
 
                             {/* Verification Badges for Photo & Valid Govt ID */}
@@ -527,7 +527,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             </div>
 
                             <p className="text-[11px] text-stone-500 pt-0.5">
-                              Guardian: {p.guardianWaliContact.name} ({p.guardianWaliContact.relationship}) · Phone: {p.guardianWaliContact.phone}
+                              Guardian: {p.guardianWaliContact?.name || 'Not provided'} ({p.guardianWaliContact?.relationship || 'Not specified'}) · Phone: {p.guardianWaliContact?.phone || 'Not provided'}
                             </p>
 
                             {p.approvalNotes && (
@@ -946,12 +946,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                     <div>
                       <span className="text-stone-500 font-medium block">Guardian (Wali) Verification:</span>
                       <p className="font-semibold text-stone-900 text-xs">
-                        {selectedProfile.guardianWaliContact.name} ({selectedProfile.guardianWaliContact.relationship})
+                        {selectedProfile.guardianWaliContact?.name || 'Not provided'} ({selectedProfile.guardianWaliContact?.relationship || 'Not specified'})
                       </p>
                     </div>
                     <div>
                       <span className="text-stone-500 font-medium block">Wali Telephone Contact:</span>
-                      <p className="font-mono font-bold text-emerald-800 text-xs">{selectedProfile.guardianWaliContact.phone}</p>
+                      <p className="font-mono font-bold text-emerald-800 text-xs">{selectedProfile.guardianWaliContact?.phone || 'Not provided'}</p>
                     </div>
                   </div>
                 </div>
