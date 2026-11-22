@@ -114,6 +114,8 @@ export default function App() {
       if (!firebaseUser) {
         setCurrentUser(null);
         setMyProfile(null);
+        setProfiles([]);
+        setSelectedProfile(null);
         setAuthLoading(false);
         return;
       }
@@ -276,6 +278,11 @@ export default function App() {
 
   // Load approved public profiles from Firestore
   const refreshProfiles = async () => {
+    if (!currentUser) {
+      setProfiles([]);
+      setSelectedProfile(null);
+      return;
+    }
     try {
       const profilesQuery = query(
         collection(db, 'publicProfiles'),
@@ -303,7 +310,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Approved public profiles are browseable without requiring an account.
+    // Approved public listings are fetched only for authenticated members.
     void refreshProfiles();
   }, [currentUser?.id]);
 
@@ -534,6 +541,8 @@ export default function App() {
 
       setCurrentUser(null);
       setMyProfile(null);
+      setProfiles([]);
+      setSelectedProfile(null);
       setIsMessagingOpen(false);
       setIsAdminOpen(false);
 
