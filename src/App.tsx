@@ -70,8 +70,19 @@ export default function App() {
       setCurrentUser(account);
       try {
         const savedProfile = await fetchMyRegistration(firebaseUser.uid);
-        if (savedProfile) storageService.saveProfile(savedProfile);
-        setProfiles(storageService.getApprovedProfiles());
+        if (savedProfile) {
+          storageService.saveProfile(savedProfile);
+        } else {
+          // Recover a profile previously stored by the legacy production app on this device.
+          const legacyLocalProfile = storageService.getMyProfile(firebaseUser.uid);
+          if (legacyLocalProfile) {
+            await saveProfileToFirestore(legacyLocalProfile);
+            storageService.saveProfile(legacyLocalProfile);
+          }
+        }
+        if (auth.currentUser?.uid === firebaseUser.uid) {
+          setProfiles(storageService.getApprovedProfiles());
+        }
       } catch (error) {
         console.error('Unable to restore the signed-in member profile:', error);
         showToast('Your account is signed in, but your saved profile could not be loaded. Please retry.');
