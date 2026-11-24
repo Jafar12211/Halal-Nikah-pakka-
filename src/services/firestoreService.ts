@@ -320,9 +320,35 @@ export async function verifyGovernmentDocumentFirestore(userId: string, document
   const data = snapshot.data();
   const docs = Array.isArray(data.documents) ? data.documents : [];
   const target = docs.find((item: any) => item.id === documentId);
-  if (!target || typeof target.storagePath !== 'string' || !target.storagePath.startsWith(`identityDocuments/${userId}/`) || target.isRestricted !== true) {
-    throw new Error('The private identity document record is invalid.');
+  if (
+    !target ||
+    typeof target.fileName !== 'string' ||
+    !target.fileName.trim() ||
+    target.storagePath !== `identityDocuments/${userId}/${target.fileName}` ||
+    !VALID_GOVT_DOC_TYPES.includes(target.type) ||
+    typeof target.maskedId !== 'string' ||
+    !target.maskedId.trim() ||
+    target.isRestricted !== true
+  ) {
+    throw new Error('The private identity document record is invalid. Ask the candidate to upload the document again.');
   }
+
+  // Confirm the private image exists and belongs to this candidate before
+  // recording an administrator review of its metadata.
+  const privateDocument = await getDoc(doc(db, 'identityDocuments', userId, 'items', target.fileName));
+  if (!privateDocument.exists()) {
+    throw new Error('The identity image is missing from secure storage. Ask the candidate to upload it again.');
+  }
+  const privateDocumentData = privateDocument.data();
+  if (
+    privateDocumentData.ownerUid !== userId ||
+    privateDocumentData.contentType !== 'image/webp' ||
+    typeof privateDocumentData.dataUrl !== 'string' ||
+    !privateDocumentData.dataUrl.startsWith('data:image/webp;base64,')
+  ) {
+    throw new Error('The stored identity image failed its ownership or file-integrity check.');
+  }
+
   const updatedDocuments = docs.map((item: any) => item.id === documentId
     ? { ...item, verified: true, verifiedBy: performedBy }
     : item);
@@ -429,6 +455,34 @@ export async function updateProfileApprovalStatusFirestore(
       throw new Error(
         'Approval blocked. The candidate must be 18+, have a privately stored profile photograph, and have an accepted government ID file in private storage that an administrator has actually reviewed.'
       );
+    }
+
+    // Confirm evidence files exist; metadata paths alone are not proof.
+    const photoPath = data.photos.find((photo: unknown) =>
+      typeof photo === 'string' && photo.startsWith(`profilePhotos/${userId}/`)
+    ) as string;
+    const photoFileName = photoPath.split('/').pop() || '';
+    const photoSnapshot = await getDoc(doc(db, 'profilePhotos', userId, 'items', photoFileName));
+    if (!photoSnapshot.exists() || photoSnapshot.data().ownerUid !== userId) {
+      throw new Error('Approval blocked: the candidate photograph is missing from secure storage. Ask the candidate to upload it again.');
+    }
+
+    const verifiedDocument = data.documents.find((document: any) =>
+      VALID_GOVT_DOC_TYPES.includes(document?.type) &&
+      document?.verified === true &&
+      document?.isRestricted === true
+    );
+    const documentSnapshot = await getDoc(doc(
+      db, 'identityDocuments', userId, 'items', verifiedDocument.fileName
+    ));
+    if (
+      !documentSnapshot.exists() ||
+      documentSnapshot.data().ownerUid !== userId ||
+      documentSnapshot.data().contentType !== 'image/webp' ||
+      typeof documentSnapshot.data().dataUrl !== 'string' ||
+      !documentSnapshot.data().dataUrl.startsWith('data:image/webp;base64,')
+    ) {
+      throw new Error('Approval blocked: the verified government ID image is missing or invalid in secure storage.');
     }
   }
 

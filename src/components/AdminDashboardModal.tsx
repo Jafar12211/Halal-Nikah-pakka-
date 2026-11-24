@@ -94,6 +94,43 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     };
   }, [isOpen, currentUser?.id, currentUser?.role]);
 
+  // Private photo paths are not browser URLs. Load cover photos through the
+  // owner/admin-authorized Firestore reader before displaying them.
+  const [photoPreviewUrls, setPhotoPreviewUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!isOpen || !isAdminUser(currentUser)) return;
+    let cancelled = false;
+    const createdUrls: string[] = [];
+    const coverPaths = Array.from(new Set(
+      profiles.map((profile) => profile.photos?.[0]).filter((path): path is string =>
+        typeof path === 'string' && path.startsWith('profilePhotos/')
+      )
+    ));
+    void Promise.all(coverPaths.map(async (path) => {
+      try {
+        const blob = await getStorageFileBlob(path);
+        const url = URL.createObjectURL(blob);
+        createdUrls.push(url);
+        return [path, url] as const;
+      } catch (error) {
+        console.warn('Admin cover photo preview unavailable:', path, error);
+        return null;
+      }
+    })).then((entries) => {
+      if (!cancelled) {
+        setPhotoPreviewUrls((previous) => ({
+          ...previous,
+          ...Object.fromEntries(entries.filter(Boolean) as [string, string][]),
+        }));
+      } else {
+        createdUrls.forEach((url) => URL.revokeObjectURL(url));
+      }
+    });
+    return () => {
+      cancelled = true;
+      createdUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [isOpen, currentUser?.id, currentUser?.role, profiles]);
   if (!isOpen || !isAdminUser(currentUser)) return null;
 
   const pendingProfiles = profiles.filter((p) => p.approvalStatus === 'pending');
@@ -482,7 +519,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             {hasPhotos ? (
                               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 border-emerald-700/40 shadow-xs relative bg-stone-900">
                                 <img
-                                  src={p.photos[0]}
+                                  src={photoPreviewUrls[p.photos[0]] || ''}
                                   alt={p.candidateName}
                                   className="w-full h-full object-cover"
                                 />
