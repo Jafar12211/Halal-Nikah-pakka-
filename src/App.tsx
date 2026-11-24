@@ -271,20 +271,8 @@ export default function App() {
       interestsReceivedCount: 0,
     };
 
-    if (!auth.currentUser?.emailVerified || !currentUser) {
-      showToast(language === 'te' ? 'దయచేసి ముందుగా ధృవీకరించిన ఖాతాతో లాగిన్ అవ్వండి.' : 'Please sign in with a verified account before submitting a profile.');
-      setIsAuthOpen(true);
-      return;
-    }
-    adaptedProfile.userId = currentUser.id;
-    try {
-      await saveProfileToFirestore(adaptedProfile);
-      await refreshProfiles();
-    } catch (error) {
-      console.error('Profile submission failed:', error);
-      showToast(language === 'te' ? 'ప్రొఫైల్ సమర్పించబడలేదు. మళ్లీ ప్రయత్నించండి.' : 'Profile could not be submitted. Please try again.');
-      return;
-    }
+    storageService.saveProfile(adaptedProfile);
+    void refreshProfiles();
     showToast(
       language === 'te'
         ? `అల్హందులిల్లాహ్! ${adaptedProfile.candidateName} ప్రొఫైల్ నమోదైంది. అడ్మిన్ ఆమోదం కోసం సమర్పించబడింది.`
