@@ -278,10 +278,9 @@ export default function App() {
 
   // Load approved public profiles from Firestore
   const refreshProfiles = async () => {
-    // Until trusted membership enforcement is deployed, only administrators
-    // may browse the full candidate directory. Members retain their private
-    // account profile and cannot receive unlimited unmetered directory access.
-    if (!isAdminUser(currentUser)) {
+    // The directory is members-only: only verified Firebase accounts may browse
+    // sanitized public profiles. Private registration documents remain admin/owner only.
+    if (!currentUser || !currentUser.emailVerified) {
       setProfiles([]);
       setSelectedProfile(null);
       return;
