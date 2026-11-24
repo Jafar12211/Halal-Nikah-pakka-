@@ -114,7 +114,10 @@ export async function saveProfileToFirestore(profile: UserProfile): Promise<void
     const payload = {
       ...profile,
       userId,
-      verificationStatus: profile.approvalStatus || 'pending',
+      city: (profile as UserProfile & { city?: string }).city || profile.mandalCity || profile.district,
+      verificationStatus: existingSnap.exists() ? (existingSnap.data().verificationStatus || existingSnap.data().approvalStatus || 'pending') : 'pending',
+      approvalStatus: existingSnap.exists() ? (existingSnap.data().approvalStatus || 'pending') : 'pending',
+      isVerified: existingSnap.exists() ? Boolean(existingSnap.data().isVerified) : false,
       updatedAt: now,
       createdAt: existingSnap.exists() ? (existingSnap.data().createdAt || now) : now,
     };
@@ -123,6 +126,19 @@ export async function saveProfileToFirestore(profile: UserProfile): Promise<void
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
     throw error;
+  }
+}
+
+export async function fetchMyRegistration(userId: string): Promise<UserProfile | null> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) {
+    throw new Error('You can only load your own profile.');
+  }
+  try {
+    const snapshot = await getDoc(doc(db, 'registrations', userId));
+    return snapshot.exists() ? (snapshot.data() as UserProfile) : null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, `registrations/${userId}`);
+    return null;
   }
 }
 
