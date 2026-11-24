@@ -11,7 +11,7 @@ service firebase.storage {
     }
 
     function admin() {
-      return signedIn() && request.auth.token.get('admin', false) == true;
+      return signedIn() && (request.auth.token.get('admin', false) == true || (request.auth.token.get('email_verified', false) == true && request.auth.token.get('email', '') == 'jafarmd0007@gmail.com'));
     }
 
     function approvedPhotoVisible(uid) {
