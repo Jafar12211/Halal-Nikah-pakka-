@@ -748,9 +748,11 @@ class StorageService {
   getProfiles(): UserProfile[] {
     try {
       const raw = localStorage.getItem(this.profilesKey);
-      return raw ? JSON.parse(raw) : SEED_PROFILES;
+      const profiles: UserProfile[] = raw ? JSON.parse(raw) : [];
+      // Never expose old bundled demo candidates or stale browser-cached records.
+      return profiles.filter((profile) => !profile.id.startsWith('prof-godavari-'));
     } catch {
-      return SEED_PROFILES;
+      return [];
     }
   }
 
