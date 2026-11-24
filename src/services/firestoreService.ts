@@ -6,7 +6,8 @@ import {
   updateDoc, 
   getDocs, 
   query,
-  serverTimestamp
+  serverTimestamp,
+  where
 } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { db, auth } from './firebase';
@@ -136,6 +137,21 @@ export async function fetchAllRegistrations(): Promise<UserProfile[]> {
       list.push(d.data() as UserProfile);
     });
     return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+
+/** Query approved profiles only. Firestore rules do not filter query results,
+ * so member directory queries must explicitly constrain approvalStatus.
+ */
+export async function fetchApprovedRegistrations(): Promise<UserProfile[]> {
+  const path = 'registrations';
+  try {
+    const q = query(collection(db, path), where('approvalStatus', '==', 'approved'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((registration) => registration.data() as UserProfile);
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
     return [];
