@@ -33,13 +33,13 @@ service cloud.firestore {
     function isValidRegistration(data) {
       return data.keys().hasAll(['id', 'userId', 'candidateName', 'gender', 'age', 'city', 'createdAt']) &&
              data.keys().hasOnly([
-               'id', 'userId', 'candidateName', 'gender', 'age', 'height', 'maritalStatus',
-               'city', 'stateCountry', 'motherTongue', 'sect', 'religiousPractice',
+               'id', 'userId', 'candidateName', 'gender', 'age', 'dob', 'height', 'maritalStatus',
+               'city', 'district', 'mandalCity', 'stateCountry', 'motherTongue', 'sect', 'religiousPractice',
                'education', 'profession', 'employedIn', 'annualIncomeRange',
                'familyDetails', 'partnerPreferences', 'aboutCandidate', 'guardianWaliContact',
-               'isVerified', 'approvalStatus', 'verificationStatus', 'photos', 'photoPrivacy',
+               'isVerified', 'approvalStatus', 'approvalNotes', 'verificationStatus', 'photos', 'photoUrl', 'photoPrivacy',
                'avatarInitials', 'avatarBgColor', 'createdAt', 'updatedAt', 'documents',
-               'favoritesCount', 'interestsReceivedCount'
+               'mustHaves', 'dealBreakers', 'favoritesCount', 'interestsReceivedCount'
              ]) &&
              data.userId is string && data.userId == request.auth.uid &&
              data.candidateName is string && data.candidateName.size() <= 100 &&

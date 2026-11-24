@@ -29,10 +29,36 @@ import {
   VALID_GOVT_DOC_TYPES
 } from '../utils/matrimony';
 
+const optimizePhotoForUpload = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Unable to read the selected photo.'));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error('The selected photo could not be processed.'));
+      image.onload = () => {
+        const maxDimension = 720;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+        if (!context) {
+          reject(new Error('Photo processing is unavailable in this browser.'));
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.65));
+      };
+      image.src = String(reader.result || '');
+    };
+    reader.readAsDataURL(file);
+  });
+
 interface RegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProfileCreated: (newProfile: MatrimonyProfile) => void;
+  onProfileCreated: (newProfile: MatrimonyProfile) => Promise<void>;
 }
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({
@@ -71,6 +97,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -94,15 +122,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       }
     }
 
-    const readers = filesToUpload.map((f) => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target?.result as string);
-        reader.readAsDataURL(f);
-      });
-    });
-
-    Promise.all(readers).then((newPhotos) => {
+    Promise.all(filesToUpload.map(optimizePhotoForUpload)).then((newPhotos) => {
       setFormData((prev) => {
         const combined = [...(prev.photos || []), ...newPhotos].slice(0, 5);
         return {
@@ -255,7 +275,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validation = validateRegistrationForm(formData);
     if (!validation.isValid) {
@@ -365,8 +385,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       interestsCount: 0,
     };
 
-    onProfileCreated(newProfile);
-    setSubmittedSuccess(true);
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    try {
+      await onProfileCreated(newProfile);
+      setSubmittedSuccess(true);
+    } catch (error) {
+      console.error('Profile submission failed:', error);
+      setSubmissionError(error instanceof Error ? error.message : 'We could not save your profile. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -412,12 +441,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               <CheckCircle2 className="w-10 h-10" />
             </div>
             <h3 className="text-2xl font-serif font-bold text-stone-900">
-              Alhamdulillah! Profile Registered & Verified
+              Alhamdulillah! Profile Submitted for Review
             </h3>
             <p className="text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
-              Your profile for <strong>{formData.candidateName}</strong> with verified photo and
-              government ID (<strong>{formData.govtIdType}</strong>) has been created and verified.
-              It is now active in the Godavari & Yanam community directory.
+              Your profile for <strong>{formData.candidateName}</strong> has been saved successfully and is now <strong>Pending administrator review</strong>. It will appear in the directory only after approval.
             </p>
             <div className="pt-4 flex justify-center gap-3">
               <button
@@ -433,6 +460,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           </div>
         ) : (
           <div className="p-6 sm:p-8">
+            {submissionError && <div role="alert" className="mb-4 rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-xs text-rose-900">{submissionError}</div>}
             {/* Steps Progress */}
             <div className="grid grid-cols-4 gap-2 mb-8 pb-4 border-b border-stone-200 text-[11px] font-semibold text-center">
               <div
@@ -1145,10 +1173,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     </button>
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+                      disabled={isSubmitting}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
                     >
                       <UserCheck className="w-4 h-4 text-amber-300" />
-                      <span>Complete Verified Registration</span>
+                      <span>{isSubmitting ? 'Saving securely…' : 'Submit Profile for Admin Review'}</span>
                     </button>
                   </div>
                 </div>

@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy-production-hosting:
-    name: Build and deploy Hosting only
+    name: Build and deploy Hosting and Firestore rules
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
@@ -79,5 +79,5 @@ jobs:
       - name: Build production website
         run: bun run build
 
-      - name: Deploy Firebase Hosting only
-        run: npx --yes firebase-tools@15.35.0 deploy --only hosting --project nikah-pakka --non-interactive
+      - name: Deploy Firebase Hosting and Firestore security rules
+        run: npx --yes firebase-tools@15.35.0 deploy --only hosting,firestore:rules --project nikah-pakka --non-interactive
