@@ -27,7 +27,7 @@ import { ProfileScreen } from './components/android/ProfileScreen';
 import { UserProfile, UserAccount, LanguageCode, DistrictAP } from './types/database';
 import { FilterState, MatrimonyProfile } from './types/matrimony';
 import { storageService } from './services/storageService';
-import { saveProfileToFirestore, fetchAllRegistrations } from './services/firestoreService';
+import { saveProfileToFirestore, fetchApprovedRegistrations } from './services/firestoreService';
 import { translations } from './utils/translations';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -73,7 +73,7 @@ export default function App() {
       storageService.setCurrentUser(account);
       setCurrentUser(account);
       try {
-        const registrations = await fetchAllRegistrations();
+        const registrations = await fetchApprovedRegistrations();
         if (active && auth.currentUser?.uid === firebaseUser.uid) {
           setProfiles(registrations.filter((profile) => profile.approvalStatus === 'approved'));
         }
@@ -168,7 +168,7 @@ export default function App() {
       return;
     }
     try {
-      const registrations = await fetchAllRegistrations();
+      const registrations = await fetchApprovedRegistrations();
       setProfiles(registrations.filter((profile) => profile.approvalStatus === 'approved'));
     } catch (error) {
       console.error('Unable to refresh member profiles:', error);
