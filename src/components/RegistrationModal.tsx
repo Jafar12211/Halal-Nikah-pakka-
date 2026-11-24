@@ -29,6 +29,32 @@ import {
   VALID_GOVT_DOC_TYPES
 } from '../utils/matrimony';
 
+const optimizePhotoForUpload = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Unable to read the selected photo.'));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error('The selected photo could not be processed.'));
+      image.onload = () => {
+        const maxDimension = 720;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+        if (!context) {
+          reject(new Error('Photo processing is unavailable in this browser.'));
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.65));
+      };
+      image.src = String(reader.result || '');
+    };
+    reader.readAsDataURL(file);
+  });
+
 interface RegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -96,15 +122,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       }
     }
 
-    const readers = filesToUpload.map((f) => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target?.result as string);
-        reader.readAsDataURL(f);
-      });
-    });
-
-    Promise.all(readers).then((newPhotos) => {
+    Promise.all(filesToUpload.map(optimizePhotoForUpload)).then((newPhotos) => {
       setFormData((prev) => {
         const combined = [...(prev.photos || []), ...newPhotos].slice(0, 5);
         return {
