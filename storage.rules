@@ -17,6 +17,7 @@ service firebase.storage {
     function approvedPhotoVisible(uid) {
       let profilePath = /databases/(default)/documents/publicProfiles/$(uid);
       return signedIn()
+        && request.auth.token.email_verified == true
         && firestore.exists(profilePath)
         && firestore.get(profilePath).data.approvalStatus == 'approved'
         && firestore.get(profilePath).data.isVerified == true
