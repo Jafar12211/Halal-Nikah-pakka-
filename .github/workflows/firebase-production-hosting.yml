@@ -51,14 +51,11 @@ jobs:
         with:
           node-version: 24
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
       - name: Install locked dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run TypeScript validation
-        run: bun run lint
+        run: npm run lint
 
       - name: Write and validate production Firebase Web App config
         shell: bash
@@ -78,7 +75,7 @@ jobs:
           node -e "const c=require('./firebase-applet-config.json'); if(c.projectId!=='nikah-pakka'||c.authDomain!=='nikah-pakka.firebaseapp.com'||c.messagingSenderId!=='655818278889') process.exit(1); console.log('Production Firebase Web App config validated.')"
 
       - name: Build production website
-        run: bun run build
+        run: npm run build
 
       - name: Deploy Firebase Hosting and Firestore security rules
         run: npx --yes firebase-tools@15.35.0 deploy --only hosting,firestore:rules --project nikah-pakka --non-interactive
