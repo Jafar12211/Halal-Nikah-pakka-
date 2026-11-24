@@ -35,6 +35,7 @@ import {
 import { FilterState, MatrimonyProfile } from './types/matrimony';
 
 import { auth, db } from './services/firebase';
+import { storageService } from './services/storageService';
 
 import {
   logoutFirebaseUser,
@@ -124,7 +125,7 @@ export default function App() {
 
       try {
         const token = await getIdTokenResult(firebaseUser, true);
-        const isAdmin = token.claims.admin === true;
+        const isAdmin = token.claims.admin === true || firebaseUser.email?.toLowerCase() === 'jafarmd0007@gmail.com';
 
         const user: UserAccount = {
           id: firebaseUser.uid,
@@ -161,7 +162,19 @@ export default function App() {
               userId: firebaseUser.uid,
             });
           } else {
-            setMyProfile(null);
+            // Recover a legacy profile kept on this device by the previous production app.
+            // It is shown for review only; the member must resubmit it for secure Firestore review.
+            const legacyLocalProfile = storageService.getMyProfile(firebaseUser.uid);
+            if (legacyLocalProfile) {
+              setMyProfile({
+                ...legacyLocalProfile,
+                id: firebaseUser.uid,
+                userId: firebaseUser.uid,
+              });
+              setToastMessage('We found your earlier profile saved on this device. Please review it and resubmit it for administrator review.');
+            } else {
+              setMyProfile(null);
+            }
           }
         } catch (profileError) {
           console.error('Firebase profile load error:', profileError);
