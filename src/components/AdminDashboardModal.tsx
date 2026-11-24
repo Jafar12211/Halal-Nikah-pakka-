@@ -183,13 +183,37 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-stone-300 hover:text-white hover:bg-emerald-900 rounded-lg transition-colors cursor-pointer"
-            aria-label="Close admin dashboard"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={async () => {
+                setLoading(true);
+                setStatusMessage(null);
+                try {
+                  const latest = await fetchAllRegistrations();
+                  setProfiles(latest);
+                } catch (error) {
+                  console.error('Admin refresh failed:', error);
+                  setStatusMessage('Could not refresh registrations. Check your administrator access or network connection.');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="p-2 text-stone-200 hover:text-white hover:bg-emerald-900 rounded-lg disabled:opacity-50"
+              aria-label="Refresh registrations"
+              title="Refresh registrations"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-stone-300 hover:text-white hover:bg-emerald-900 rounded-lg transition-colors cursor-pointer"
+              aria-label="Close admin dashboard"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Metrics Bar */}
@@ -343,7 +367,9 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
           {/* PROFILE QUEUE TAB (pending, all, approved, rejected) */}
           {(activeTab === 'pending' || activeTab === 'all' || activeTab === 'approved' || activeTab === 'rejected') && (
             <div className="space-y-4">
-              {filteredList.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12 bg-white rounded-xl border border-stone-200 text-sm text-stone-600">Loading registrations securely…</div>
+              ) : filteredList.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl border border-dashed border-stone-300">
                   <BadgeCheck className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
                   <p className="text-sm font-semibold text-stone-800">
@@ -352,7 +378,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       : 'No profiles match your filter.'}
                   </p>
                   <p className="text-xs text-stone-500 mt-1">
-                    All submitted candidate photographs and identity documents have been inspected.
+                    New submissions will appear here after a successful Firebase save. Use Refresh to check again.
                   </p>
                 </div>
               ) : (
