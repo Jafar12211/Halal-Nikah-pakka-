@@ -17,6 +17,7 @@ import {
 import { UserProfile, UserAccount, DistrictAP, ValidGovtDocType } from '../types/database';
 import { storageService, GODAVARI_DISTRICTS } from '../services/storageService';
 import { maskGovtIdNumber } from '../utils/matrimony';
+import { saveProfileToFirestore } from '../services/firestoreService';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -202,7 +203,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     setDealBreakers(dealBreakers.filter((_, i) => i !== idx));
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
     setSaving(true);
@@ -224,7 +225,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
             fileName: `${docType.replace(/\s+/g, '_')}_Masked.pdf`,
             maskedId: maskGovtIdNumber(docLast4, docType),
             uploadedAt: new Date().toISOString().split('T')[0],
-            verified: true,
+            verified: false,
             isRestricted: true,
           },
         ]
@@ -291,22 +292,29 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       avatarInitials: initials,
       avatarBgColor: gender === 'bride' ? '#047857' : '#0284c7',
       documents: maskedDocumentRecord,
-      isVerified: true,
-      approvalStatus: existingProfile?.approvalStatus || 'approved',
+      isVerified: existingProfile?.isVerified || false,
+      approvalStatus: existingProfile?.approvalStatus || 'pending',
       createdAt: existingProfile?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       favoritesCount: existingProfile?.favoritesCount || 1,
       interestsReceivedCount: existingProfile?.interestsReceivedCount || 0,
     };
 
-    storageService.saveProfile(updatedProfile);
-    setSaving(false);
-    setStatusMsg('Profile details updated successfully!');
-    setTimeout(() => {
-      setStatusMsg(null);
-      onProfileUpdated();
-      onClose();
-    }, 1200);
+    try {
+      await saveProfileToFirestore(updatedProfile);
+      storageService.saveProfile(updatedProfile);
+      setStatusMsg('Profile saved securely. Approval status has been preserved.');
+      setTimeout(() => {
+        setStatusMsg(null);
+        onProfileUpdated();
+        onClose();
+      }, 1200);
+    } catch (error) {
+      console.error('Profile update failed:', error);
+      setStatusMsg(error instanceof Error ? error.message : 'Unable to save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
