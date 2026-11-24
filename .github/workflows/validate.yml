@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - staging/nikah-pakka-firebase*
-      - main
   pull_request:
     branches:
       - staging/nikah-pakka-firebase*
+      - main
 
 permissions:
   contents: read
