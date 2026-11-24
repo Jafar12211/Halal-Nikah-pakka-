@@ -6,5 +6,5 @@ import type { UserAccount } from '../types/database';
  * Firestore rules and privileged service actions independently enforce the claim.
  */
 export function isAdminUser(user: UserAccount | null | undefined): boolean {
-  return Boolean(user && user.emailVerified && (user.role === 'admin' || user.email.toLowerCase() === 'jafarmd0007@gmail.com'));
+  return Boolean(user && user.role === 'admin');
 }
