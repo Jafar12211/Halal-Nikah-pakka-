@@ -52,8 +52,8 @@ service cloud.firestore {
     }
 
     match /registrations/{userId} {
-      allow get: if isSignedIn() && (isOwner(userId) || isAdmin() || existing().approvalStatus == 'approved');
-      allow list: if isSignedIn() && (isAdmin() || resource.data.approvalStatus == 'approved' || resource.data.userId == request.auth.uid);
+      allow get: if isEmailVerified() && (isOwner(userId) || isAdmin() || existing().approvalStatus == 'approved');
+      allow list: if isEmailVerified() && (isAdmin() || resource.data.approvalStatus == 'approved' || resource.data.userId == request.auth.uid);
 
       allow create: if isEmailVerified() && isValidId(userId) && userId == request.auth.uid && isValidRegistration(incoming()) && incoming().userId == request.auth.uid;
 
