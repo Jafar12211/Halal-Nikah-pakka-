@@ -170,7 +170,6 @@ export default function App() {
     const adaptedProfile: UserProfile = {
       id: matrimonyProf.id,
       userId: firebaseUser.uid,
-      city: matrimonyProf.city,
       candidateName: matrimonyProf.candidateName,
       gender: matrimonyProf.gender,
       dob: '2000-01-01',
