@@ -163,7 +163,8 @@ export default function App() {
   const handleProfileCreated = async (matrimonyProf: MatrimonyProfile): Promise<void> => {
     const firebaseUser = auth.currentUser;
     if (!firebaseUser || !firebaseUser.emailVerified) {
-      throw new Error('Please sign in with a verified email before submitting your profile. Your entered details are still available; sign in and submit again.');
+      setIsAuthOpen(true);
+      throw new Error('Please sign in with your verified email. The registration form will remain open; sign in and then submit again.');
     }
     // Adapt to full UserProfile and persist in storageService
     const adaptedProfile: UserProfile = {
