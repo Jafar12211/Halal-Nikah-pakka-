@@ -32,7 +32,7 @@ import {
 interface RegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProfileCreated: (newProfile: MatrimonyProfile) => void;
+  onProfileCreated: (newProfile: MatrimonyProfile) => Promise<void>;
 }
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({
@@ -71,6 +71,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -255,7 +257,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validation = validateRegistrationForm(formData);
     if (!validation.isValid) {
@@ -365,8 +367,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       interestsCount: 0,
     };
 
-    onProfileCreated(newProfile);
-    setSubmittedSuccess(true);
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    try {
+      await onProfileCreated(newProfile);
+      setSubmittedSuccess(true);
+    } catch (error) {
+      console.error('Profile submission failed:', error);
+      setSubmissionError(error instanceof Error ? error.message : 'We could not save your profile. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -412,12 +423,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               <CheckCircle2 className="w-10 h-10" />
             </div>
             <h3 className="text-2xl font-serif font-bold text-stone-900">
-              Alhamdulillah! Profile Registered & Verified
+              Alhamdulillah! Profile Submitted for Review
             </h3>
             <p className="text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
-              Your profile for <strong>{formData.candidateName}</strong> with verified photo and
-              government ID (<strong>{formData.govtIdType}</strong>) has been created and verified.
-              It is now active in the Godavari & Yanam community directory.
+              Your profile for <strong>{formData.candidateName}</strong> has been saved successfully and is now <strong>Pending administrator review</strong>. It will appear in the directory only after approval.
             </p>
             <div className="pt-4 flex justify-center gap-3">
               <button
@@ -433,6 +442,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           </div>
         ) : (
           <div className="p-6 sm:p-8">
+            {submissionError && <div role="alert" className="mb-4 rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-xs text-rose-900">{submissionError}</div>}
             {/* Steps Progress */}
             <div className="grid grid-cols-4 gap-2 mb-8 pb-4 border-b border-stone-200 text-[11px] font-semibold text-center">
               <div
