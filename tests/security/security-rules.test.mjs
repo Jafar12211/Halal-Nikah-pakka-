@@ -488,7 +488,7 @@ test("Other members can read approved and visible profile photos", async () => {
   });
 
   const ownerStorage = testEnv.authenticatedContext("member1").storage();
-  const otherStorage = testEnv.authenticatedContext("member2").storage();
+  const otherStorage = testEnv.authenticatedContext("member2", { email_verified: true }).storage();
 
   await uploadBytes(
     ref(ownerStorage, "profilePhotos/member1/photo.png"),
