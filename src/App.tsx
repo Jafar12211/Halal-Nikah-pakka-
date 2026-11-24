@@ -46,10 +46,14 @@ export default function App() {
   // Firebase Authentication is the source of truth; do not restore a
   // browser-local session that could falsely appear to be an authenticated admin.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    let active = true;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser || !firebaseUser.emailVerified) {
         storageService.setCurrentUser(null);
         setCurrentUser(null);
+        setProfiles([]);
+        setSelectedProfile(null);
+        setActiveTab('home');
         return;
       }
       const email = firebaseUser.email || '';
@@ -68,13 +72,23 @@ export default function App() {
       };
       storageService.setCurrentUser(account);
       setCurrentUser(account);
+      try {
+        const registrations = await fetchAllRegistrations();
+        if (active && auth.currentUser?.uid === firebaseUser.uid) {
+          setProfiles(registrations.filter((profile) => profile.approvalStatus === 'approved'));
+        }
+      } catch (error) {
+        console.error('Unable to load members-only profiles:', error);
+        if (active) setProfiles([]);
+      }
     });
-    return unsubscribe;
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
-  const [profiles, setProfiles] = useState<UserProfile[]>(() => {
-    return storageService.getApprovedProfiles();
-  });
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
 
   const [filters, setFilters] = useState<FilterState>({
     gender: 'all',
@@ -148,11 +162,21 @@ export default function App() {
     showToast(nextLang === 'te' ? 'భాష తెలుగులోకి మార్చబడింది' : 'Language set to English');
   };
 
-  const refreshProfiles = () => {
-    setProfiles(storageService.getApprovedProfiles());
+  const refreshProfiles = async () => {
+    if (!auth.currentUser?.emailVerified) {
+      setProfiles([]);
+      return;
+    }
+    try {
+      const registrations = await fetchAllRegistrations();
+      setProfiles(registrations.filter((profile) => profile.approvalStatus === 'approved'));
+    } catch (error) {
+      console.error('Unable to refresh member profiles:', error);
+      setProfiles([]);
+    }
   };
 
-  const handleProfileCreated = (matrimonyProf: MatrimonyProfile) => {
+  const handleProfileCreated = async (matrimonyProf: MatrimonyProfile) => {
     // Adapt to full UserProfile and persist in storageService
     const adaptedProfile: UserProfile = {
       id: matrimonyProf.id,
@@ -247,8 +271,20 @@ export default function App() {
       interestsReceivedCount: 0,
     };
 
-    storageService.saveProfile(adaptedProfile);
-    refreshProfiles();
+    if (!auth.currentUser?.emailVerified || !currentUser) {
+      showToast(language === 'te' ? 'దయచేసి ముందుగా ధృవీకరించిన ఖాతాతో లాగిన్ అవ్వండి.' : 'Please sign in with a verified account before submitting a profile.');
+      setIsAuthOpen(true);
+      return;
+    }
+    adaptedProfile.userId = currentUser.id;
+    try {
+      await saveProfileToFirestore(adaptedProfile);
+      await refreshProfiles();
+    } catch (error) {
+      console.error('Profile submission failed:', error);
+      showToast(language === 'te' ? 'ప్రొఫైల్ సమర్పించబడలేదు. మళ్లీ ప్రయత్నించండి.' : 'Profile could not be submitted. Please try again.');
+      return;
+    }
     showToast(
       language === 'te'
         ? `అల్హందులిల్లాహ్! ${adaptedProfile.candidateName} ప్రొఫైల్ నమోదైంది. అడ్మిన్ ఆమోదం కోసం సమర్పించబడింది.`
@@ -301,6 +337,9 @@ export default function App() {
       await logoutFirebaseUser();
       storageService.setCurrentUser(null);
       setCurrentUser(null);
+      setProfiles([]);
+      setSelectedProfile(null);
+      setActiveTab('home');
       showToast(language === 'te' ? 'విజయవంతంగా లాగౌట్ అయ్యారు.' : 'Signed out successfully.');
     } catch (error) {
       console.error('Firebase sign-out failed:', error);
@@ -345,6 +384,11 @@ export default function App() {
     : 0;
 
   const handleTabChange = (tab: AndroidTab) => {
+    if (!currentUser && tab !== 'home' && tab !== 'profile') {
+      setIsAuthOpen(true);
+      showToast(language === 'te' ? 'సంబంధాలను చూడటానికి లాగిన్ అవ్వండి.' : 'Please sign in to access member profiles.');
+      return;
+    }
     if (tab === 'messages') {
       setIsMessagingOpen(true);
     } else {
@@ -415,19 +459,33 @@ export default function App() {
               <MissionBanner onOpenRegister={() => setIsRegisterOpen(true)} />
             </div>
 
-            {/* Profiles Matchmaking Directory preview */}
-            <div id="matches-section">
-              <ProfilesList
-                profiles={filteredProfiles}
-                filters={filters}
-                setFilters={setFilters}
-                onSelectProfile={(p) => setSelectedProfile(p)}
-                onExpressInterest={handleExpressInterest}
-                userInterests={userInterests}
-                language={language}
-                onStartChat={handleStartChatWithProfile}
-              />
-            </div>
+            {/* Member directory is never rendered for signed-out visitors. */}
+            {currentUser && (
+              <div id="matches-section">
+                <ProfilesList
+                  profiles={filteredProfiles}
+                  filters={filters}
+                  setFilters={setFilters}
+                  onSelectProfile={(p) => setSelectedProfile(p)}
+                  onExpressInterest={handleExpressInterest}
+                  userInterests={userInterests}
+                  language={language}
+                  onStartChat={handleStartChatWithProfile}
+                />
+              </div>
+            )}
+            {!currentUser && (
+              <section className="py-12 px-4 bg-emerald-950 text-white text-center">
+                <div className="max-w-2xl mx-auto">
+                  <h2 className="text-2xl font-serif font-bold mb-3">{language === 'te' ? 'సభ్యుల కోసం మాత్రమే సంబంధాలు' : 'Private Member Directory'}</h2>
+                  <p className="text-sm text-emerald-100 mb-6">{language === 'te' ? 'ఆమోదించబడిన సభ్యుల ప్రొఫైల్‌లను చూడటానికి నమోదు చేసుకుని ధృవీకరించిన ఖాతాతో లాగిన్ అవ్వండి.' : 'Candidate profiles are private. Register and sign in with a verified account to view approved community profiles.'}</p>
+                  <div className="flex justify-center gap-3 flex-wrap">
+                    <button onClick={() => setIsRegisterOpen(true)} className="px-5 py-3 rounded-xl bg-amber-400 text-stone-950 font-semibold">{language === 'te' ? 'నమోదు' : 'Register'}</button>
+                    <button onClick={() => setIsAuthOpen(true)} className="px-5 py-3 rounded-xl border border-white/40 font-semibold">{language === 'te' ? 'లాగిన్' : 'Sign In'}</button>
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* FAQ Section */}
             <div id="faqs-section">
@@ -453,7 +511,7 @@ export default function App() {
         )}
 
         {/* Matches Tab */}
-        {activeTab === 'matches' && (
+        {activeTab === 'matches' && currentUser && (
           <div className="py-2">
             <ProfilesList
               profiles={filteredProfiles}
@@ -469,7 +527,7 @@ export default function App() {
         )}
 
         {/* Interests Tab */}
-        {activeTab === 'interests' && (
+        {activeTab === 'interests' && currentUser && (
           <InterestsScreen
             language={language}
             allProfiles={profiles}
