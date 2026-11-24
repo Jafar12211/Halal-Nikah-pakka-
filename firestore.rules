@@ -5,6 +5,9 @@ service cloud.firestore {
     // Set this custom claim only from a trusted Admin SDK environment.
     function admin() { return signedIn() && request.auth.token.get('admin', false) == true; }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function verifiedMember() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
     function validUid(uid) { return uid is string && uid.size() > 0 && uid.size() <= 128; }
 
 function validUserDocument(item, uid) {
@@ -274,10 +277,9 @@ function validUserDocument(item, uid) {
     // Only approved, sanitized documents can be read by the public.
     // Admin writes are schema-constrained; owners may remove their own listing.
     match /publicProfiles/{uid} {
-      // Until server-verified membership entitlements are active, only the
-      // profile owner and administrators may read public-profile documents.
-      // This prevents unmetered cross-member directory access during setup.
-      allow read: if (owner(uid) || admin())
+      // Only verified signed-in members can read approved, sanitized listings.
+      // Private registration records and identity documents remain restricted.
+      allow read: if verifiedMember()
         && resource.data.approvalStatus == 'approved'
         && resource.data.isVerified == true;
       allow create, update: if admin() && validPublicProfile(uid);

@@ -13,8 +13,12 @@ import {
 } from "@firebase/rules-unit-testing";
 
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  query,
+  where,
   setDoc,
   updateDoc,
   serverTimestamp
@@ -258,6 +262,42 @@ test("Non-admin members cannot publish public profiles", async () => {
     doc(db, "publicProfiles/member1"),
     validPublicProfile("member1")
   ));
+});
+
+test("Signed-out visitors cannot read approved public profiles", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/member1"), validPublicProfile("member1"));
+  });
+  const db = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(db, "publicProfiles/member1")));
+});
+
+test("Unverified accounts cannot read approved public profiles", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/member1"), validPublicProfile("member1"));
+  });
+  const db = testEnv.authenticatedContext("member2", { email_verified: false }).firestore();
+  await assertFails(getDoc(doc(db, "publicProfiles/member1")));
+});
+
+test("Verified members can list only approved, verified public profiles", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/approved1"), validPublicProfile("approved1"));
+    await setDoc(doc(context.firestore(), "publicProfiles/pending1"), {
+      ...validPublicProfile("pending1"),
+      approvalStatus: "pending",
+      isVerified: false
+    });
+  });
+  const db = testEnv.authenticatedContext("member2", { email_verified: true }).firestore();
+  const approvedQuery = query(
+    collection(db, "publicProfiles"),
+    where("approvalStatus", "==", "approved"),
+    where("isVerified", "==", true)
+  );
+  const snapshot = await assertSucceeds(getDocs(approvedQuery));
+  assert.equal(snapshot.size, 1);
+  assert.equal(snapshot.docs[0].id, "approved1");
 });
 
 test("Administrators can publish only allowlisted public profile fields", async () => {
