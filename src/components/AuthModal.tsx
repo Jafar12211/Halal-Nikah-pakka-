@@ -1,27 +1,34 @@
+import type { LanguageCode } from '../types/database';
+
 import React, { useState } from 'react';
-import { createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
-import { auth } from '../services/firebase';
 import {
   X,
   Lock,
   Mail,
-  Phone,
   User,
   ShieldCheck,
-  CheckCircle2,
   ArrowRight,
   Sparkles,
-  Key
+  Key,
+  Loader2,
 } from 'lucide-react';
-import { storageService } from '../services/storageService';
-import { signInWithGoogleAccount } from '../services/firestoreService';
-import { UserAccount } from '../types/database';
+
+import {
+  signInWithGoogleAccount,
+  loginWithEmailPassword,
+  registerWithEmailPassword,
+  sendPasswordReset,
+} from '../services/firestoreService';
+
+import { auth } from '../services/firebase';
+import { sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
+import type { UserAccount } from '../types/database';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthSuccess: (user: UserAccount) => void;
-  language: 'en' | 'te';
+  language: LanguageCode;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -31,179 +38,227 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   language,
 }) => {
   const isTelugu = language === 'te';
-  const [mode, setMode] = useState<'login' | 'register' | 'otp' | 'forgot'>('login');
+
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
-  const [pendingUser, setPendingUser] = useState<UserAccount | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setError(null);
-      const user = await signInWithGoogleAccount();
-      if (!user.emailVerified) throw new Error('Please verify your Google account email before continuing.');
-      storageService.setCurrentUser(user);
-      onAuthSuccess(user);
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Google authentication failed');
-    }
+  const finishAuthentication = (user: UserAccount) => {
+    onAuthSuccess(user);
+    onClose();
   };
 
-  const toUserAccount = (firebaseUser: import('firebase/auth').User): UserAccount => {
-    const emailAddress = firebaseUser.email || '';
-    return {
-      id: firebaseUser.uid,
-      email: emailAddress,
-      phone: firebaseUser.phoneNumber || phone,
-      name: firebaseUser.displayName || emailAddress.split('@')[0],
-      role: emailAddress.toLowerCase() === 'jafarmd0007@gmail.com' ? 'admin' : 'member',
-      emailVerified: firebaseUser.emailVerified,
-      phoneVerified: Boolean(firebaseUser.phoneNumber),
-      authProvider: 'email',
-      createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-      status: 'active',
-    };
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setToast(null);
+
+      const user = await signInWithGoogleAccount();
+      finishAuthentication(user);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'Google sign-in failed.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+
     if (!email.trim() || !password) {
-      setError(isTelugu ? 'దయచేసి ఈమెయిల్ మరియు పాస్‌వర్డ్ నమోదు చేయండి.' : 'Please enter your email and password.');
+      setError(
+        isTelugu
+          ? 'ఈమెయిల్ మరియు పాస్‌వర్డ్ నమోదు చేయండి.'
+          : 'Please enter your email and password.'
+      );
       return;
     }
+
     try {
-      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-      if (!credential.user.emailVerified) {
-        await sendEmailVerification(credential.user);
-        await signOut(auth);
-        setError(isTelugu
-          ? 'మీ ఈమెయిల్ ఇంకా ధృవీకరించబడలేదు. మీ ఇన్‌బాక్స్‌లోని లింక్‌ను తెరిచి మళ్లీ లాగిన్ అవ్వండి.'
-          : 'Please verify your email using the link sent to your inbox, then sign in again. A fresh verification email has been sent.');
-        return;
-      }
-      const user = toUserAccount(credential.user);
-      storageService.setCurrentUser(user);
-      onAuthSuccess(user);
-      onClose();
+      setLoading(true);
+      setError(null);
+      setToast(null);
+
+      const user = await loginWithEmailPassword(email, password);
+      finishAuthentication(user);
     } catch (err: any) {
       const code = err?.code;
-      setError(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'
-        ? (isTelugu ? 'ఈమెయిల్ లేదా పాస్‌వర్డ్ తప్పు.' : 'Incorrect email or password.')
-        : err?.message || 'Sign in failed. Please try again.');
+
+      if (code === 'auth/email-not-verified') {
+        setError(err?.message || 'Check your email for a verification link, then sign in again.');
+      } else if (
+        code === 'auth/invalid-credential' ||
+        code === 'auth/user-not-found' ||
+        code === 'auth/wrong-password'
+      ) {
+        setError('Incorrect email or password. If you forgot it, use “Forgot password?” to reset it.');
+      } else if (code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please try again later.');
+      } else {
+        setError(err?.message || 'Sign-in failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
-      setError(isTelugu ? 'దయచేసి అన్ని వివరాలను పూరించండి.' : 'Please fill in all required fields.');
+
+    if (!name.trim() || !email.trim() || !password) {
+      setError(
+        isTelugu
+          ? 'దయచేసి అన్ని వివరాలను నమోదు చేయండి.'
+          : 'Please complete all required fields.'
+      );
       return;
     }
-    if (phone.replace(/\D/g, '').length < 10) {
-      setError(isTelugu ? 'సరైన 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి.' : 'Please enter a valid 10-digit mobile number.');
-      return;
-    }
+
     if (password.length < 6) {
-      setError(isTelugu ? 'పాస్‌వర్డ్ కనీసం 6 అక్షరాలు ఉండాలి.' : 'Password must be at least 6 characters.');
+      setError('Password must contain at least 6 characters.');
       return;
     }
+
     try {
-      const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      await updateProfile(credential.user, { displayName: name.trim() });
-      await sendEmailVerification(credential.user);
+      setLoading(true);
+      setError(null);
+      setToast(null);
+
+      const user = await registerWithEmailPassword(email, password);
+
+      if (!auth.currentUser) {
+        throw new Error('Account was created, but the sign-in session is unavailable. Please sign in.');
+      }
+
+      await updateProfile(auth.currentUser, {
+        displayName: name.trim(),
+      });
+      await sendEmailVerification(auth.currentUser);
       await signOut(auth);
-      setPassword('');
+
       setMode('login');
-      setToast(isTelugu
-        ? 'ఖాతా సృష్టించబడింది. మీ ఈమెయిల్‌లోని ధృవీకరణ లింక్‌ను తెరిచి, ఆపై లాగిన్ అవ్వండి.'
-        : 'Account created. Open the verification link sent to your email, then sign in. Your account will not be signed in until verified.');
+      setPassword('');
+      setToast('Account created. A verification link has been sent to your email. Verify your email, then sign in.');
+      setEmail(email.trim());
     } catch (err: any) {
-      const code = err?.code;
-      setError(code === 'auth/email-already-in-use'
-        ? (isTelugu ? 'ఈ ఈమెయిల్‌తో ఇప్పటికే ఖాతా ఉంది. లాగిన్ అవ్వండి.' : 'An account already exists for this email. Please sign in.')
-        : err?.message || 'Registration failed. Please try again.');
+      if (err?.code === 'auth/email-already-in-use') {
+        // Move directly to the sign-in form and keep the email the user entered.
+        setEmail(email.trim());
+        setPassword('');
+        setMode('login');
+        setError('This email already has an account. Sign in with its existing password, or choose “Forgot password?” if you need to reset it.');
+      } else if (err?.code === 'auth/weak-password') {
+        setError('Please choose a stronger password.');
+      } else if (err?.code === 'auth/invalid-email') {
+        setError('Please enter a valid email address.');
+      } else {
+        const code = typeof err?.code === 'string' ? ` (${err.code})` : '';
+        const message = typeof err?.message === 'string' ? err.message : 'Please try again.';
+        setError(`Registration failed${code}: ${message}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePasswordReset = async () => {
-    setError(null);
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (!email.trim()) {
-      setError(isTelugu ? 'ముందుగా మీ ఈమెయిల్ నమోదు చేయండి.' : 'Enter your email address first.');
+      setError('Please enter your registered email address.');
       return;
     }
+
     try {
-      await sendPasswordResetEmail(auth, email.trim());
-      setToast(isTelugu ? 'పాస్‌వర్డ్ రీసెట్ లింక్ పంపబడింది.' : 'Password reset link sent. Check your email.');
+      setLoading(true);
+      setError(null);
+      await sendPasswordReset(email);
+
+      setToast(
+        'Password reset instructions have been sent if this email is registered.'
+      );
     } catch (err: any) {
       setError(err?.message || 'Unable to send password reset email.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const changeMode = (nextMode: 'login' | 'register' | 'forgot') => {
+    setMode(nextMode);
+    setError(null);
+    setToast(null);
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
       <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
+
         {/* Header */}
         <div className="bg-emerald-950 text-white px-6 py-4 flex items-center justify-between border-b border-emerald-900">
           <div>
             <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
-              <span>{isTelugu ? 'నికాహ్ పక్కా లాగిన్ / రిజిస్ట్రేషన్' : 'Nikah Pakka Sign In & Register'}</span>
+              {isTelugu
+                ? 'నికాహ్ పక్కా లాగిన్ / రిజిస్ట్రేషన్'
+                : 'Nikah Pakka Sign In & Register'}
               <Sparkles className="w-4 h-4 text-amber-300" />
             </h3>
+
             <p className="text-xs text-stone-300 mt-0.5">
-              {isTelugu ? 'యానాం & గోదావరి ముస్లిం కుటుంబాల ప్రత్యేక వేదిక' : 'Dedicated to Godavari & Yanam Muslim Families'}
+              {isTelugu
+                ? 'యానాం & గోదావరి ముస్లిం కుటుంబాల ప్రత్యేక వేదిక'
+                : 'Dedicated to Godavari & Yanam Muslim Families'}
             </p>
           </div>
+
           <button
             onClick={onClose}
-            className="p-1.5 text-stone-300 hover:text-white rounded-lg transition-colors"
+            disabled={loading}
+            className="p-1.5 text-stone-300 hover:text-white rounded-lg"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6">
-          {/* Tabs for Mode */}
-          {mode !== 'otp' && (
+
+          {/* Tabs */}
+          {mode !== 'forgot' && (
             <div className="flex border-b border-stone-200 mb-6 text-xs font-semibold">
               <button
-                onClick={() => {
-                  setMode('login');
-                  setError(null);
-                }}
-                className={`flex-1 py-2.5 text-center border-b-2 transition-colors ${
+                onClick={() => changeMode('login')}
+                className={`flex-1 py-2.5 border-b-2 ${
                   mode === 'login'
                     ? 'border-emerald-800 text-emerald-900'
-                    : 'border-transparent text-stone-500 hover:text-stone-800'
+                    : 'border-transparent text-stone-500'
                 }`}
               >
                 {isTelugu ? 'లాగిన్' : 'Sign In'}
               </button>
+
               <button
-                onClick={() => {
-                  setMode('register');
-                  setError(null);
-                }}
-                className={`flex-1 py-2.5 text-center border-b-2 transition-colors ${
+                onClick={() => changeMode('register')}
+                className={`flex-1 py-2.5 border-b-2 ${
                   mode === 'register'
                     ? 'border-emerald-800 text-emerald-900'
-                    : 'border-transparent text-stone-500 hover:text-stone-800'
+                    : 'border-transparent text-stone-500'
                 }`}
               >
-                {isTelugu ? 'కొత్త ఖాతా సృష్టించండి' : 'Create Account'}
+                {isTelugu ? 'కొత్త ఖాతా' : 'Create Account'}
               </button>
             </div>
           )}
 
+          {/* Messages */}
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg mb-4">
               {error}
@@ -211,39 +266,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
 
           {toast && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg mb-4 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{toast}</span>
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg mb-4">
+              {toast}
             </div>
           )}
 
-          {/* Google 1-Click Sign-In */}
-          {mode !== 'otp' && (
-            <div className="mb-5">
+          {/* Google Sign-In */}
+          {mode !== 'forgot' && (
+            <>
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="w-full py-2.5 px-4 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold rounded-xl border border-stone-300 flex items-center justify-center gap-2.5 shadow-sm transition-colors"
+                disabled={loading}
+                className="w-full py-2.5 px-4 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold rounded-xl border border-stone-300 flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.27v3.15C3.25 21.36 7.35 24 12 24z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.27C.46 8.2 0 10.04 0 12s.46 3.8 1.27 5.42l4.01-3.15z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.25 2.64 1.27 6.58l4.01 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                  />
-                </svg>
-                <span>{isTelugu ? 'Google ద్వారా లాగిన్ అవ్వండి' : 'Continue with Google'}</span>
+                <span className="font-bold text-base text-blue-600">G</span>
+                {isTelugu ? 'Google ద్వారా కొనసాగించండి' : 'Continue with Google'}
               </button>
 
               <div className="relative my-4">
@@ -252,149 +290,185 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
                 <div className="relative flex justify-center text-xs">
                   <span className="bg-white px-2 text-stone-400">
-                    {isTelugu ? 'లేదా ఈమెయిల్ ద్వారా' : 'or with email & phone'}
+                    {isTelugu ? 'లేదా ఈమెయిల్ ద్వారా' : 'or with email'}
                   </span>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
-          {/* Form: Sign In */}
+          {/* Login */}
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4 text-xs">
+
               <div>
                 <label className="block font-semibold text-stone-700 mb-1">
-                  {isTelugu ? 'ఈమెయిల్ చిరునామా' : 'Email Address'}
+                  Email Address
                 </label>
+
                 <div className="relative">
                   <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                   <input
                     type="email"
                     required
-                    placeholder="e.g. member@nikahpakka.org"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    placeholder="member@example.com"
+                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-stone-700 mb-1">
-                  {isTelugu ? 'పాస్‌వర్డ్' : 'Password'}
+                  Password
                 </label>
+
                 <div className="relative">
                   <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                   <input
                     type="password"
                     required
-                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    placeholder="Your password"
+                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
                   />
                 </div>
               </div>
 
               <button
-                type="submit"
-                className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg shadow-sm transition-colors text-xs flex items-center justify-center gap-1.5"
+                type="button"
+                onClick={() => changeMode('forgot')}
+                className="text-emerald-800 font-semibold hover:underline"
               >
-                <span>{isTelugu ? 'ఖాతాలోకి ప్రవేశించండి' : 'Sign In to Account'}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                Forgot password?
               </button>
-              <button type="button" onClick={handlePasswordReset} className="w-full text-emerald-800 hover:underline text-xs font-semibold">
-                {isTelugu ? 'పాస్‌వర్డ్ మర్చిపోయారా?' : 'Forgot password? Send reset link'}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                Sign In to Account
               </button>
             </form>
           )}
 
-          {/* Form: Register */}
+          {/* Registration */}
           {mode === 'register' && (
-            <form onSubmit={handleRegister} className="space-y-3.5 text-xs">
+            <form onSubmit={handleRegister} className="space-y-4 text-xs">
+
               <div>
                 <label className="block font-semibold text-stone-700 mb-1">
-                  {isTelugu ? 'పూర్తి పేరు (అభ్యర్థి లేదా సంరక్షకుడు)' : 'Full Name (Candidate or Guardian)'}
+                  Full Name
                 </label>
+
                 <div className="relative">
                   <User className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Mohammed Ismail"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    placeholder="Your full name"
+                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-stone-700 mb-1">
-                  {isTelugu ? 'ఈమెయిల్ చిరునామా' : 'Email Address'}
+                  Email Address
                 </label>
+
                 <div className="relative">
                   <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                   <input
                     type="email"
                     required
-                    placeholder="e.g. ismail.godavari@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    placeholder="you@example.com"
+                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-stone-700 mb-1">
-                  {isTelugu ? 'మొబైల్ నంబర్' : 'Mobile Number'}
+                  Create Password
                 </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="+91 98480 12345"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1">
-                  {isTelugu ? 'పాస్‌వర్డ్ సృష్టించండి' : 'Create Password'}
-                </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
                   <input
                     type="password"
                     required
-                    placeholder="Minimum 6 characters"
+                    minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    placeholder="Minimum 6 characters"
+                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
                   />
                 </div>
               </div>
 
+              <p className="text-stone-500 leading-relaxed">
+                Your account will be created using Firebase Authentication.
+                You can add your mobile number and profile details after signing in.
+              </p>
+
               <button
                 type="submit"
-                className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg shadow-sm transition-colors text-xs flex items-center justify-center gap-1.5"
+                disabled={loading}
+                className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <span>{isTelugu ? 'ఈమెయిల్ ద్వారా ఖాతా ధృవీకరించండి' : 'Create Account & Verify Email'}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                Create Account
               </button>
             </form>
           )}
 
-          {mode === 'otp' && (
-            <div className="space-y-4 text-xs text-center">
-              <p className="text-stone-700">Email verification is now used instead of demo SMS codes. Please sign in after verifying your email.</p>
-              <button type="button" onClick={() => setMode('login')} className="w-full py-2 bg-emerald-800 text-white rounded-lg">Back to Sign In</button>
-            </div>
+          {/* Password Reset */}
+          {mode === 'forgot' && (
+            <form onSubmit={handleForgotPassword} className="space-y-4 text-xs">
+              <div className="text-center mb-4">
+                <Key className="w-8 h-8 mx-auto text-emerald-800 mb-2" />
+                <h4 className="font-bold text-sm text-stone-900">
+                  Reset Your Password
+                </h4>
+                <p className="text-stone-500 mt-1">
+                  Enter your registered email address.
+                </p>
+              </div>
+
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Your registered email"
+                className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900"
+              />
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-emerald-800 text-white font-semibold rounded-lg disabled:opacity-50"
+              >
+                {loading ? 'Sending...' : 'Send Password Reset Email'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => changeMode('login')}
+                className="w-full text-emerald-800 font-semibold py-2"
+              >
+                Back to Sign In
+              </button>
+            </form>
           )}
 
           {/* Privacy footer */}
@@ -402,10 +476,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
             <span>
               {isTelugu
-                ? 'ఖాతా మరియు బయోడేటా వివరాలు పూర్తిగా గోప్యంగా ఉంచబడతాయి.'
-                : 'Account & registration data is strictly isolated per member.'}
+                ? 'మీ ఖాతా వివరాలు భద్రంగా ఉంచబడతాయి.'
+                : 'Your account authentication is handled securely by Firebase.'}
             </span>
           </div>
+
         </div>
       </div>
     </div>

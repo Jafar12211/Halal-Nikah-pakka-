@@ -6,6 +6,7 @@ import {
   validateRegistrationForm,
   generateWhatsAppShareMessage,
   generateBiodataText,
+  OFFICIAL_REGISTRATION_URL,
   RegistrationInput
 } from './matrimony';
 import { MatrimonyProfile, FilterState } from '../types/matrimony';
@@ -179,7 +180,8 @@ test('generateWhatsAppShareMessage generates encoded text with registration link
   const encoded = generateWhatsAppShareMessage();
   const decoded = decodeURIComponent(encoded);
   assert.ok(decoded.includes('NIKAH PAKKA'));
-  assert.ok(decoded.includes('freebuff.page/profile'));
+  assert.ok(decoded.includes(OFFICIAL_REGISTRATION_URL));
+  assert.equal(decoded.includes('freebuff.page/profile'), false);
   assert.ok(decoded.includes('Our Small Request'));
 });
 
@@ -191,17 +193,19 @@ test('generateBiodataText produces complete structured biodata with Wali contact
   assert.ok(text.includes('5 times daily'));
 });
 
-test('VALID_GOVT_DOC_TYPES strictly accepts only Aadhaar, PAN, Passport, and Driving Licence', async () => {
+test('VALID_GOVT_DOC_TYPES accepts supported government identity documents', async () => {
   const { VALID_GOVT_DOC_TYPES, isValidGovtDocType, maskGovtIdNumber } = await import('./matrimony');
 
-  assert.deepEqual([...VALID_GOVT_DOC_TYPES], ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence']);
+  assert.deepEqual([...VALID_GOVT_DOC_TYPES], ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence', 'Voter ID', 'Other Government ID']);
   assert.equal(isValidGovtDocType('Aadhaar Card'), true);
   assert.equal(isValidGovtDocType('PAN Card'), true);
   assert.equal(isValidGovtDocType('Passport'), true);
   assert.equal(isValidGovtDocType('Driving Licence'), true);
 
-  // Rejects other document types
-  assert.equal(isValidGovtDocType('Voter ID'), false);
+  assert.equal(isValidGovtDocType('Voter ID'), true);
+  assert.equal(isValidGovtDocType('Other Government ID'), true);
+
+  // Rejects unsupported document types
   assert.equal(isValidGovtDocType('Ration Card'), false);
   assert.equal(isValidGovtDocType('College ID'), false);
 

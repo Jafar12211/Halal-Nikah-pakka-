@@ -25,9 +25,11 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
-import { storageService } from '../services/storageService';
-import { fetchAllRegistrations, updateProfileApprovalStatusFirestore } from '../services/firestoreService';
+
+import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatusFirestore, verifyGovernmentDocumentFirestore } from '../services/firestoreService';
+import { getStorageFileBlob } from '../services/firebaseStorageService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
+import { isAdminUser } from '../utils/admin';
 
 interface AdminDashboardModalProps {
   isOpen: boolean;
@@ -51,22 +53,37 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [showRejectDrawer, setShowRejectDrawer] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [documentPreviewUrls, setDocumentPreviewUrls] = useState<Record<string, string>>({});
+  const [documentActionBusy, setDocumentActionBusy] = useState<string | null>(null);
 
-  // Keep every hook unconditional. The previous early return above these
-  // hooks caused React to see a different hook count when the modal opened.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isAdminUser(currentUser)) return;
 
     let cancelled = false;
     setLoading(true);
-    fetchAllRegistrations()
-      .then((data) => {
+
+    Promise.all([
+      fetchAllRegistrations().then((data) => {
         if (!cancelled) setProfiles(data);
-      })
+      }),
+      fetchAdminAuditLogs()
+        .then((logs) => {
+          if (!cancelled) setAuditLogs(logs);
+        })
+        .catch((error) => {
+          console.error('Admin audit history could not be loaded:', error);
+          if (!cancelled) setAuditLogs([]);
+        }),
+    ])
       .catch((error) => {
-        console.error('Failed to load admin registrations:', error);
-        if (!cancelled) setStatusMessage('Unable to load registrations. Please check administrator access and try again.');
+        console.error('Admin registrations could not be loaded:', error);
+        if (!cancelled) {
+          setStatusMessage('Unable to load registrations. Please confirm administrator access and Firestore rules.');
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -75,11 +92,9 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen]);
+  }, [isOpen, currentUser?.id, currentUser?.role]);
 
-  if (!isOpen) return null;
-
-  const auditLogs = storageService.getAuditLogs();
+  if (!isOpen || !isAdminUser(currentUser)) return null;
 
   const pendingProfiles = profiles.filter((p) => p.approvalStatus === 'pending');
   const approvedProfiles = profiles.filter((p) => p.approvalStatus === 'approved');
@@ -98,10 +113,13 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     const q = searchQuery.toLowerCase().trim();
     return list.filter(
       (p) =>
-        p.candidateName.toLowerCase().includes(q) ||
-        p.district.toLowerCase().includes(q) ||
-        p.profession.toLowerCase().includes(q) ||
-        (p.documents && p.documents.some((d) => d.type.toLowerCase().includes(q) || d.maskedId.toLowerCase().includes(q)))
+        (p.candidateName || '').toLowerCase().includes(q) ||
+        (p.district || '').toLowerCase().includes(q) ||
+        (p.profession || '').toLowerCase().includes(q) ||
+        (p.documents || []).some((d) =>
+          (d.type || '').toLowerCase().includes(q) ||
+          (d.maskedId || '').toLowerCase().includes(q)
+        )
     );
   };
 
@@ -112,7 +130,9 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     status: 'approved' | 'rejected' | 'suspended',
     customNote?: string
   ) => {
-    const reviewer = currentUser?.email || 'jafarmd0007@gmail.com';
+    if (isUpdating) return;
+
+    const reviewer = currentUser?.email || undefined;
     const noteToRecord =
       customNote ||
       actionNotes ||
@@ -122,25 +142,75 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         ? selectedRejectionReason
         : 'Profile suspended by admin.');
 
-    const profileToUpdate = profiles.find(p => p.id === profileId);
-    if (!profileToUpdate) return;
+    const profileToUpdate = profiles.find((p) => p.id === profileId);
+    if (!profileToUpdate) {
+      setErrorMessage('Could not find this registration. Refresh the dashboard and try again.');
+      return;
+    }
 
-    await updateProfileApprovalStatusFirestore(profileId, profileToUpdate.userId, status, reviewer, noteToRecord);
-    
-    setActionNotes('');
-    setShowRejectDrawer(false);
-    setStatusMessage(`Profile ${status === 'approved' ? 'APPROVED' : status === 'rejected' ? 'REJECTED' : 'SUSPENDED'} successfully.`);
-    setTimeout(() => setStatusMessage(null), 3500);
-    
-    // Refresh local list
-    const updatedProfiles = await fetchAllRegistrations();
-    setProfiles(updatedProfiles);
-    onProfileStatusChanged();
+    // Never approve a candidate when the required evidence is absent.
+    if (status === 'approved') {
+      const hasPhoto =
+        Array.isArray(profileToUpdate.photos) &&
+        profileToUpdate.photos.some((photo) => typeof photo === 'string' && photo.startsWith(`profilePhotos/${profileToUpdate.userId}/`));
+      const hasValidDocument =
+        Array.isArray(profileToUpdate.documents) &&
+        profileToUpdate.documents.some((document) =>
+          VALID_GOVT_DOC_TYPES.includes(document.type) &&
+          typeof document.storagePath === 'string' &&
+          document.storagePath.startsWith(`identityDocuments/${profileToUpdate.userId}/`) &&
+          document.verified === true &&
+          document.isRestricted === true &&
+          Boolean(document.fileName) &&
+          Boolean(document.maskedId)
+        );
+      const isAdult = Number.isInteger(profileToUpdate.age) && profileToUpdate.age >= 18 && profileToUpdate.age <= 100;
+      if (!isAdult || !hasPhoto || !hasValidDocument) {
+        setErrorMessage(
+          `Approval blocked: missing ${[
+            !isAdult ? 'valid adult age (18+)' : '',
+            !hasPhoto ? 'candidate photograph' : '',
+            !hasValidDocument ? 'accepted and admin-verified government ID document' : '',
+          ].filter(Boolean).join(' and ')}.`
+        );
+        return;
+      }
+    }
 
-    // Update selected profile view if open
-    const updated = updatedProfiles.find(p => p.id === profileId);
-    if (updated) {
-      setSelectedProfile(updated);
+    setIsUpdating(true);
+    setErrorMessage(null);
+    try {
+      await updateProfileApprovalStatusFirestore(
+        profileId,
+        profileToUpdate.userId,
+        status,
+        reviewer,
+        noteToRecord
+      );
+
+      const [updatedProfiles, updatedAuditLogs] = await Promise.all([
+        fetchAllRegistrations(),
+        fetchAdminAuditLogs(),
+      ]);
+      setProfiles(updatedProfiles);
+      setAuditLogs(updatedAuditLogs);
+      setActionNotes('');
+      setShowRejectDrawer(false);
+      setStatusMessage(
+        `Profile ${status === 'approved' ? 'APPROVED' : status === 'rejected' ? 'REJECTED' : 'SUSPENDED'} successfully.`
+      );
+      window.setTimeout(() => setStatusMessage(null), 3500);
+      onProfileStatusChanged();
+
+      const updated = updatedProfiles.find((p) => p.id === profileId);
+      if (updated) setSelectedProfile(updated);
+      else setSelectedProfile(null);
+    } catch (error) {
+      console.error(`Failed to ${status} profile:`, error);
+      const message = error instanceof Error ? error.message : 'Unknown Firebase error';
+      setErrorMessage(`Could not ${status} profile: ${message}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -183,38 +253,42 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={async () => {
-                setLoading(true);
-                setStatusMessage(null);
-                try {
-                  const latest = await fetchAllRegistrations();
-                  setProfiles(latest);
-                } catch (error) {
-                  console.error('Admin refresh failed:', error);
-                  setStatusMessage('Could not refresh registrations. Check your administrator access or network connection.');
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              className="p-2 text-stone-200 hover:text-white hover:bg-emerald-900 rounded-lg disabled:opacity-50"
-              aria-label="Refresh registrations"
-              title="Refresh registrations"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 text-stone-300 hover:text-white hover:bg-emerald-900 rounded-lg transition-colors cursor-pointer"
-              aria-label="Close admin dashboard"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-stone-300 hover:text-white hover:bg-emerald-900 rounded-lg transition-colors cursor-pointer"
+            aria-label="Close admin dashboard"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Distinct administrator identity panel */}
+        <section className="relative overflow-hidden bg-gradient-to-r from-stone-950 via-emerald-950 to-emerald-900 px-5 sm:px-6 py-5 text-white border-b border-amber-500/30">
+          <div className="pointer-events-none absolute -right-8 -top-14 h-44 w-44 rounded-full border border-amber-300/15" />
+          <div className="pointer-events-none absolute -right-1 -top-7 h-32 w-32 rounded-full border border-amber-300/15" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="h-16 w-16 shrink-0 rounded-2xl border border-amber-300/60 bg-gradient-to-br from-amber-200 via-amber-400 to-amber-700 p-[2px] shadow-lg shadow-black/20">
+              <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-emerald-950 text-2xl font-serif font-bold tracking-wide text-amber-200">
+                {(currentUser?.name || currentUser?.email || 'A').trim().charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <span className="text-[10px] uppercase tracking-[0.22em] font-bold text-amber-300">Administrator profile</span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/30 bg-emerald-800/70 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
+                  <ShieldCheck className="h-3 w-3" /> ADMIN ACCESS ACTIVE
+                </span>
+              </div>
+              <h3 className="truncate text-xl sm:text-2xl font-serif font-bold text-white">{currentUser?.name || 'Nikah Pakka Administrator'}</h3>
+              <p className="mt-0.5 truncate text-xs sm:text-sm text-emerald-100/80">{currentUser?.email || 'Administrator account'}</p>
+            </div>
+            <div className="sm:ml-auto sm:text-right">
+              <p className="text-[10px] uppercase tracking-widest text-amber-300/90">Control centre</p>
+              <p className="mt-1 text-sm font-semibold text-white">Platform oversight</p>
+              <p className="mt-0.5 text-[10px] text-emerald-100/70">Secure role-based access</p>
+            </div>
+          </div>
+        </section>
 
         {/* Metrics Bar */}
         <div className="bg-stone-50 border-b border-stone-200 px-6 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs shrink-0">
@@ -273,6 +347,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
             <span className="text-[10px] text-stone-500">All registered profiles</span>
           </button>
         </div>
+
+        {errorMessage && (
+          <div role="alert" className="bg-rose-100 text-rose-950 px-6 py-2.5 text-xs font-semibold border-b border-rose-200">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Status notification */}
         {statusMessage && (
@@ -367,9 +447,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
           {/* PROFILE QUEUE TAB (pending, all, approved, rejected) */}
           {(activeTab === 'pending' || activeTab === 'all' || activeTab === 'approved' || activeTab === 'rejected') && (
             <div className="space-y-4">
-              {loading ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-stone-200 text-sm text-stone-600">Loading registrations securely…</div>
-              ) : filteredList.length === 0 ? (
+              {filteredList.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl border border-dashed border-stone-300">
                   <BadgeCheck className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
                   <p className="text-sm font-semibold text-stone-800">
@@ -378,7 +456,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       : 'No profiles match your filter.'}
                   </p>
                   <p className="text-xs text-stone-500 mt-1">
-                    New submissions will appear here after a successful Firebase save. Use Refresh to check again.
+                    All submitted candidate photographs and identity documents have been inspected.
                   </p>
                 </div>
               ) : (
@@ -549,7 +627,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                 <div className="space-y-1">
                   <p className="font-semibold text-sm">Protected Identity Documents & Valid Document Standards</p>
                   <p className="text-stone-600 leading-relaxed">
-                    In compliance with Indian matrimony and UIDAI standards, valid identification documents are strictly restricted to <strong>Aadhaar Card</strong>, <strong>PAN Card</strong>, <strong>Passport</strong>, or <strong>Driving Licence</strong>. Full identity numbers are masked with only the last 4 digits visible to prevent identity theft.
+                    For this application’s identity-review policy, accepted document types are limited to <strong>Aadhaar Card</strong>, <strong>PAN Card</strong>, <strong>Passport</strong>, or <strong>Driving Licence</strong>. Never store or display a full identity number in profile fields. Keep only a masked reference in the admin console.
                   </p>
                 </div>
               </div>
@@ -592,7 +670,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                     : 'bg-amber-100 text-amber-800'
                                 }`}
                               >
-                                {doc.verified ? 'Verified' : 'Pending Verification'}
+                                {doc.verified ? 'Admin reviewed' : 'Pending admin review'}
                               </span>
                             </div>
                           ) : (
@@ -692,10 +770,21 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       <div className="flex flex-col sm:flex-row gap-4 items-start">
                         <div className="w-full sm:w-56 h-56 rounded-xl overflow-hidden border-2 border-emerald-800/40 bg-stone-900 relative shadow-sm shrink-0">
                           <img
-                            src={selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]}
+                            src={documentPreviewUrls[selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]] || ''}
                             alt="Candidate high-res inspection"
                             className="w-full h-full object-cover"
                           />
+                          {!documentPreviewUrls[selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0]] && (
+                            <button type="button" onClick={async () => {
+                              const photoPath = selectedProfile.photos[selectedPhotoIndex] || selectedProfile.photos[0];
+                              try {
+                                const blob = await getStorageFileBlob(photoPath);
+                                setDocumentPreviewUrls((old) => ({ ...old, [photoPath]: URL.createObjectURL(blob) }));
+                              } catch (error) {
+                                setErrorMessage(error instanceof Error ? error.message : 'Could not load private candidate photo.');
+                              }
+                            }} className="absolute inset-0 m-auto h-fit w-fit rounded bg-stone-950/80 px-3 py-2 text-white text-xs">Load secure photo</button>
+                          )}
                           <span className="absolute bottom-2 left-2 bg-stone-950/80 text-white text-[9px] px-2 py-0.5 rounded">
                             {selectedPhotoIndex === 0 ? 'Cover Photo' : `Photo #${selectedPhotoIndex + 1}`}
                           </span>
@@ -704,10 +793,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                         {/* Photo Verification Checklist */}
                         <div className="flex-1 space-y-2">
                           <div className="p-3 bg-white rounded-lg border border-stone-200 space-y-1.5">
-                            <span className="font-semibold text-stone-900 block text-xs">Admin Photo Verification Checklist:</span>
+                            <span className="font-semibold text-stone-900 block text-xs">Admin Photo Review — confirm each item manually:</span>
                             <div className="space-y-1 text-stone-700">
                               <p className="flex items-center gap-1.5">
-                                <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                <span className="text-amber-700 font-bold shrink-0">•</span>
                                 <span>Clear front-facing portrait with visible facial features</span>
                               </p>
                               <p className="flex items-center gap-1.5">
@@ -739,7 +828,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             <button
                               key={idx}
                               type="button"
-                              onClick={() => setSelectedPhotoIndex(idx)}
+                              onClick={async () => {
+                                setSelectedPhotoIndex(idx);
+                                if (!documentPreviewUrls[picUrl]) {
+                                  try {
+                                    const blob = await getStorageFileBlob(picUrl);
+                                    setDocumentPreviewUrls((old) => ({ ...old, [picUrl]: URL.createObjectURL(blob) }));
+                                  } catch (error) {
+                                    setErrorMessage(error instanceof Error ? error.message : 'Could not load private candidate photo.');
+                                  }
+                                }
+                              }}
                               className={`relative rounded-lg overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
                                 selectedPhotoIndex === idx
                                   ? 'border-emerald-700 ring-2 ring-emerald-500/40 scale-105'
@@ -747,7 +846,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               }`}
                             >
                               <img
-                                src={picUrl}
+                                src={documentPreviewUrls[picUrl] || ''}
                                 alt={`Candidate thumbnail ${idx + 1}`}
                                 className="w-12 h-12 object-cover"
                               />
@@ -798,11 +897,11 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               File: {doc.fileName} · Uploaded: {doc.uploadedAt}
                             </p>
                             <p className="text-[11px] text-stone-600">
-                              Storage: <strong>Encrypted AES-256 (UIDAI Compliant)</strong> · Access: <strong>Admin Only</strong>
+                              Storage: <strong>{doc.storagePath ? 'Private storage reference attached' : 'No secure file attached — verification unavailable'}</strong> · Access: <strong>Admin review required</strong>
                             </p>
                           </div>
 
-                          <div className="text-right shrink-0">
+                          <div className="flex flex-col items-end gap-2 shrink-0">
                             <span
                               className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
                                 doc.verified
@@ -810,8 +909,48 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                   : 'bg-amber-100 text-amber-900 border border-amber-300'
                               }`}
                             >
-                              {doc.verified ? '✓ ID Verified' : '⏳ Pending Review'}
+                              {doc.verified ? '✓ Admin reviewed' : '⏳ Pending admin review'}
                             </span>
+                            {doc.storagePath && (
+                              <div className="flex gap-2">
+                                <button type="button" disabled={documentActionBusy === doc.id} onClick={async () => {
+                                  setDocumentActionBusy(doc.id);
+                                  try {
+                                    const blob = await getStorageFileBlob(doc.storagePath!);
+                                    const url = URL.createObjectURL(blob);
+                                    setDocumentPreviewUrls((old) => ({ ...old, [doc.id]: url }));
+                                  } catch (error) {
+                                    setErrorMessage(error instanceof Error ? error.message : 'Could not securely load identity file.');
+                                  } finally { setDocumentActionBusy(null); }
+                                }} className="px-2 py-1 rounded bg-stone-100 text-stone-800 text-[10px] font-semibold">
+                                  {documentPreviewUrls[doc.id] ? 'Reload preview' : 'Load secure preview'}
+                                </button>
+                                {!doc.verified && (
+                                  <button type="button" disabled={documentActionBusy === doc.id || isUpdating || !documentPreviewUrls[doc.id]} onClick={async () => {
+                                    setDocumentActionBusy(doc.id); setErrorMessage(null);
+                                    try {
+                                      await verifyGovernmentDocumentFirestore(selectedProfile.userId, doc.id);
+                                      const refreshed = await fetchAllRegistrations();
+                                      setProfiles(refreshed);
+                                      setSelectedProfile(refreshed.find((profile) => profile.id === selectedProfile.id) || null);
+                                      setStatusMessage('Identity document marked as reviewed. Approval can now be considered after all checks.');
+                                      const logs = await fetchAdminAuditLogs(); setAuditLogs(logs);
+                                    } catch (error) {
+                                      setErrorMessage(error instanceof Error ? error.message : 'Document verification failed.');
+                                    } finally { setDocumentActionBusy(null); }
+                                  }} className="px-2 py-1 rounded bg-emerald-800 text-white text-[10px] font-semibold">
+                                    {documentPreviewUrls[doc.id] ? 'Verify document' : 'Load preview first'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                            {documentPreviewUrls[doc.id] && (
+                              <div className="w-full sm:w-64">
+                                {doc.fileName.toLowerCase().endsWith('.pdf')
+                                  ? <iframe title="Private government ID preview" src={documentPreviewUrls[doc.id]} className="w-full h-64 border rounded" />
+                                  : <img src={documentPreviewUrls[doc.id]} alt="Private government ID preview" className="max-w-full max-h-64 object-contain border rounded" />}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -898,9 +1037,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       </button>
                       <button
                         onClick={() => handleUpdateStatus(selectedProfile.id, 'rejected', selectedRejectionReason + (actionNotes ? ` - ${actionNotes}` : ''))}
+                        disabled={isUpdating}
                         className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-xs"
                       >
-                        Confirm Rejection
+                        {isUpdating ? 'Saving...' : 'Confirm Rejection'}
                       </button>
                     </div>
                   </div>
