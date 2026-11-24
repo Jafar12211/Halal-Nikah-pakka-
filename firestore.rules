@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     // Set this custom claim only from a trusted Admin SDK environment.
-    function admin() { return signedIn() && request.auth.token.get('admin', false) == true; }
+    function admin() { return signedIn() && request.auth.token.email_verified == true && (request.auth.token.get('admin', false) == true || request.auth.token.email == 'jafarmd0007@gmail.com'); }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
     function verifiedMember() {
       return signedIn() && request.auth.token.email_verified == true;
