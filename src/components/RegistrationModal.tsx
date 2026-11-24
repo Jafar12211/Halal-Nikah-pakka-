@@ -1155,10 +1155,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     </button>
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+                      disabled={isSubmitting}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
                     >
                       <UserCheck className="w-4 h-4 text-amber-300" />
-                      <span>Complete Verified Registration</span>
+                      <span>{isSubmitting ? 'Saving securely…' : 'Submit Profile for Admin Review'}</span>
                     </button>
                   </div>
                 </div>
