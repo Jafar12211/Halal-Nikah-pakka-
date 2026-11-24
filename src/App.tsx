@@ -666,10 +666,6 @@ export default function App() {
         onToggleLanguage={handleToggleLanguage}
         currentUser={currentUser}
         onOpenDrawer={() => setIsDrawerOpen(true)}
-        onOpenAdmin={() => {
-          if (isAdminUser(currentUser)) setIsAdminOpen(true);
-          else showToast('Administrator access is required.');
-        }}
         activeScreen={activeTab}
         onNavigateHome={() => handleTabChange('home')}
       />
@@ -681,7 +677,6 @@ export default function App() {
         language={language}
         onNavigateTab={(tab) => handleTabChange(tab)}
         onOpenAuth={() => setIsAuthOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenRegister={() => {
           if (!currentUser) {
             setIsAuthOpen(true);

@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { UserAccount, LanguageCode } from '../../types/database';
 import { translations } from '../../utils/translations';
-import { isAdminUser } from '../../utils/admin';
 
 interface AndroidDrawerProps {
   isOpen: boolean;
@@ -26,7 +25,6 @@ interface AndroidDrawerProps {
   language: LanguageCode;
   onNavigateTab: (tab: 'home' | 'matches' | 'messages' | 'interests' | 'profile') => void;
   onOpenAuth: () => void;
-  onOpenAdmin: () => void;
   onOpenRegister: () => void;
   onOpenShare: () => void;
   onSignOut: () => void;
@@ -39,7 +37,6 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
   language,
   onNavigateTab,
   onOpenAuth,
-  onOpenAdmin,
   onOpenRegister,
   onOpenShare,
   onSignOut,
@@ -47,7 +44,6 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
   if (!isOpen) return null;
 
   const isTelugu = language === 'te';
-  const isAdmin = isAdminUser(currentUser);
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -175,27 +171,6 @@ export const AndroidDrawer: React.FC<AndroidDrawerProps> = ({
               <ChevronRight className="w-4 h-4 text-stone-400" />
             </button>
           </div>
-
-          {/* Admin Area */}
-          {isAdmin && (
-          <div className="py-2 bg-amber-50/60 border-y border-amber-200/60">
-            <button
-              onClick={() => {
-                onClose();
-                onOpenAdmin();
-              }}
-              className="w-full px-5 py-3 text-left hover:bg-amber-100/70 flex items-center justify-between text-amber-950 font-bold transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-4 h-4 text-amber-800" />
-                <span>{isTelugu ? 'అడ్మిన్ వెరిఫికేషన్ కన్సోల్' : 'Admin Verification Console'}</span>
-              </div>
-              <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">
-                jafarmd0007
-              </span>
-            </button>
-          </div>
-          )}
 
           {/* Secondary Community Sections */}
           <div className="py-2">

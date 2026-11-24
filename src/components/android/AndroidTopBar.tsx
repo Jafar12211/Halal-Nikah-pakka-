@@ -1,16 +1,14 @@
 import React from 'react';
-import { Menu, Globe, ShieldCheck, Heart, ArrowLeft, Download, Bell } from 'lucide-react';
+import { Menu, Globe, Heart, ArrowLeft, Download, Bell } from 'lucide-react';
 import { LanguageCode, UserAccount } from '../../types/database';
 import { translations } from '../../utils/translations';
 import { PWAInstallButton } from '../PWAInstallButton';
-import { isAdminUser } from '../../utils/admin';
 
 interface AndroidTopBarProps {
   language: LanguageCode;
   onToggleLanguage: () => void;
   currentUser: UserAccount | null;
   onOpenDrawer: () => void;
-  onOpenAdmin: () => void;
   activeScreen: string;
   onNavigateHome: () => void;
 }
@@ -20,13 +18,11 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
   onToggleLanguage,
   currentUser,
   onOpenDrawer,
-  onOpenAdmin,
   activeScreen,
   onNavigateHome,
 }) => {
   const t = translations[language];
   const isTelugu = language === 'te';
-  const isAdmin = isAdminUser(currentUser);
 
   const isSubScreen = activeScreen !== 'home';
 
@@ -108,20 +104,6 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
             <span>{language === 'en' ? 'తెలుగు' : language === 'te' ? 'اردو' : 'English'}</span>
           </button>
 
-          {/* Admin badge button */}
-          {isAdmin && (
-          <button
-            onClick={() => {
-              triggerHaptic();
-              onOpenAdmin();
-            }}
-            className="px-2.5 py-1 text-[11px] font-bold bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-stone-950 rounded-full transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
-            title="Administrator Photo & ID Verification Console"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-stone-950" />
-            <span>Admin</span>
-          </button>
-          )}
         </div>
       </div>
     </header>
