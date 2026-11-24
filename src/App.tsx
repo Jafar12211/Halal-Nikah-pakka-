@@ -27,7 +27,7 @@ import { ProfileScreen } from './components/android/ProfileScreen';
 import { UserProfile, UserAccount, LanguageCode, DistrictAP } from './types/database';
 import { FilterState, MatrimonyProfile } from './types/matrimony';
 import { storageService } from './services/storageService';
-import { saveProfileToFirestore, fetchAllRegistrations } from './services/firestoreService';
+import { saveProfileToFirestore, fetchAllRegistrations, fetchMyRegistration } from './services/firestoreService';
 import { translations } from './utils/translations';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -46,7 +46,7 @@ export default function App() {
   // Firebase Authentication is the source of truth; do not restore a
   // browser-local session that could falsely appear to be an authenticated admin.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser || !firebaseUser.emailVerified) {
         storageService.setCurrentUser(null);
         setCurrentUser(null);
@@ -68,6 +68,14 @@ export default function App() {
       };
       storageService.setCurrentUser(account);
       setCurrentUser(account);
+      try {
+        const savedProfile = await fetchMyRegistration(firebaseUser.uid);
+        if (savedProfile) storageService.saveProfile(savedProfile);
+        setProfiles(storageService.getApprovedProfiles());
+      } catch (error) {
+        console.error('Unable to restore the signed-in member profile:', error);
+        showToast('Your account is signed in, but your saved profile could not be loaded. Please retry.');
+      }
     });
     return unsubscribe;
   }, []);
@@ -152,11 +160,16 @@ export default function App() {
     setProfiles(storageService.getApprovedProfiles());
   };
 
-  const handleProfileCreated = (matrimonyProf: MatrimonyProfile) => {
+  const handleProfileCreated = async (matrimonyProf: MatrimonyProfile): Promise<void> => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser || !firebaseUser.emailVerified) {
+      throw new Error('Please sign in with a verified email before submitting your profile. Your entered details are still available; sign in and submit again.');
+    }
     // Adapt to full UserProfile and persist in storageService
     const adaptedProfile: UserProfile = {
       id: matrimonyProf.id,
-      userId: currentUser?.id || `usr-${Date.now()}`,
+      userId: firebaseUser.uid,
+      city: matrimonyProf.city,
       candidateName: matrimonyProf.candidateName,
       gender: matrimonyProf.gender,
       dob: '2000-01-01',
@@ -247,6 +260,7 @@ export default function App() {
       interestsReceivedCount: 0,
     };
 
+    await saveProfileToFirestore(adaptedProfile);
     storageService.saveProfile(adaptedProfile);
     refreshProfiles();
     showToast(
