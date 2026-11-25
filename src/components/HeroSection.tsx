@@ -1,7 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import familyMeetingImage from '../assets/images/family_assisted_meeting_1793883128679.jpg';
-import communityNikahImage from '../assets/images/islamic_community_nikah_1793883128899.jpg';
-import celebrationImage from '../assets/images/nikah_hero_celebration_1793883128650.jpg';
 import { Search, Heart, ShieldCheck, Users, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { FilterState } from '../types/matrimony';
 import { LanguageCode } from '../types/database';
@@ -28,19 +25,28 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const t = translations[language];
   const heroSlides = [
     {
-      image: celebrationImage,
-      alt: 'A joyful Muslim wedding celebration',
-      label: language === 'te' ? 'ఆనందకరమైన కొత్త ఆరంభం' : 'A joyful new beginning',
+      image: 'https://images.pexels.com/photos/36223758/pexels-photo-36223758.jpeg?auto=compress&cs=tinysrgb&w=1800',
+      alt: 'A real family sharing an Eid meal together',
+      label: language === 'te' ? 'కుటుంబంతో ఈద్ వేడుక' : 'Family togetherness and Eid celebrations',
+      credit: 'Photo: Alfatah Bilal Afdam / Pexels',
     },
     {
-      image: familyMeetingImage,
-      alt: 'Families meeting together with warmth and happiness',
-      label: language === 'te' ? 'కుటుంబాల కలయికతో బంధాలు' : 'Families coming together',
+      image: 'https://images.pexels.com/photos/16132274/pexels-photo-16132274.jpeg?auto=compress&cs=tinysrgb&w=1800',
+      alt: 'A traditional South Asian wedding family portrait',
+      label: language === 'te' ? 'వివాహ వేడుకలో కుటుంబాలు' : 'Families celebrating a wedding',
+      credit: 'Photo: Sitapoti Das / Pexels',
     },
     {
-      image: communityNikahImage,
-      alt: 'A warm Muslim nikah and community celebration',
-      label: language === 'te' ? 'నమ్మకం మరియు ఆనందంతో నికాహ్' : 'A nikah built on trust and joy',
+      image: 'https://images.pexels.com/photos/7122162/pexels-photo-7122162.jpeg?auto=compress&cs=tinysrgb&w=1800',
+      alt: 'A Muslim bride at a traditional nikah ceremony with family',
+      label: language === 'te' ? 'సంప్రదాయ నికాహ్ వేడుక' : 'A traditional nikah ceremony',
+      credit: 'Photo: fadhil wy_ / Pexels',
+    },
+    {
+      image: 'https://images.pexels.com/photos/7310725/pexels-photo-7310725.png?auto=compress&cs=tinysrgb&w=1800',
+      alt: 'A Muslim bride and groom in traditional wedding attire',
+      label: language === 'te' ? 'కొత్త జీవితానికి శుభారంభం' : 'A blessed beginning for the couple',
+      credit: 'Photo: Hüsamettin Akgün / Pexels',
     },
   ];
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
