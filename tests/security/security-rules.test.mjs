@@ -264,6 +264,21 @@ test("Non-admin members cannot publish public profiles", async () => {
   ));
 });
 
+test("Administrators can publish profiles with the default blurred photo privacy setting", async () => {
+  const adminDb = testEnv.authenticatedContext(
+    "admin1",
+    { admin: true, email_verified: true, email: "admin@example.com" }
+  ).firestore();
+
+  await assertSucceeds(setDoc(
+    doc(adminDb, "publicProfiles/member1"),
+    {
+      ...validPublicProfile("member1"),
+      photoPrivacy: "blurred_until_request"
+    }
+  ));
+});
+
 test("Signed-out visitors cannot read approved public profiles", async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), "publicProfiles/member1"), validPublicProfile("member1"));
