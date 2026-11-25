@@ -263,7 +263,7 @@ function validUserDocument(item, uid) {
         && data.aboutCandidate is string
         && data.photos is list
         && data.photos.size() <= 10
-        && data.photoPrivacy in ['visible', 'avatar_only']
+        && data.photoPrivacy in ['visible', 'avatar_only', 'blurred_until_request']
         && data.avatarInitials is string
         && data.avatarBgColor is string
         && data.documents is list
