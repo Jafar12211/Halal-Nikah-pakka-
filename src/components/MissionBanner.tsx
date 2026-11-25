@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, HeartHandshake, ShieldCheck, PhoneCall, Sparkles } from 'lucide-react';
 
 interface MissionBannerProps {
@@ -6,6 +6,41 @@ interface MissionBannerProps {
 }
 
 export const MissionBanner: React.FC<MissionBannerProps> = ({ onOpenRegister }) => {
+  const familySlides = [
+    {
+      image: 'https://images.pexels.com/photos/16132274/pexels-photo-16132274.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      alt: 'A South Asian bride with family members gathered for a wedding',
+      label: 'Families gathered to support a marriage',
+      credit: 'Photo: Sitapoti Das / Pexels',
+    },
+    {
+      image: 'https://images.pexels.com/photos/36223758/pexels-photo-36223758.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      alt: 'A family sharing a festive meal together',
+      label: 'Warm family gathering and celebration',
+      credit: 'Photo: Alfatah Bilal Afdam / Pexels',
+    },
+    {
+      image: 'https://images.pexels.com/photos/7122162/pexels-photo-7122162.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      alt: 'A Muslim bride at a traditional nikah ceremony',
+      label: 'A traditional Muslim nikah celebration',
+      credit: 'Photo: fadhil wy_ / Pexels',
+    },
+    {
+      image: 'https://images.pexels.com/photos/7310725/pexels-photo-7310725.png?auto=compress&cs=tinysrgb&w=1600',
+      alt: 'A Muslim bride and groom in traditional wedding attire',
+      label: 'A blessed beginning for the couple',
+      credit: 'Photo: Hüsamettin Akgün / Pexels',
+    },
+  ];
+  const [activeFamilySlide, setActiveFamilySlide] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveFamilySlide((current) => (current + 1) % familySlides.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [familySlides.length]);
+
   return (
     <section id="mission-section" className="py-20 bg-stone-100 border-y border-stone-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -65,22 +100,52 @@ export const MissionBanner: React.FC<MissionBannerProps> = ({ onOpenRegister }) 
             </div>
           </div>
 
-          {/* Right Column: High Quality Image */}
+          {/* Right Column: Family-assisted matchmaking photo slideshow */}
           <div className="lg:col-span-6">
-            <div className="relative rounded-2xl overflow-hidden shadow-lg border border-stone-200 aspect-[4/3]">
-              <img
-                src="/src/assets/images/family_assisted_meeting_1793883128679.jpg"
-                alt="Muslim family gathered warmly to assist with matrimony"
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-stone-950/90 via-stone-900/60 to-transparent text-white">
+            <div
+              className="relative rounded-2xl overflow-hidden shadow-lg border border-stone-200 aspect-[4/3] bg-stone-900"
+              aria-label="Muslim family and nikah photo slideshow"
+            >
+              {familySlides.map((slide, index) => (
+                <img
+                  key={slide.image}
+                  src={slide.image}
+                  alt={slide.alt}
+                  aria-hidden={index !== activeFamilySlide}
+                  className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ease-in-out ${index === activeFamilySlide ? 'opacity-100' : 'opacity-0'}`}
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                />
+              ))}
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-900/15 to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <p className="font-serif font-bold text-base sm:text-lg mb-1">
                   Family-Assisted Matchmaking with Dignity
                 </p>
-                <p className="text-xs text-stone-200">
+                <p className="text-xs text-stone-200 mb-3">
                   Respecting privacy, modesty, and the Sunnah of involving elders and guardians.
                 </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-amber-200" aria-live="polite">
+                      {familySlides[activeFamilySlide].label}
+                    </p>
+                    <p className="text-[10px] text-white/75">
+                      {familySlides[activeFamilySlide].credit}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5" aria-label="Choose family slideshow image">
+                    {familySlides.map((slide, index) => (
+                      <button
+                        key={slide.image}
+                        type="button"
+                        onClick={() => setActiveFamilySlide(index)}
+                        aria-label={`Show family image ${index + 1}: ${slide.alt}`}
+                        aria-pressed={index === activeFamilySlide}
+                        className={`h-2 rounded-full transition-all duration-300 ${index === activeFamilySlide ? 'w-6 bg-amber-300' : 'w-2 bg-white/65 hover:bg-white'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
