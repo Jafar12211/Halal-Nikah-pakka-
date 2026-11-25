@@ -60,7 +60,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   return (
     <section id="home" className="relative overflow-hidden bg-stone-900 text-white">
-      {/* Rotating family and nikah gallery */}
+      {/* Representative family and nikah imagery; replace with permission-cleared local Godavari family photos when supplied. */}
       <div className="absolute inset-0 z-0 overflow-hidden" aria-label="Nikah Pakka family and wedding photo gallery">
         {heroSlides.map((slide, index) => (
           <img
@@ -77,6 +77,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         <div className="absolute bottom-6 right-5 sm:right-8 z-10 flex items-center gap-3 rounded-full bg-black/30 px-3 py-2 backdrop-blur-sm">
           <span className="hidden sm:inline text-xs font-medium text-white/90" aria-live="polite">
             {heroSlides[activeHeroSlide].label}
+          </span>
+          <span className="hidden md:inline text-[10px] text-white/70" aria-live="polite">
+            {heroSlides[activeHeroSlide].credit}
           </span>
           <div className="flex items-center gap-1.5" aria-label="Choose gallery image">
             {heroSlides.map((slide, index) => (
