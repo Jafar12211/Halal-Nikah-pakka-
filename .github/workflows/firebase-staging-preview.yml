@@ -124,7 +124,7 @@ jobs:
 
       - name: Deploy isolated preview for pull requests and feature branches
         id: deploy_hosting_preview
-        if: steps.staging.outputs.ready == 'true' && !(github.event_name == 'push' && github.ref == 'refs/heads/staging/nikah-pakka-firebase')
+        if: steps.staging.outputs.ready == 'true' && github.event_name == 'workflow_dispatch'
         run: npx --yes firebase-tools@15.35.0 hosting:channel:deploy "${{ steps.channel.outputs.name }}" --project "$STAGING_PROJECT_ID" --expires 7d --non-interactive
 
       - name: Report staging deployment status
@@ -135,6 +135,7 @@ jobs:
           RULES_OUTCOME: ${{ steps.deploy_firestore_rules.outcome }}
           STAGING_HOSTING_OUTCOME: ${{ steps.deploy_hosting_staging.outcome }}
           PREVIEW_HOSTING_OUTCOME: ${{ steps.deploy_hosting_preview.outcome }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           {
             echo "### Firebase staging deployment"
@@ -147,6 +148,9 @@ jobs:
             elif [[ "$PREVIEW_HOSTING_OUTCOME" == "success" ]]; then
               echo "**Status: ISOLATED PREVIEW DEPLOYED**"
               echo "A temporary preview channel was created; the permanent staging site was not changed."
+            elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+              echo "**Status: VALIDATION ONLY** — pull-request checks completed without attempting a preview deployment."
+              echo "Merging to the canonical staging branch triggers deployment to the permanent staging site."
             else
               echo "**Status: NOT COMPLETED** — inspect the deployment steps above."
             fi
