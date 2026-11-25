@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Search, Heart, ShieldCheck, Users, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { FilterState } from '../types/matrimony';
 import { LanguageCode } from '../types/database';
@@ -23,78 +23,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onSearchClick,
 }) => {
   const t = translations[language];
-  const heroSlides = [
-    {
-      image: 'https://images.pexels.com/photos/36223758/pexels-photo-36223758.jpeg?auto=compress&cs=tinysrgb&w=1800',
-      alt: 'A real family sharing an Eid meal together',
-      label: language === 'te' ? 'కుటుంబంతో ఈద్ వేడుక' : 'Family togetherness and Eid celebrations',
-      credit: 'Photo: Alfatah Bilal Afdam / Pexels',
-    },
-    {
-      image: 'https://images.pexels.com/photos/16132274/pexels-photo-16132274.jpeg?auto=compress&cs=tinysrgb&w=1800',
-      alt: 'A traditional South Asian wedding family portrait',
-      label: language === 'te' ? 'వివాహ వేడుకలో కుటుంబాలు' : 'Families celebrating a wedding',
-      credit: 'Photo: Sitapoti Das / Pexels',
-    },
-    {
-      image: 'https://images.pexels.com/photos/7122162/pexels-photo-7122162.jpeg?auto=compress&cs=tinysrgb&w=1800',
-      alt: 'A Muslim bride at a traditional nikah ceremony with family',
-      label: language === 'te' ? 'సంప్రదాయ నికాహ్ వేడుక' : 'A traditional nikah ceremony',
-      credit: 'Photo: fadhil wy_ / Pexels',
-    },
-    {
-      image: 'https://images.pexels.com/photos/7310725/pexels-photo-7310725.png?auto=compress&cs=tinysrgb&w=1800',
-      alt: 'A Muslim bride and groom in traditional wedding attire',
-      label: language === 'te' ? 'కొత్త జీవితానికి శుభారంభం' : 'A blessed beginning for the couple',
-      credit: 'Photo: Hüsamettin Akgün / Pexels',
-    },
-  ];
-  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveHeroSlide((current) => (current + 1) % heroSlides.length);
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [heroSlides.length]);
 
   return (
     <section id="home" className="relative overflow-hidden bg-stone-900 text-white">
-      {/* Representative family and nikah imagery; replace with permission-cleared local Godavari family photos when supplied. */}
-      <div className="absolute inset-0 z-0 overflow-hidden" aria-label="Nikah Pakka family and wedding photo gallery">
-        {heroSlides.map((slide, index) => (
-          <img
-            key={slide.image}
-            src={slide.image}
-            alt={slide.alt}
-            aria-hidden={index !== activeHeroSlide}
-            className={`absolute inset-0 h-full w-full object-cover object-center brightness-[0.48] transition-opacity duration-1000 ease-in-out ${index === activeHeroSlide ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`}
-            loading={index === 0 ? 'eager' : 'lazy'}
-            fetchPriority={index === 0 ? 'high' : 'auto'}
-          />
-        ))}
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/60 to-stone-950/35" />
-        <div className="absolute bottom-6 right-5 sm:right-8 z-10 flex items-center gap-3 rounded-full bg-black/30 px-3 py-2 backdrop-blur-sm">
-          <span className="hidden sm:inline text-xs font-medium text-white/90" aria-live="polite">
-            {heroSlides[activeHeroSlide].label}
-          </span>
-          <span className="hidden md:inline text-[10px] text-white/70" aria-live="polite">
-            {heroSlides[activeHeroSlide].credit}
-          </span>
-          <div className="flex items-center gap-1.5" aria-label="Choose gallery image">
-            {heroSlides.map((slide, index) => (
-              <button
-                key={slide.image}
-                type="button"
-                onClick={() => setActiveHeroSlide(index)}
-                aria-label={`Show image ${index + 1}: ${slide.alt}`}
-                aria-pressed={index === activeHeroSlide}
-                className={`h-2 rounded-full transition-all duration-300 ${index === activeHeroSlide ? 'w-6 bg-amber-300' : 'w-2 bg-white/65 hover:bg-white'}`}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-stone-950 via-emerald-950 to-stone-900" aria-hidden="true" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
         <div className="max-w-3xl">
