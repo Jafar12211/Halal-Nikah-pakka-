@@ -1,4 +1,4 @@
-name: Firebase staging validation and optional preview
+name: Firebase staging validation and deployment
 
 on:
   push:
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   staging-preview:
-    name: Validate staging and optionally deploy isolated preview
+    name: Validate staging and deploy safely
     runs-on: ubuntu-latest
     env:
       STAGING_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID_STAGING || 'nikah-pakka-staging' }}
@@ -39,11 +39,9 @@ jobs:
           fi
           if [[ -n "$STAGING_SERVICE_ACCOUNT" ]]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "Staging service-account credential is configured; committed web config will be validated separately."
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Preview deployment cannot proceed. Add the FIREBASE_SERVICE_ACCOUNT_STAGING Actions secret."
-            echo "Summary: Staging build and emulator tests will run, but live rules/hosting deployment is skipped until the staging service-account secret is configured."
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT_STAGING is missing; deployment will be skipped."
           fi
 
       - name: Choose isolated preview channel
@@ -114,41 +112,42 @@ jobs:
           printf '%s' "$STAGING_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-staging-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-staging-service-account.json" >> "$GITHUB_ENV"
 
-      - name: Deploy firestore rules (Spark plan compatible only; NO Storage, NO Functions)
+      - name: Deploy Firestore rules to staging only
         id: deploy_firestore_rules
-        # Firestore rules are project-wide, not Hosting-channel scoped. Only the canonical staging branch may change them.
         if: steps.staging.outputs.ready == 'true' && github.ref == 'refs/heads/staging/nikah-pakka-firebase'
         run: npx --yes firebase-tools@15.35.0 deploy --only firestore:rules --project "$STAGING_PROJECT_ID" --non-interactive
 
-      - name: Deploy temporary Firebase Hosting preview channel
-        id: deploy_hosting_preview
-        if: steps.staging.outputs.ready == 'true'
-        run: npx --yes firebase-tools@15.35.0 hosting:channel:deploy "${{ steps.channel.outputs.name }}" --project "$STAGING_PROJECT_ID" --expires 7d --non-interactive
+      - name: Deploy canonical staging website
+        id: deploy_hosting_staging
+        if: steps.staging.outputs.ready == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/staging/nikah-pakka-firebase'
+        run: npx --yes firebase-tools@15.35.0 deploy --only hosting --project "$STAGING_PROJECT_ID" --non-interactive
 
+      - name: Deploy isolated preview for pull requests and feature branches
+        id: deploy_hosting_preview
+        if: steps.staging.outputs.ready == 'true' && !(github.event_name == 'push' && github.ref == 'refs/heads/staging/nikah-pakka-firebase')
+        run: npx --yes firebase-tools@15.35.0 hosting:channel:deploy "${{ steps.channel.outputs.name }}" --project "$STAGING_PROJECT_ID" --expires 7d --non-interactive
 
       - name: Report staging deployment status
         if: always()
         shell: bash
         env:
           STAGING_READY: ${{ steps.staging.outputs.ready }}
-          RULES_DEPLOY_ALLOWED: ${{ github.ref == 'refs/heads/staging/nikah-pakka-firebase' && steps.staging.outputs.ready == 'true' }}
           RULES_OUTCOME: ${{ steps.deploy_firestore_rules.outcome }}
-          HOSTING_OUTCOME: ${{ steps.deploy_hosting_preview.outcome }}
+          STAGING_HOSTING_OUTCOME: ${{ steps.deploy_hosting_staging.outcome }}
+          PREVIEW_HOSTING_OUTCOME: ${{ steps.deploy_hosting_preview.outcome }}
         run: |
           {
             echo "### Firebase staging deployment"
             echo "Target project: **nikah-pakka-staging**"
             if [[ "$STAGING_READY" != "true" ]]; then
-              echo "**Status: BLOCKED — NOT DEPLOYED**"
-              echo "The required FIREBASE_SERVICE_ACCOUNT_STAGING Actions secret is missing. No Firestore rules or Hosting preview deployment occurred."
-            elif [[ "$RULES_OUTCOME" == "success" && "$HOSTING_OUTCOME" == "success" ]]; then
-              echo "**Status: CANONICAL STAGING DEPLOYED**"
-              echo "Firestore rules were deployed to nikah-pakka-staging and a temporary Hosting preview channel was created."
-            elif [[ "$RULES_DEPLOY_ALLOWED" != "true" && "$HOSTING_OUTCOME" == "success" ]]; then
-              echo "**Status: HOSTING PREVIEW DEPLOYED — SHARED FIRESTORE RULES UNCHANGED**"
-              echo "This run is for a pull request or non-canonical branch. Firestore rules are project-wide, so rules deployment is intentionally limited to the exact canonical staging branch."
+              echo "**Status: NOT DEPLOYED** — FIREBASE_SERVICE_ACCOUNT_STAGING is missing."
+            elif [[ "$STAGING_HOSTING_OUTCOME" == "success" ]]; then
+              echo "**Status: CANONICAL STAGING WEBSITE DEPLOYED**"
+              echo "Updated the permanent staging Hosting site. Production was not targeted."
+            elif [[ "$PREVIEW_HOSTING_OUTCOME" == "success" ]]; then
+              echo "**Status: ISOLATED PREVIEW DEPLOYED**"
+              echo "A temporary preview channel was created; the permanent staging site was not changed."
             else
-              echo "**Status: NOT COMPLETED**"
-              echo "One or more deployment steps did not complete successfully. Review this workflow's deployment step logs."
+              echo "**Status: NOT COMPLETED** — inspect the deployment steps above."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
