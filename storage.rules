@@ -14,21 +14,32 @@ service firebase.storage {
       return signedIn() && request.auth.token.get('admin', false) == true;
     }
 
-    function approvedPhotoVisible(uid) {
-      let profilePath = /databases/(default)/documents/publicProfiles/$(uid);
+    function activePaidMember() {
       return signedIn()
         && request.auth.token.get('email_verified', false) == true
+        && firestore.exists(/databases/(default)/documents/memberships/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/memberships/$(request.auth.uid)).data.status == 'active'
+        && firestore.get(/databases/(default)/documents/memberships/$(request.auth.uid)).data.expiresAt is timestamp
+        && firestore.get(/databases/(default)/documents/memberships/$(request.auth.uid)).data.expiresAt > request.time;
+    }
+
+    function approvedPhotoVisible(uid, fileName) {
+      let profilePath = /databases/(default)/documents/publicProfiles/$(uid);
+      let photoPath = 'profilePhotos/' + uid + '/' + fileName;
+      return activePaidMember()
         && firestore.exists(profilePath)
         && firestore.get(profilePath).data.approvalStatus == 'approved'
         && firestore.get(profilePath).data.isVerified == true
-        && firestore.get(profilePath).data.photoPrivacy == 'visible';
+        && firestore.get(profilePath).data.photoPrivacy == 'visible'
+        && firestore.get(profilePath).data.photos is list
+        && firestore.get(profilePath).data.photos.hasAny([photoPath]);
     }
 
     // Profile photos are private by default. Only the owner and admins can
     // always access them. Other signed-in members can read them only when
     // the approved public profile explicitly permits visible photographs.
     match /profilePhotos/{uid}/{fileName} {
-      allow get: if owner(uid) || admin() || approvedPhotoVisible(uid);
+      allow get: if owner(uid) || admin() || approvedPhotoVisible(uid, fileName);
       allow list: if owner(uid) || admin();
       allow create, update: if owner(uid)
         && request.resource.size <= 5 * 1024 * 1024

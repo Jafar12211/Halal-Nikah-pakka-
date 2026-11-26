@@ -80,10 +80,10 @@ jobs:
       - name: Install trusted migration dependencies
         run: npm ci --prefix functions --no-audit --no-fund
 
-      - name: Publish sanitized listings for existing approved profiles
+      - name: Migrate locked previews and existing membership expiry timestamps
         env:
           GOOGLE_CLOUD_PROJECT: nikah-pakka
         run: node functions/scripts/migrate-approved-public-profiles.cjs
 
       - name: Deploy Firebase Hosting and Firestore security rules
-        run: npx --yes firebase-tools@15.35.0 deploy --only hosting,firestore:rules --project nikah-pakka --non-interactive
+        run: npx --yes firebase-tools@15.35.0 deploy --only hosting,firestore:rules,storage --project nikah-pakka --non-interactive

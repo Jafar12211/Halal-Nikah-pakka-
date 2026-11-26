@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, doc, getDocs, limit, query, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { CheckCircle2, XCircle, RefreshCw, CreditCard } from 'lucide-react';
 import { auth, db } from '../services/firebase';
 
@@ -66,6 +66,7 @@ export const PaymentRequestsAdminPanel: React.FC = () => {
           transactionReference: request.transactionReference,
           startsAt: startsAt.toISOString(),
           endsAt: endsAt.toISOString(),
+          expiresAt: Timestamp.fromDate(endsAt),
           approvedBy: auth.currentUser.email || auth.currentUser.uid,
           approvedAt: serverTimestamp(),
         });

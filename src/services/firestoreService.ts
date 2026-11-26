@@ -292,6 +292,7 @@ export async function saveProfileToFirestore(
       isVerified: false,
     });
     batch.delete(doc(db, 'publicProfiles', user.uid));
+    batch.delete(doc(db, 'profilePreviews', user.uid));
     await batch.commit();
   }
 }
@@ -376,11 +377,8 @@ export async function updateProfileApprovalStatusFirestore(
     userId,
   );
 
-  const publicProfileRef = doc(
-    db,
-    'publicProfiles',
-    userId,
-  );
+  const publicProfileRef = doc(db, 'publicProfiles', userId);
+  const profilePreviewRef = doc(db, 'profilePreviews', userId);
 
   const registration = await getDoc(registrationRef);
 
@@ -471,9 +469,22 @@ export async function updateProfileApprovalStatusFirestore(
     });
 
     batch.set(publicProfileRef, publicProfile);
+    const age = Number(data.age);
+    const ageBand = age < 25 ? '18-24' : age >= 60 ? '60+' : `${Math.floor(age / 5) * 5}-${Math.floor(age / 5) * 5 + 4}`;
+    // Minimal teaser only: never copy candidate name, exact age, photos,
+    // family, education, profession, or contact information.
+    batch.set(profilePreviewRef, {
+      gender: data.gender,
+      ageBand,
+      district: typeof data.district === 'string' ? data.district : '',
+      approvalStatus: 'approved',
+      isVerified: true,
+      updatedAt: serverTimestamp(),
+    });
   } else {
-    // Unpublish profiles that are not approved.
+    // Unpublish both full and preview listings when a profile is not approved.
     batch.delete(publicProfileRef);
+    batch.delete(profilePreviewRef);
   }
 
   const auditRef = doc(collection(db, 'auditLogs'));

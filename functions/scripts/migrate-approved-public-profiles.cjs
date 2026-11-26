@@ -84,6 +84,26 @@ function toPublicProfile(uid, data, serverTimestamp = new Date().toISOString()) 
   };
 }
 
+function toProfilePreview(data) {
+  const age = Number(data?.age);
+  if (
+    data?.approvalStatus !== 'approved' ||
+    data?.isVerified !== true ||
+    !VALID_GENDERS.has(data?.gender) ||
+    typeof data?.candidateName !== 'string' || !data.candidateName.trim() ||
+    !VALID_MARITAL_STATUSES.has(data?.maritalStatus) ||
+    !Number.isFinite(age) || age < 18 || age > 100
+  ) return null;
+  const ageBand = age < 25 ? '18-24' : age >= 60 ? '60+' : `${Math.floor(age / 5) * 5}-${Math.floor(age / 5) * 5 + 4}`;
+  return {
+    gender: data.gender,
+    ageBand,
+    district: typeof data.district === 'string' ? data.district.slice(0, 80) : '',
+    approvalStatus: 'approved',
+    isVerified: true,
+  };
+}
+
 async function runMigration() {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || 'nikah-pakka';
   if (projectId !== 'nikah-pakka') {
@@ -93,7 +113,7 @@ async function runMigration() {
   const { getFirestore, FieldValue } = require('firebase-admin/firestore');
   const app = getApps()[0] || initializeApp({ credential: applicationDefault(), projectId });
   const db = getFirestore(app);
-  const marker = db.doc('_systemMigrations/approved-public-profiles-v1');
+  const marker = db.doc('_systemMigrations/locked-profile-access-v2');
   const existingMarker = await marker.get();
   if (existingMarker.exists) {
     process.stdout.write('Sanitized public-profile migration already completed; skipping.\\n');
@@ -105,6 +125,8 @@ async function runMigration() {
   let batchCount = 0;
   let published = 0;
   let skipped = 0;
+  let previewsPublished = 0;
+  let membershipsUpgraded = 0;
   const commitBatch = async () => {
     if (batchCount) await batch.commit();
     batch = db.batch();
@@ -112,24 +134,47 @@ async function runMigration() {
   };
 
   for (const registration of registrations.docs) {
-    const publicProfile = toPublicProfile(registration.id, registration.data(), FieldValue.serverTimestamp());
-    if (!publicProfile) {
+    const preview = toProfilePreview(registration.data());
+    if (preview) {
+      batch.set(db.doc(`profilePreviews/${registration.id}`), {
+        ...preview,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: false });
+      previewsPublished += 1;
+    } else {
+      // Remove only this derived teaser when its source registration is no
+      // longer eligible. Never modify the customer's registration/biodata.
+      batch.delete(db.doc(`profilePreviews/${registration.id}`));
       skipped += 1;
-      continue;
     }
-    batch.set(db.doc(`publicProfiles/${registration.id}`), publicProfile, { merge: false });
     batchCount += 1;
-    published += 1;
+    published += preview ? 1 : 0;
     if (batchCount >= 400) await commitBatch();
+  }
+  // Preserve existing membership records and add a Timestamp expiry derived
+  // from their existing ISO endsAt value. No plan, amount, or status is changed.
+  const memberships = await db.collection('memberships').get();
+  for (const membership of memberships.docs) {
+    const data = membership.data();
+    if (data.expiresAt && typeof data.expiresAt.toDate === 'function') continue;
+    const endDate = typeof data.endsAt === 'string' ? new Date(data.endsAt) : null;
+    if (endDate && Number.isFinite(endDate.getTime())) {
+      batch.set(membership.ref, { expiresAt: endDate }, { merge: true });
+      batchCount += 1;
+      membershipsUpgraded += 1;
+      if (batchCount >= 400) await commitBatch();
+    }
   }
   await commitBatch();
   await marker.set({
-    migration: 'approved-public-profiles-v1',
+    migration: 'locked-profile-access-v2',
     completedAt: FieldValue.serverTimestamp(),
     published,
     skipped,
+    previewsPublished,
+    membershipsUpgraded,
   });
-  process.stdout.write(`Sanitized public-profile migration complete. Published: ${published}; skipped: ${skipped}.\\n`);
+  process.stdout.write(`Locked profile access migration complete. Full profiles: ${published}; previews: ${previewsPublished}; memberships upgraded: ${membershipsUpgraded}; skipped: ${skipped}.\\n`);
 }
 
 if (require.main === module) {
@@ -139,4 +184,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { toPublicProfile };
+module.exports = { toPublicProfile, toProfilePreview };

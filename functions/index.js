@@ -51,6 +51,7 @@ async function deleteUserFirestoreData(uid) {
   // Delete account-root documents and every nested subcollection under them.
   await recursivelyDeleteDocument(`registrations/${uid}`);
   await recursivelyDeleteDocument(`publicProfiles/${uid}`);
+  await recursivelyDeleteDocument(`profilePreviews/${uid}`);
   await recursivelyDeleteDocument(`users/${uid}`);
 
   // Photos and identity documents are stored in Firestore subcollections

@@ -81,6 +81,20 @@ beforeEach(async () => {
   await testEnv.clearStorage();
 });
 
+const seedActiveMembership = async (uid) => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `memberships/${uid}`), {
+      userId: uid,
+      planId: 'monthly',
+      amountINR: 500,
+      status: 'active',
+      startsAt: new Date().toISOString(),
+      endsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    });
+  });
+};
+
 after(async () => {
   await testEnv?.cleanup();
 });
@@ -289,6 +303,7 @@ test("Verified members can list only approved, verified public profiles", async 
       isVerified: false
     });
   });
+  await seedActiveMembership("member2");
   const db = testEnv.authenticatedContext("member2", { email_verified: true }).firestore();
   const approvedQuery = query(
     collection(db, "publicProfiles"),
@@ -298,6 +313,52 @@ test("Verified members can list only approved, verified public profiles", async 
   const snapshot = await assertSucceeds(getDocs(approvedQuery));
   assert.equal(snapshot.size, 1);
   assert.equal(snapshot.docs[0].id, "approved1");
+});
+
+
+test("Signed-in unpaid users can read only minimal approved profile previews", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "profilePreviews/candidate1"), {
+      gender: "bride",
+      ageBand: "25-29",
+      district: "Yanam (Puducherry)",
+      approvalStatus: "approved",
+      isVerified: true,
+      updatedAt: new Date()
+    });
+    await setDoc(doc(context.firestore(), "publicProfiles/candidate1"), validPublicProfile("candidate1"));
+  });
+  const db = testEnv.authenticatedContext("unpaid1", { email_verified: true }).firestore();
+  await assertSucceeds(getDoc(doc(db, "profilePreviews/candidate1")));
+  await assertFails(getDoc(doc(db, "publicProfiles/candidate1")));
+});
+
+test("Unpaid users cannot read full biodata even when email verified", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/candidate1"), validPublicProfile("candidate1"));
+  });
+  const db = testEnv.authenticatedContext("unpaid1", { email_verified: true }).firestore();
+  await assertFails(getDoc(doc(db, "publicProfiles/candidate1")));
+});
+
+test("Expired memberships cannot read full biodata", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "memberships/member1"), {
+      userId: "member1", planId: "monthly", amountINR: 500, status: "active",
+      expiresAt: new Date(Date.now() - 60_000)
+    });
+    await setDoc(doc(context.firestore(), "publicProfiles/candidate1"), validPublicProfile("candidate1"));
+  });
+  const db = testEnv.authenticatedContext("member1", { email_verified: true }).firestore();
+  await assertFails(getDoc(doc(db, "publicProfiles/candidate1")));
+});
+
+test("Members cannot create or alter their own profile previews", async () => {
+  const db = testEnv.authenticatedContext("member1", { email_verified: true }).firestore();
+  await assertFails(setDoc(doc(db, "profilePreviews/member1"), {
+    gender: "groom", ageBand: "25-29", district: "Yanam",
+    approvalStatus: "approved", isVerified: true, updatedAt: serverTimestamp()
+  }));
 });
 
 test("Administrators can publish only allowlisted public profile fields", async () => {
@@ -333,7 +394,8 @@ test("A member can save an approved public profile to their own account", async 
     });
   });
 
-  const db = testEnv.authenticatedContext("member1").firestore();
+  await seedActiveMembership("member1");
+  const db = testEnv.authenticatedContext("member1", { email_verified: true }).firestore();
 
   await assertSucceeds(
     setDoc(doc(db, "users/member1/savedProfiles/profile1"), {
@@ -509,6 +571,22 @@ test("Other members cannot read private profile photos", async () => {
   );
 });
 
+
+test("Unpaid members cannot read photos even when a profile marks them visible", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/member1"), {
+      approvalStatus: "approved", isVerified: true, photoPrivacy: "visible",
+      photos: ["profilePhotos/member1/photo.webp"]
+    });
+  });
+  const ownerStorage = testEnv.authenticatedContext("member1").storage();
+  const unpaidStorage = testEnv.authenticatedContext("member2", { email_verified: true }).storage();
+  await uploadBytes(ref(ownerStorage, "profilePhotos/member1/photo.webp"), new Uint8Array([1, 2, 3]), {
+    contentType: "image/png"
+  });
+  await assertFails(getBytes(ref(unpaidStorage, "profilePhotos/member1/photo.webp")));
+});
+
 test("Other members can read approved and visible profile photos", async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(
@@ -516,12 +594,14 @@ test("Other members can read approved and visible profile photos", async () => {
       {
         approvalStatus: "approved",
         isVerified: true,
-        photoPrivacy: "visible"
+        photoPrivacy: "visible",
+        photos: ["profilePhotos/member1/photo.png"]
       }
     );
   });
 
   const ownerStorage = testEnv.authenticatedContext("member1").storage();
+  await seedActiveMembership("member2");
   const otherStorage = testEnv.authenticatedContext("member2", { email_verified: true }).storage();
 
   await uploadBytes(
@@ -587,7 +667,8 @@ test("Other members can read only published photos on approved visible profiles"
       createdAt: new Date()
     });
   });
-  const otherDb = testEnv.authenticatedContext("member2").firestore();
+  await seedActiveMembership("member2");
+  const otherDb = testEnv.authenticatedContext("member2", { email_verified: true }).firestore();
   await assertSucceeds(getDoc(doc(otherDb, "profilePhotos/member1/items/photo.webp")));
   await assertFails(getDoc(doc(otherDb, "profilePhotos/member1/items/unpublished.webp")));
 });
@@ -642,7 +723,8 @@ const seedApprovedProfiles = async () => {
 
 test("An approved member can send a private interest request to another approved member", async () => {
   await seedApprovedProfiles();
-  const db = testEnv.authenticatedContext("sender1").firestore();
+  await seedActiveMembership("sender1");
+  const db = testEnv.authenticatedContext("sender1", { email_verified: true }).firestore();
 
   await assertSucceeds(setDoc(doc(db, "interestRequests/request1"), {
     senderUserId: "sender1",
