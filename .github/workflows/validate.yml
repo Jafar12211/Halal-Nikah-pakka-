@@ -39,6 +39,9 @@ jobs:
       - name: Run utility unit tests
         run: npm run test:unit
 
+      - name: Run admin, feature-flag, and Firebase configuration tests
+        run: npm run test:admin
+
       - name: Build production website
         run: npm run build
 

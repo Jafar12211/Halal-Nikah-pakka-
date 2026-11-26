@@ -392,6 +392,22 @@ test("An administrator can create an audit log", async () => {
   );
 });
 
+test("A verified admin email without the admin custom claim cannot create audit logs", async () => {
+  const emailOnlyDb = testEnv.authenticatedContext(
+    "email-only-user",
+    { email_verified: true, email: "jafarmd0007@gmail.com" }
+  ).firestore();
+
+  await assertFails(
+    setDoc(doc(emailOnlyDb, "auditLogs/email-only-attempt"), {
+      performedBy: "jafarmd0007@gmail.com",
+      targetId: "member1",
+      action: "DOCUMENT_VERIFIED",
+      details: "Must be denied without the admin custom claim"
+    })
+  );
+});
+
 test("An administrator cannot forge another audit identity", async () => {
   const adminDb = testEnv.authenticatedContext(
     "admin1",
@@ -455,6 +471,24 @@ test("An administrator can read a member's identity document", async () => {
     getBytes(
       ref(adminStorage, "identityDocuments/member1/identity.pdf")
     )
+  );
+});
+
+test("A verified admin email without the admin custom claim cannot read identity documents", async () => {
+  const ownerStorage = testEnv.authenticatedContext("member1").storage();
+  const emailOnlyStorage = testEnv.authenticatedContext(
+    "email-only-user",
+    { email_verified: true, email: "jafarmd0007@gmail.com" }
+  ).storage();
+
+  await uploadBytes(
+    ref(ownerStorage, "identityDocuments/member1/identity.pdf"),
+    new Uint8Array([1, 2, 3]),
+    { contentType: "application/pdf" }
+  );
+
+  await assertFails(
+    getBytes(ref(emailOnlyStorage, "identityDocuments/member1/identity.pdf"))
   );
 });
 
