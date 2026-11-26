@@ -6,6 +6,7 @@ export interface ReligiousPractice {
   quranRecitation: 'Daily' | 'Weekly' | 'Regular';
   halalDiet: boolean;
   hajjUmrahDone: boolean;
+  fastingRamadan?: boolean;
 }
 
 export interface FamilyDetails {
@@ -17,6 +18,7 @@ export interface FamilyDetails {
   sistersMarried: number;
   nativePlace: string;
   familyValues: 'Traditional & Practicing' | 'Moderate Religious' | 'Modern Religious';
+  familyStatus?: 'Affluent' | 'Upper Middle Class' | 'Middle Class';
 }
 
 export interface PartnerPreferences {
@@ -47,6 +49,7 @@ export interface MatrimonyProfile {
   candidateConsentAt?: string;
   gender: 'groom' | 'bride';
   age: number;
+  dob?: string;
   height: string;
   maritalStatus: 'Never Married' | 'Divorced' | 'Widowed';
   city: string;
