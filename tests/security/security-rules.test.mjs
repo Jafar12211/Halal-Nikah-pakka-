@@ -315,6 +315,52 @@ test("Verified members can list only approved, verified public profiles", async 
   assert.equal(snapshot.docs[0].id, "approved1");
 });
 
+
+test("Signed-in unpaid users can read only minimal approved profile previews", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "profilePreviews/candidate1"), {
+      gender: "bride",
+      ageBand: "25-29",
+      district: "Yanam (Puducherry)",
+      approvalStatus: "approved",
+      isVerified: true,
+      updatedAt: new Date()
+    });
+    await setDoc(doc(context.firestore(), "publicProfiles/candidate1"), validPublicProfile("candidate1"));
+  });
+  const db = testEnv.authenticatedContext("unpaid1", { email_verified: true }).firestore();
+  await assertSucceeds(getDoc(doc(db, "profilePreviews/candidate1")));
+  await assertFails(getDoc(doc(db, "publicProfiles/candidate1")));
+});
+
+test("Unpaid users cannot read full biodata even when email verified", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/candidate1"), validPublicProfile("candidate1"));
+  });
+  const db = testEnv.authenticatedContext("unpaid1", { email_verified: true }).firestore();
+  await assertFails(getDoc(doc(db, "publicProfiles/candidate1")));
+});
+
+test("Expired memberships cannot read full biodata", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "memberships/member1"), {
+      userId: "member1", planId: "monthly", amountINR: 500, status: "active",
+      expiresAt: new Date(Date.now() - 60_000)
+    });
+    await setDoc(doc(context.firestore(), "publicProfiles/candidate1"), validPublicProfile("candidate1"));
+  });
+  const db = testEnv.authenticatedContext("member1", { email_verified: true }).firestore();
+  await assertFails(getDoc(doc(db, "publicProfiles/candidate1")));
+});
+
+test("Members cannot create or alter their own profile previews", async () => {
+  const db = testEnv.authenticatedContext("member1", { email_verified: true }).firestore();
+  await assertFails(setDoc(doc(db, "profilePreviews/member1"), {
+    gender: "groom", ageBand: "25-29", district: "Yanam",
+    approvalStatus: "approved", isVerified: true, updatedAt: serverTimestamp()
+  }));
+});
+
 test("Administrators can publish only allowlisted public profile fields", async () => {
   const adminDb = testEnv.authenticatedContext(
     "admin1",
