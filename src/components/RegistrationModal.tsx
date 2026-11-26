@@ -35,6 +35,28 @@ type RegistrationForm = {
   education: string;
   profession: string;
   annualIncomeRange: string;
+  employedIn: string;
+  religion: string;
+  quranRecitation: string;
+  hijabOrBeard: string;
+  halalDiet: string;
+  hajjUmrahDone: string;
+  fatherNameAndOcc: string;
+  motherNameAndOcc: string;
+  brothersCount: string;
+  brothersMarried: string;
+  sistersCount: string;
+  sistersMarried: string;
+  familyValues: string;
+  nativePlace: string;
+  aboutCandidate: string;
+  preferredMinAge: string;
+  preferredMaxAge: string;
+  preferredHeight: string;
+  educationPreference: string;
+  maritalStatusPreference: string;
+  locationPreference: string;
+  religiosityPreference: string;
   guardianName: string;
   guardianRelation: string;
   guardianPhone: string;
@@ -67,6 +89,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     education: '',
     profession: '',
     annualIncomeRange: '',
+    employedIn: '',
+    religion: 'Islam',
+    quranRecitation: '',
+    hijabOrBeard: '',
+    halalDiet: 'true',
+    hajjUmrahDone: 'false',
+    fatherNameAndOcc: '',
+    motherNameAndOcc: '',
+    brothersCount: '0',
+    brothersMarried: '0',
+    sistersCount: '0',
+    sistersMarried: '0',
+    familyValues: '',
+    nativePlace: '',
+    aboutCandidate: '',
+    preferredMinAge: '21',
+    preferredMaxAge: '35',
+    preferredHeight: '',
+    educationPreference: '',
+    maritalStatusPreference: 'Never Married',
+    locationPreference: '',
+    religiosityPreference: '',
     guardianName: '',
     guardianRelation: 'Father',
     guardianPhone: '',
@@ -184,31 +228,38 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         stateCountry: 'Andhra Pradesh, India',
         motherTongue: formData.motherTongue,
         sect: formData.sect,
+        religion: { name: formData.religion },
         religiousPractice: {
           salah: formData.salah,
+          hijabOrBeard: formData.hijabOrBeard,
+          quranRecitation: formData.quranRecitation,
+          halalDiet: formData.halalDiet === 'true',
+          hajjUmrahDone: formData.hajjUmrahDone === 'true',
         },
         education: formData.education.trim(),
         profession: formData.profession.trim(),
+        employedIn: formData.employedIn,
         annualIncomeRange: formData.annualIncomeRange,
         familyDetails: {
-          fatherNameAndOcc: '',
-          motherNameAndOcc: '',
-          brothersCount: 0,
-          brothersMarried: 0,
-          sistersCount: 0,
-          sistersMarried: 0,
-          nativePlace: formData.city.trim(),
-          familyValues: '',
+          fatherNameAndOcc: formData.fatherNameAndOcc.trim(),
+          motherNameAndOcc: formData.motherNameAndOcc.trim(),
+          brothersCount: Number(formData.brothersCount) || 0,
+          brothersMarried: Number(formData.brothersMarried) || 0,
+          sistersCount: Number(formData.sistersCount) || 0,
+          sistersMarried: Number(formData.sistersMarried) || 0,
+          nativePlace: formData.nativePlace.trim() || formData.city.trim(),
+          familyValues: formData.familyValues,
         },
         partnerPreferences: {
-          minAge: 18,
-          maxAge: 75,
-          educationPreference: '',
-          maritalStatusPreference: [],
-          locationPreference: [],
-          religiosityPreference: '',
+          minAge: Number(formData.preferredMinAge) || 18,
+          maxAge: Number(formData.preferredMaxAge) || 75,
+          minHeight: formData.preferredHeight,
+          educationPreference: formData.educationPreference,
+          maritalStatusPreference: formData.maritalStatusPreference ? [formData.maritalStatusPreference] : [],
+          locationPreference: formData.locationPreference.split(',').map((value) => value.trim()).filter(Boolean),
+          religiosityPreference: formData.religiosityPreference,
         },
-        aboutCandidate: '',
+        aboutCandidate: formData.aboutCandidate.trim(),
         guardianWaliContact: {
           name: formData.guardianName.trim(),
           relationship: formData.guardianRelation,
@@ -497,6 +548,52 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     {errors.profession && <p className="text-[11px] text-rose-600 mt-1">{errors.profession}</p>}
                   </div>
 
+                  <div>
+                    <label className={labelClass}>Employment Type</label>
+                    <select value={formData.employedIn} onChange={(e) => updateField('employedIn', e.target.value)} className={inputClass}>
+                      <option value="">Select employment type</option><option>Private Sector</option><option>Government / PSU</option><option>Business / Self-Employed</option><option>Defense / Healthcare</option><option>Homemaker</option><option>Student</option><option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>About the Candidate</label>
+                    <textarea value={formData.aboutCandidate} onChange={(e) => updateField('aboutCandidate', e.target.value)} maxLength={1200} rows={3} placeholder="Share personality, interests, values and marriage expectations (up to 1,200 characters)." className={inputClass} />
+                    <p className="text-[10px] text-stone-400 text-right">{formData.aboutCandidate.length}/1200</p>
+                  </div>
+                  <div className="border-t border-stone-200 pt-4">
+                    <h3 className="text-sm font-bold text-emerald-950">Religious & Lifestyle Details</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      <div><label className={labelClass}>Quran Recitation</label><select value={formData.quranRecitation} onChange={(e) => updateField('quranRecitation', e.target.value)} className={inputClass}><option value="">Select</option><option>Daily</option><option>Weekly</option><option>Regular</option><option>Learning</option></select></div>
+                      <div><label className={labelClass}>Hijab / Beard / Modesty</label><select value={formData.hijabOrBeard} onChange={(e) => updateField('hijabOrBeard', e.target.value)} className={inputClass}><option value="">Prefer not to say</option><option>Observes Hijab/Niqab</option><option>Full Beard</option><option>Trimmed Beard</option><option>Modest Dressing</option><option>Not strictly</option></select></div>
+                      <div><label className={labelClass}>Halal Diet</label><select value={formData.halalDiet} onChange={(e) => updateField('halalDiet', e.target.value)} className={inputClass}><option value="true">Yes</option><option value="false">Prefer not to say</option></select></div>
+                      <div><label className={labelClass}>Hajj / Umrah Completed</label><select value={formData.hajjUmrahDone} onChange={(e) => updateField('hajjUmrahDone', e.target.value)} className={inputClass}><option value="false">No / Prefer not to say</option><option value="true">Yes</option></select></div>
+                    </div>
+                  </div>
+                  <div className="border-t border-stone-200 pt-4">
+                    <h3 className="text-sm font-bold text-emerald-950">Family Background</h3>
+                    <div className="space-y-3 mt-3">
+                      <div><label className={labelClass}>Father's Name & Occupation</label><input value={formData.fatherNameAndOcc} onChange={(e) => updateField('fatherNameAndOcc', e.target.value)} className={inputClass} /></div>
+                      <div><label className={labelClass}>Mother's Name & Occupation</label><input value={formData.motherNameAndOcc} onChange={(e) => updateField('motherNameAndOcc', e.target.value)} className={inputClass} /></div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {([['brothersCount','Brothers'],['brothersMarried','Married brothers'],['sistersCount','Sisters'],['sistersMarried','Married sisters']] as const).map(([field,label]) => <div key={field}><label className={labelClass}>{label}</label><input type="number" min="0" max="20" value={formData[field]} onChange={(e) => updateField(field, e.target.value)} className={inputClass} /></div>)}
+                      </div>
+                      <div><label className={labelClass}>Family Values</label><select value={formData.familyValues} onChange={(e) => updateField('familyValues', e.target.value)} className={inputClass}><option value="">Select family values</option><option>Traditional & Practicing</option><option>Moderate Religious</option><option>Modern Religious</option></select></div>
+                      <div><label className={labelClass}>Native Place</label><input value={formData.nativePlace} onChange={(e) => updateField('nativePlace', e.target.value)} placeholder="Village / town / district" className={inputClass} /></div>
+                    </div>
+                  </div>
+                  <div className="border-t border-stone-200 pt-4">
+                    <h3 className="text-sm font-bold text-emerald-950">Partner Preferences</h3>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div><label className={labelClass}>Preferred Minimum Age</label><input type="number" min="18" max="75" value={formData.preferredMinAge} onChange={(e) => updateField('preferredMinAge', e.target.value)} className={inputClass} /></div>
+                      <div><label className={labelClass}>Preferred Maximum Age</label><input type="number" min="18" max="75" value={formData.preferredMaxAge} onChange={(e) => updateField('preferredMaxAge', e.target.value)} className={inputClass} /></div>
+                    </div>
+                    <div className="space-y-3 mt-3">
+                      <div><label className={labelClass}>Preferred Height</label><input value={formData.preferredHeight} onChange={(e) => updateField('preferredHeight', e.target.value)} placeholder="Optional" className={inputClass} /></div>
+                      <div><label className={labelClass}>Preferred Education</label><input value={formData.educationPreference} onChange={(e) => updateField('educationPreference', e.target.value)} placeholder="e.g. Graduate, professional" className={inputClass} /></div>
+                      <div><label className={labelClass}>Preferred Marital Status</label><select value={formData.maritalStatusPreference} onChange={(e) => updateField('maritalStatusPreference', e.target.value)} className={inputClass}><option>Never Married</option><option>Divorced</option><option>Widowed</option><option>Any</option></select></div>
+                      <div><label className={labelClass}>Preferred Locations (comma separated)</label><input value={formData.locationPreference} onChange={(e) => updateField('locationPreference', e.target.value)} placeholder="Yanam, Kakinada, Rajahmundry" className={inputClass} /></div>
+                      <div><label className={labelClass}>Religious Preference</label><input value={formData.religiosityPreference} onChange={(e) => updateField('religiosityPreference', e.target.value)} placeholder="Optional" className={inputClass} /></div>
+                    </div>
+                  </div>
                   <div>
                     <label className={labelClass}>Annual Income Bracket (Optional)</label>
                     <select
