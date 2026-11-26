@@ -369,9 +369,12 @@ function validUserDocument(item, uid) {
           'paymentMethod', 'upiId', 'transactionReference', 'status', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.planId in ['monthly', 'quarterly', 'half_yearly', 'yearly']
-        && request.resource.data.planName in ['Monthly', 'Quarterly', 'Half-yearly', 'Yearly']
-        && request.resource.data.amountINR in [500, 1000, 1500, 2500]
+        && (
+          (request.resource.data.planId == 'monthly' && request.resource.data.planName == 'Monthly' && request.resource.data.duration == '1 month' && request.resource.data.amountINR == 500)
+          || (request.resource.data.planId == 'quarterly' && request.resource.data.planName == 'Quarterly' && request.resource.data.duration == '3 months' && request.resource.data.amountINR == 1000)
+          || (request.resource.data.planId == 'half_yearly' && request.resource.data.planName == 'Half-yearly' && request.resource.data.duration == '6 months' && request.resource.data.amountINR == 1500)
+          || (request.resource.data.planId == 'yearly' && request.resource.data.planName == 'Yearly' && request.resource.data.duration == '12 months' && request.resource.data.amountINR == 2500)
+        )
         && request.resource.data.paymentMethod in ['qr', 'upi']
         && request.resource.data.upiId == 'BHARATPE2O0M0S1F8W06214@unitype'
         && request.resource.data.transactionReference is string
@@ -380,7 +383,7 @@ function validUserDocument(item, uid) {
         && request.resource.data.status == 'pending'
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
-      allow update: if admin()
+      allow update: if admin() && resource.data.status == 'pending'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'reviewedBy', 'reviewNote'])
         && request.resource.data.status in ['approved', 'rejected']
         && request.resource.data.updatedAt == request.time;
