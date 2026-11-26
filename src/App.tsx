@@ -321,6 +321,10 @@ export default function App() {
       const active = currentUser.emailVerified && data?.status === 'active'
         && expiryDate instanceof Date && expiryDate.getTime() > Date.now();
       setHasActiveMembership(active);
+      if (!active) {
+        setProfiles([]);
+        setSelectedProfile(null);
+      }
       if (expiryTimer !== undefined) window.clearTimeout(expiryTimer);
       if (active && expiryDate) {
         expiryTimer = window.setTimeout(() => {
