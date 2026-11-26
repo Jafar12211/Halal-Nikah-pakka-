@@ -5,8 +5,17 @@ service cloud.firestore {
     // Set this custom claim only from a trusted Admin SDK environment.
     function admin() { return signedIn() && request.auth.token.get('admin', false) == true; }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
-    function verifiedMember() {
-      return signedIn() && request.auth.token.email_verified == true;
+    // Membership access is enforced by Firestore, not just by hiding UI.
+    // expiresAt is a server-written Firestore Timestamp; missing/legacy-invalid
+    // values fail closed until the migration converts valid existing records.
+    function activePaidMember() {
+      let membershipPath = /databases/$(database)/documents/memberships/$(request.auth.uid);
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && exists(membershipPath)
+        && get(membershipPath).data.status == 'active'
+        && get(membershipPath).data.expiresAt is timestamp
+        && get(membershipPath).data.expiresAt > request.time;
     }
     function validUid(uid) { return uid is string && uid.size() > 0 && uid.size() <= 128; }
 
@@ -92,7 +101,7 @@ function validUserDocument(item, uid) {
     function approvedPhotoVisible(uid, photoId) {
       let profilePath = /databases/$(database)/documents/publicProfiles/$(uid);
       let photoPath = 'profilePhotos/' + uid + '/' + photoId;
-      return signedIn()
+      return activePaidMember()
         && exists(profilePath)
         && get(profilePath).data.approvalStatus == 'approved'
         && get(profilePath).data.isVerified == true
@@ -274,14 +283,34 @@ function validUserDocument(item, uid) {
         && data.interestsReceivedCount >= 0;
     }
 
-    // Only approved, sanitized documents can be read by the public.
-    // Admin writes are schema-constrained; owners may remove their own listing.
+    // Unpaid users receive only a deliberately minimal, non-identifying preview.
+    // The document ID is an internal account key; no candidate name, exact age,
+    // photo, contact, family, education, or employment details are included.
+    match /profilePreviews/{uid} {
+      allow read: if signedIn() && resource.data.approvalStatus == 'approved';
+      allow create, update: if admin()
+        && request.resource.data.keys().hasAll([
+          'gender', 'ageBand', 'district', 'approvalStatus', 'isVerified', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'gender', 'ageBand', 'district', 'approvalStatus', 'isVerified', 'updatedAt'
+        ])
+        && request.resource.data.gender in ['bride', 'groom']
+        && request.resource.data.ageBand is string
+        && request.resource.data.ageBand.size() <= 16
+        && request.resource.data.district is string
+        && request.resource.data.district.size() <= 80
+        && request.resource.data.approvalStatus == 'approved'
+        && request.resource.data.isVerified == true
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if admin();
+    }
+
+    // Full biodata is available only to administrators or active paid members.
     match /publicProfiles/{uid} {
-      // Only verified signed-in members can read approved, sanitized listings.
-      // Private registration records and identity documents remain restricted.
-      allow read: if verifiedMember()
+      allow read: if admin() || (activePaidMember()
         && resource.data.approvalStatus == 'approved'
-        && resource.data.isVerified == true;
+        && resource.data.isVerified == true);
       allow create, update: if admin() && validPublicProfile(uid);
       allow delete: if admin() || owner(uid);
     }
@@ -297,6 +326,7 @@ function validUserDocument(item, uid) {
     match /users/{uid}/savedProfiles/{profileId} {
       allow get, list: if owner(uid);
       allow create: if owner(uid)
+        && activePaidMember()
         && validUid(profileId)
         && profileId != uid
         && request.resource.data.keys().hasAll(['profileId', 'createdAt'])
@@ -316,6 +346,7 @@ function validUserDocument(item, uid) {
         && (resource.data.senderUserId == request.auth.uid
           || resource.data.receiverUserId == request.auth.uid);
       allow create: if signedIn()
+        && activePaidMember()
         && request.resource.data.keys().hasAll([
           'senderUserId', 'receiverUserId', 'status', 'message', 'createdAt', 'updatedAt'
         ])
