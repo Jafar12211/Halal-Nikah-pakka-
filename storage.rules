@@ -14,10 +14,19 @@ service firebase.storage {
       return signedIn() && request.auth.token.get('admin', false) == true;
     }
 
-    function approvedPhotoVisible(uid) {
-      let profilePath = /databases/(default)/documents/publicProfiles/$(uid);
+    function activePaidMember() {
+      let membershipPath = /databases/(default)/documents/memberships/$(request.auth.uid);
       return signedIn()
         && request.auth.token.get('email_verified', false) == true
+        && firestore.exists(membershipPath)
+        && firestore.get(membershipPath).data.status == 'active'
+        && firestore.get(membershipPath).data.expiresAt is timestamp
+        && firestore.get(membershipPath).data.expiresAt > request.time;
+    }
+
+    function approvedPhotoVisible(uid) {
+      let profilePath = /databases/(default)/documents/publicProfiles/$(uid);
+      return activePaidMember()
         && firestore.exists(profilePath)
         && firestore.get(profilePath).data.approvalStatus == 'approved'
         && firestore.get(profilePath).data.isVerified == true
