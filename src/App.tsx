@@ -6,6 +6,7 @@ import { HeroSection } from './components/HeroSection';
 import { MissionBanner } from './components/MissionBanner';
 import { MembershipPlans } from './components/MembershipPlans';
 import { ProfilesList } from './components/ProfilesList';
+import { LockedProfilesList } from './components/LockedProfilesList';
 import { ProfileDetailModal } from './components/ProfileDetailModal';
 import { RegistrationModal } from './components/RegistrationModal';
 import { AuthModal } from './components/AuthModal';
@@ -77,6 +78,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [profilePreviews, setProfilePreviews] = useState<Array<{ id: string; gender: 'bride' | 'groom'; ageBand: string; district: string }>>([]);
+  const [hasActiveMembership, setHasActiveMembership] = useState(false);
   const [myProfile, setMyProfile] = useState<UserProfile | null>(null);
 
   const [filters, setFilters] = useState<FilterState>({
@@ -293,45 +296,85 @@ export default function App() {
     );
   };
 
-  // Load approved public profiles from Firestore
+  // Check membership from the authoritative Firestore record. Security rules
+  // independently repeat this check, so client state never grants data access.
+  useEffect(() => {
+    let cancelled = false;
+    const loadMembership = async () => {
+      if (!currentUser) {
+        setHasActiveMembership(false);
+        return;
+      }
+      if (isAdminUser(currentUser)) {
+        setHasActiveMembership(true);
+        return;
+      }
+      try {
+        const membership = await getDoc(doc(db, 'memberships', currentUser.id));
+        const data = membership.exists() ? membership.data() : null;
+        const expiresAt = data?.expiresAt;
+        const expiryDate = expiresAt && typeof expiresAt.toDate === 'function' ? expiresAt.toDate() : null;
+        const active = data?.status === 'active' && expiryDate instanceof Date && expiryDate.getTime() > Date.now();
+        if (!cancelled) setHasActiveMembership(active);
+      } catch (error) {
+        console.error('Could not verify membership status:', error);
+        if (!cancelled) setHasActiveMembership(false);
+      }
+    };
+    void loadMembership();
+    return () => { cancelled = true; };
+  }, [currentUser?.id]);
+
+  // Paid members/admins receive full approved biodata. Other signed-in users
+  // receive only the separately stored minimal preview documents.
   const refreshProfiles = async () => {
-    // The directory is members-only: only verified Firebase accounts may browse
-    // sanitized public profiles. Private registration documents remain admin/owner only.
-    if (!currentUser || !currentUser.emailVerified) {
+    if (!currentUser) {
       setProfiles([]);
+      setProfilePreviews([]);
       setSelectedProfile(null);
       return;
     }
     try {
-      const profilesQuery = query(
-        collection(db, 'publicProfiles'),
-        where('approvalStatus', '==', 'approved'),
-        where('isVerified', '==', true)
-      );
-
-      const snapshot = await getDocs(profilesQuery);
-
-      const loadedProfiles = snapshot.docs.map((profileDoc) => {
-        const data = profileDoc.data() as UserProfile;
-
-        return {
-          ...data,
-          id: profileDoc.id,
-          userId: profileDoc.id,
-        };
-      });
-
-      setProfiles(loadedProfiles);
+      if (isAdminUser(currentUser) || hasActiveMembership) {
+        const profilesQuery = query(
+          collection(db, 'publicProfiles'),
+          where('approvalStatus', '==', 'approved'),
+          where('isVerified', '==', true)
+        );
+        const snapshot = await getDocs(profilesQuery);
+        const loadedProfiles = snapshot.docs.map((profileDoc) => {
+          const data = profileDoc.data() as UserProfile;
+          return { ...data, id: profileDoc.id, userId: profileDoc.id };
+        });
+        setProfiles(loadedProfiles);
+        setProfilePreviews([]);
+      } else {
+        setProfiles([]);
+        const previewsQuery = query(
+          collection(db, 'profilePreviews'),
+          where('approvalStatus', '==', 'approved')
+        );
+        const snapshot = await getDocs(previewsQuery);
+        setProfilePreviews(snapshot.docs.map((entry) => {
+          const data = entry.data();
+          return {
+            id: entry.id,
+            gender: data.gender === 'bride' ? 'bride' : 'groom',
+            ageBand: typeof data.ageBand === 'string' ? data.ageBand : '18+',
+            district: typeof data.district === 'string' ? data.district : 'Godavari region',
+          };
+        }));
+      }
     } catch (error) {
-      console.error('Failed to load public profiles:', error);
+      console.error('Failed to load profile directory:', error);
       setProfiles([]);
+      setProfilePreviews([]);
     }
   };
 
   useEffect(() => {
-    // Approved public listings are fetched only for authenticated members.
     void refreshProfiles();
-  }, [currentUser?.id]);
+  }, [currentUser?.id, hasActiveMembership]);
 
   // Load the signed-in user's profile
   const refreshMyProfile = async () => {
@@ -758,7 +801,7 @@ export default function App() {
             <MembershipPlans />
 
             <div id="matches-section">
-              {isAdminUser(currentUser) ? <ProfilesList
+              {(isAdminUser(currentUser) || hasActiveMembership) ? <ProfilesList
                 profiles={filteredProfiles}
                 filters={filters}
                 setFilters={setFilters}
@@ -767,7 +810,11 @@ export default function App() {
                 userInterests={userInterests}
                 language={language}
                 onStartChat={handleStartChatWithProfile}
-              /> : <div className="rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-sm"><h3 className="font-serif text-lg font-bold text-emerald-950">Member profile discovery</h3><p className="mt-2 text-sm text-stone-600">Candidate browsing will open with the five-profile free allowance and membership access controls once secure membership verification is enabled. Your private profile remains available in your account.</p></div>}
+              /> : currentUser ? <LockedProfilesList
+                previews={profilePreviews}
+                language={language}
+                onViewPlans={() => document.getElementById('membership-plans')?.scrollIntoView({ behavior: 'smooth' })}
+              /> : <div className="rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-sm"><h3 className="font-serif text-lg font-bold text-emerald-950">Member profile discovery</h3><p className="mt-2 text-sm text-stone-600">Sign in to see locked previews of administrator-approved profiles. Full biodata is available to active members and administrators.</p></div>}
             </div>
 
             <div id="faqs-section">
