@@ -571,6 +571,22 @@ test("Other members cannot read private profile photos", async () => {
   );
 });
 
+
+test("Unpaid members cannot read photos even when a profile marks them visible", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "publicProfiles/member1"), {
+      approvalStatus: "approved", isVerified: true, photoPrivacy: "visible",
+      photos: ["profilePhotos/member1/photo.webp"]
+    });
+  });
+  const ownerStorage = testEnv.authenticatedContext("member1").storage();
+  const unpaidStorage = testEnv.authenticatedContext("member2", { email_verified: true }).storage();
+  await uploadBytes(ref(ownerStorage, "profilePhotos/member1/photo.webp"), new Uint8Array([1, 2, 3]), {
+    contentType: "image/png"
+  });
+  await assertFails(getBytes(ref(unpaidStorage, "profilePhotos/member1/photo.webp")));
+});
+
 test("Other members can read approved and visible profile photos", async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(
