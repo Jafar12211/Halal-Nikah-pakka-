@@ -75,6 +75,10 @@ async function seedOwnedData(uid, otherUid) {
   await db.doc(`registrations/${uid}`).set({ userId: uid, candidateName: 'Emulator test' });
   await db.doc(`registrations/${uid}/private/nested`).set({ secret: 'test-only' });
   await db.doc(`publicProfiles/${uid}`).set({ userId: uid, approvalStatus: 'approved' });
+  await db.doc(`profilePreviews/${uid}`).set({
+    gender: 'bride', ageBand: '25-29', district: 'Yanam',
+    approvalStatus: 'approved', isVerified: true,
+  });
   await db.doc(`users/${uid}`).set({ uid });
   await db.doc(`users/${uid}/savedProfiles/${otherUid}`).set({ profileId: otherUid });
 
@@ -129,6 +133,7 @@ after(async () => {
     try {
       await db.recursiveDelete(db.doc(`registrations/${uid}`));
       await db.recursiveDelete(db.doc(`publicProfiles/${uid}`));
+      await db.recursiveDelete(db.doc(`profilePreviews/${uid}`));
       await db.recursiveDelete(db.doc(`users/${uid}`));
       await bucket.deleteFiles({ prefix: `profilePhotos/${uid}/` });
       await bucket.deleteFiles({ prefix: `identityDocuments/${uid}/` });
@@ -166,6 +171,7 @@ test('a signed-in member can delete only their own account and linked data', asy
     `registrations/${owner.uid}`,
     `registrations/${owner.uid}/private/nested`,
     `publicProfiles/${owner.uid}`,
+    `profilePreviews/${owner.uid}`,
     `users/${owner.uid}`,
     `users/${owner.uid}/savedProfiles/${otherUser.uid}`,
     `profilePhotos/${owner.uid}/items/test-photo`,
