@@ -118,7 +118,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phoneConfirmation) {
-      if (!/^\\d{6}$/.test(otp.trim())) { setError('Enter the 6-digit SMS verification code.'); return; }
+      if (!/^\d{6}$/.test(otp.trim())) { setError('Enter the 6-digit SMS verification code.'); return; }
       try {
         setLoading(true); setError(null);
         const credential = await phoneConfirmation.confirm(otp.trim());
@@ -136,7 +136,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
     if (!name.trim() || !email.trim() || !password || !mobile.trim()) { setError('Please complete your name, email, mobile number and password.'); return; }
     if (password.length < 6) { setError('Password must contain at least 6 characters.'); return; }
-    if (!/^\\+[1-9]\\d{7,14}$/.test(mobile.trim())) { setError('Enter your mobile number in international format, for example +919876543210.'); return; }
+    if (!/^\+[1-9]\d{7,14}$/.test(mobile.trim())) { setError('Enter your mobile number in international format, for example +919876543210.'); return; }
     try {
       setLoading(true); setError(null); setToast(null);
       await registerWithEmailPassword(email, password);
