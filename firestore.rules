@@ -9,13 +9,12 @@ service cloud.firestore {
     // expiresAt is a server-written Firestore Timestamp; missing/legacy-invalid
     // values fail closed until the migration converts valid existing records.
     function activePaidMember() {
-      let membershipPath = /databases/$(database)/documents/memberships/$(request.auth.uid);
       return signedIn()
         && request.auth.token.email_verified == true
-        && exists(membershipPath)
-        && get(membershipPath).data.status == 'active'
-        && get(membershipPath).data.expiresAt is timestamp
-        && get(membershipPath).data.expiresAt > request.time;
+        && exists(/databases/$(database)/documents/memberships/$(request.auth.uid))
+        && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.status == 'active'
+        && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.expiresAt is timestamp
+        && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.expiresAt > request.time;
     }
     function validUid(uid) { return uid is string && uid.size() > 0 && uid.size() <= 128; }
 
