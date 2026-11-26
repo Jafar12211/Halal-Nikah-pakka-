@@ -594,7 +594,8 @@ test("Other members can read approved and visible profile photos", async () => {
       {
         approvalStatus: "approved",
         isVerified: true,
-        photoPrivacy: "visible"
+        photoPrivacy: "visible",
+        photos: ["profilePhotos/member1/photo.png"]
       }
     );
   });
