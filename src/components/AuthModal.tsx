@@ -389,7 +389,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               {phoneConfirmation && <div>
                 <label className="block font-semibold text-stone-700 mb-1">6-digit SMS OTP</label>
-                <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={otp} onChange={(e) => setOtp(e.target.value.replace(/\\D/g, '').slice(0, 6))} placeholder="Enter OTP" className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 tracking-[0.3em]" />
+                <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Enter OTP" className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 tracking-[0.3em]" />
               </div>}
               <div id="phone-otp-recaptcha" />
               <div>
