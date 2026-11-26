@@ -80,7 +80,7 @@ jobs:
       - name: Install trusted migration dependencies
         run: npm ci --prefix functions --no-audit --no-fund
 
-      - name: Publish sanitized listings for existing approved profiles
+      - name: Migrate locked previews and existing membership expiry timestamps
         env:
           GOOGLE_CLOUD_PROJECT: nikah-pakka
         run: node functions/scripts/migrate-approved-public-profiles.cjs
