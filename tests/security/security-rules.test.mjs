@@ -474,6 +474,24 @@ test("An administrator can read a member's identity document", async () => {
   );
 });
 
+test("A verified admin email without the admin custom claim cannot read identity documents", async () => {
+  const ownerStorage = testEnv.authenticatedContext("member1").storage();
+  const emailOnlyStorage = testEnv.authenticatedContext(
+    "email-only-user",
+    { email_verified: true, email: "jafarmd0007@gmail.com" }
+  ).storage();
+
+  await uploadBytes(
+    ref(ownerStorage, "identityDocuments/member1/identity.pdf"),
+    new Uint8Array([1, 2, 3]),
+    { contentType: "application/pdf" }
+  );
+
+  await assertFails(
+    getBytes(ref(emailOnlyStorage, "identityDocuments/member1/identity.pdf"))
+  );
+});
+
 test("Other members cannot read private profile photos", async () => {
   const ownerStorage = testEnv.authenticatedContext("member1").storage();
   const otherStorage = testEnv.authenticatedContext("member2").storage();
