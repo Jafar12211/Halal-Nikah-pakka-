@@ -10,9 +10,13 @@ import {
   ArrowLeft,
   Lock,
   AlertCircle,
+  Camera,
+  FileCheck,
+  Trash2,
 } from 'lucide-react';
 import { auth } from '../services/firebase';
 import { MatrimonyProfile, RegisteredByRole } from '../types/matrimony';
+import { uploadProfilePhoto, uploadGovernmentId, deleteStorageFile, type GovernmentDocumentType } from '../services/firebaseStorageService';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -125,6 +129,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  const [uploadedDocuments, setUploadedDocuments] = useState<NonNullable<MatrimonyProfile['documents']>>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [documentType, setDocumentType] = useState<'Aadhaar Card' | 'PAN Card' | 'Passport' | 'Driving Licence' | 'Voter ID' | 'Other Government ID'>('Aadhaar Card');
+  const [maskedDocumentId, setMaskedDocumentId] = useState('');
+
 
   if (!isOpen) return null;
 
@@ -136,6 +147,79 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return next;
     });
     setErrorMessage('');
+  };
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!auth.currentUser || !files.length) return;
+    if (uploadedPhotos.length + files.length > 5) {
+      setErrorMessage('You can upload a maximum of five candidate photographs.');
+      return;
+    }
+    setUploadingPhotos(true);
+    setErrorMessage('');
+    try {
+      const paths: string[] = [];
+      for (const file of files) paths.push(await uploadProfilePhoto(auth.currentUser.uid, file));
+      setUploadedPhotos((previous) => [...previous, ...paths]);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Photograph upload failed. Please try again.');
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
+
+  const handleIdentityUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!auth.currentUser || !file) return;
+    if (!maskedDocumentId.trim()) {
+      setErrorMessage('Enter a masked ID reference only (for example, XXXX-1234). Never enter the full ID number.');
+      return;
+    }
+    if (uploadedDocuments.length >= 5) {
+      setErrorMessage('You can attach up to five government identity documents.');
+      return;
+    }
+    const typeMap: Record<typeof documentType, GovernmentDocumentType> = {
+      'Aadhaar Card': 'aadhaar',
+      'PAN Card': 'pan',
+      Passport: 'passport',
+      'Driving Licence': 'driving_license',
+      'Voter ID': 'voter_id',
+      'Other Government ID': 'other',
+    };
+    setUploadingDocument(true);
+    setErrorMessage('');
+    try {
+      const uploaded = await uploadGovernmentId(auth.currentUser.uid, file, typeMap[documentType]);
+      setUploadedDocuments((previous) => [...previous, {
+        id: crypto.randomUUID(),
+        type: documentType,
+        fileName: uploaded.fileName,
+        storagePath: uploaded.storagePath,
+        maskedId: maskedDocumentId.trim(),
+        uploadedAt: new Date().toISOString(),
+        verified: false,
+        isRestricted: true,
+      }]);
+      setMaskedDocumentId('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Identity document upload failed. Please try again.');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const removeUploadedFile = async (storagePath: string, kind: 'photo' | 'document') => {
+    try {
+      await deleteStorageFile(storagePath);
+      if (kind === 'photo') setUploadedPhotos((previous) => previous.filter((path) => path !== storagePath));
+      else setUploadedDocuments((previous) => previous.filter((item) => item.storagePath !== storagePath));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'The uploaded file could not be removed.');
+    }
   };
 
   const validateStep = (): boolean => {
@@ -196,6 +280,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     event.preventDefault();
 
     if (!validateStep()) return;
+    if (uploadingPhotos || uploadingDocument) {
+      setErrorMessage('Please wait for all selected uploads to finish before submitting.');
+      return;
+    }
 
     const firebaseUser = auth.currentUser;
 
@@ -279,7 +367,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         isVerified: false,
         verificationBadge: 'Pending admin review',
         photoUrl: undefined,
-        photos: [],
+        photos: uploadedPhotos,
+        documents: uploadedDocuments,
         photoPrivacy: formData.photoPrivacy,
         avatarInitials: initials || 'NP',
         avatarBgColor:
@@ -630,55 +719,66 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
               {step === 3 && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-950 text-xs flex gap-3">
-                    <Lock className="w-5 h-5 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold">Photo and document uploads are temporarily unavailable.</p>
-                      <p className="mt-1 leading-relaxed">
-                        Firebase Storage is not enabled on the current project plan.
-                        This form will not store photos or identity documents in Firestore.
-                        You can complete the profile now and provide photos through a
-                        secure upload process when Storage is configured.
-                      </p>
-                    </div>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-950">
+                    <strong>Secure uploads for administrator verification</strong>
+                    <p className="mt-1">Photos and ID images are compressed and stored in private Firestore records. They are not exposed in the public directory unless you separately choose photo visibility.</p>
                   </div>
+
+                  <section className="rounded-xl border border-stone-200 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-stone-900">
+                      <Camera className="w-4 h-4 text-emerald-800" />
+                      <strong>Candidate photographs ({uploadedPhotos.length}/5)</strong>
+                    </div>
+                    <p className="text-xs text-stone-600">Upload up to five clear candidate photos. JPG, PNG or WEBP, up to 5 MB each. Each photo is compressed before secure storage.</p>
+                    <label className="inline-flex items-center gap-2 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-semibold text-white cursor-pointer">
+                      <Camera className="w-4 h-4" /> {uploadingPhotos ? 'Uploading photos…' : 'Choose candidate photos'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingPhotos || uploadedPhotos.length >= 5} onChange={handlePhotoUpload} className="sr-only" />
+                    </label>
+                    {uploadedPhotos.map((path, index) => (
+                      <div key={path} className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 p-2 text-xs">
+                        <span className="truncate">Candidate photo {index + 1} · Uploaded securely</span>
+                        <button type="button" onClick={() => void removeUploadedFile(path, 'photo')} className="text-rose-700 font-semibold"><Trash2 className="inline h-3.5 w-3.5" /> Remove</button>
+                      </div>
+                    ))}
+                  </section>
+
+                  <section className="rounded-xl border border-stone-200 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-stone-900">
+                      <FileCheck className="w-4 h-4 text-emerald-800" />
+                      <strong>Government identity document</strong>
+                    </div>
+                    <p className="text-xs text-stone-600">Accepted options: Aadhaar Card, PAN Card, Passport, Driving Licence, Voter ID, or another valid government-issued identity document. JPG, PNG or WEBP image up to 5 MB.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <select value={documentType} onChange={(event) => setDocumentType(event.target.value as typeof documentType)} className={inputClass}>
+                        <option>Aadhaar Card</option><option>PAN Card</option><option>Passport</option><option>Driving Licence</option><option>Voter ID</option><option>Other Government ID</option>
+                      </select>
+                      <input value={maskedDocumentId} onChange={(event) => setMaskedDocumentId(event.target.value)} maxLength={32} placeholder="Masked reference only (e.g. XXXX-1234)" className={inputClass} />
+                    </div>
+                    <label className="inline-flex items-center gap-2 rounded-lg bg-stone-800 px-4 py-2 text-xs font-semibold text-white cursor-pointer">
+                      <Lock className="w-4 h-4" /> {uploadingDocument ? 'Uploading ID…' : 'Upload private ID image'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingDocument || uploadedDocuments.length >= 5} onChange={handleIdentityUpload} className="sr-only" />
+                    </label>
+                    {uploadedDocuments.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 p-2 text-xs">
+                        <span className="truncate">{item.type} · {item.maskedId} · Pending admin review</span>
+                        <button type="button" onClick={() => void removeUploadedFile(item.storagePath, 'document')} className="text-rose-700 font-semibold"><Trash2 className="inline h-3.5 w-3.5" /> Remove</button>
+                      </div>
+                    ))}
+                    <p className="text-[11px] text-rose-700">Never enter or upload your full Aadhaar/PAN number in a text field. Only the masked reference is collected here. The actual document image remains private to the candidate and authorized administrators.</p>
+                  </section>
 
                   <div>
                     <label className={labelClass}>Photo Privacy Preference</label>
                     <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => updateField('photoPrivacy', 'blurred_until_request')}
-                        className={`w-full p-3 rounded-lg border text-left text-xs ${
-                          formData.photoPrivacy === 'blurred_until_request'
-                            ? 'bg-emerald-50 border-emerald-600 text-emerald-900'
-                            : 'bg-white border-stone-300 text-stone-600'
-                        }`}
-                      >
+                      <button type="button" onClick={() => updateField('photoPrivacy', 'blurred_until_request')} className={`w-full p-3 rounded-lg border text-left text-xs ${formData.photoPrivacy === 'blurred_until_request' ? 'bg-emerald-50 border-emerald-600 text-emerald-900' : 'bg-white border-stone-300 text-stone-600'}`}>
                         <strong>Private — not visible to other members</strong>
-                        <p className="text-[11px] mt-1">Only you and authorized administrators can access these photos. Request-based reveal is not enabled.</p>
+                        <p className="text-[11px] mt-1">Only you and authorized administrators can access these photos.</p>
                       </button>
-
-                      <button
-                        type="button"
-                        onClick={() => updateField('photoPrivacy', 'visible')}
-                        className={`w-full p-3 rounded-lg border text-left text-xs ${
-                          formData.photoPrivacy === 'visible'
-                            ? 'bg-emerald-50 border-emerald-600 text-emerald-900'
-                            : 'bg-white border-stone-300 text-stone-600'
-                        }`}
-                      >
-                        <strong>Visible to members</strong>
-                        <p className="text-[11px] mt-1">Choose this only when photos have been uploaded securely.</p>
+                      <button type="button" onClick={() => updateField('photoPrivacy', 'visible')} className={`w-full p-3 rounded-lg border text-left text-xs ${formData.photoPrivacy === 'visible' ? 'bg-emerald-50 border-emerald-600 text-emerald-900' : 'bg-white border-stone-300 text-stone-600'}`}>
+                        <strong>Visible to approved members</strong>
+                        <p className="text-[11px] mt-1">Photos may be shown only after the profile is approved and verified.</p>
                       </button>
                     </div>
-                  </div>
-
-                  <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-600">
-                    Identity verification is not performed by this form.
-                    Do not enter Aadhaar, PAN, passport or driving licence numbers here.
-                    An administrator must review identity evidence separately before
-                    a profile can be verified.
                   </div>
                 </div>
               )}
