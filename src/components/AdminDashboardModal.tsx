@@ -169,12 +169,13 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         );
       const isAdult = Number.isInteger(profileToUpdate.age) && profileToUpdate.age >= 18 && profileToUpdate.age <= 100;
       if (!isAdult || !hasPhoto || !hasValidDocument) {
+        const missing = [
+          !isAdult ? 'valid adult age (18+)' : '',
+          !hasPhoto ? 'candidate photograph' : '',
+          !hasValidDocument ? 'accepted government ID that has been opened in the secure preview and explicitly verified by the administrator' : '',
+        ].filter(Boolean);
         setErrorMessage(
-          `Approval blocked: missing ${[
-            !isAdult ? 'valid adult age (18+)' : '',
-            !hasPhoto ? 'candidate photograph' : '',
-            !hasValidDocument ? 'accepted and admin-verified government ID document' : '',
-          ].filter(Boolean).join(' and ')}.`
+          `Approval blocked: ${missing.join(' and ')}. To verify an ID, open Inspect Candidate & Proof, load its secure preview, check that the document is clear and matches the candidate biodata, then select Verify document before approving.`
         );
         return;
       }
@@ -205,9 +206,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       window.setTimeout(() => setStatusMessage(null), 3500);
       onProfileStatusChanged();
 
-      const updated = updatedProfiles.find((p) => p.id === profileId);
-      if (updated) setSelectedProfile(updated);
-      else setSelectedProfile(null);
+      // Close the candidate inspection/rejection window after either decision.
+      // The refreshed status remains in the dashboard lists and the app-level
+      // callback refreshes the member's own profile and approved directory.
+      setSelectedProfile(null);
+      setSelectedPhotoIndex(0);
+      setShowRejectDrawer(false);
     } catch (error) {
       console.error(`Failed to ${status} profile:`, error);
       const message = error instanceof Error ? error.message : 'Unknown Firebase error';
