@@ -120,6 +120,8 @@ export default function App() {
         setCurrentUser(null);
         setMyProfile(null);
         setProfiles([]);
+        setProfilePreviews([]);
+        setHasActiveMembership(false);
         setSelectedProfile(null);
         setAuthLoading(false);
         return;
@@ -303,6 +305,7 @@ export default function App() {
     if (!currentUser) {
       setHasActiveMembership(false);
       setProfiles([]);
+      setProfilePreviews([]);
       setSelectedProfile(null);
       return;
     }
