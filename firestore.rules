@@ -355,6 +355,50 @@ function validUserDocument(item, uid) {
       allow update, delete: if false;
     }
 
+    // Membership payment requests: customers can submit only pending requests for themselves.
+    // Only an administrator can review and change a request's status.
+    match /paymentRequests/{requestId} {
+      allow get, list: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll([
+          'userId', 'planId', 'planName', 'duration', 'amountINR',
+          'paymentMethod', 'upiId', 'transactionReference', 'status', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'userId', 'planId', 'planName', 'duration', 'amountINR',
+          'paymentMethod', 'upiId', 'transactionReference', 'status', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.planId in ['monthly', 'quarterly', 'half_yearly', 'yearly']
+        && request.resource.data.planName in ['Monthly', 'Quarterly', 'Half-yearly', 'Yearly']
+        && request.resource.data.amountINR in [500, 1000, 1500, 2500]
+        && request.resource.data.paymentMethod in ['qr', 'upi']
+        && request.resource.data.upiId == 'BHARATPE2O0M0S1F8W06214@unitype'
+        && request.resource.data.transactionReference is string
+        && request.resource.data.transactionReference.size() >= 8
+        && request.resource.data.transactionReference.size() <= 80
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'reviewedBy', 'reviewNote'])
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if admin();
+    }
+
+    // Membership records are written only by administrators after manual payment review.
+    match /memberships/{uid} {
+      allow get: if owner(uid) || admin();
+      allow list: if admin();
+      allow create, update: if admin()
+        && request.resource.data.userId == uid
+        && request.resource.data.status in ['active', 'expired', 'cancelled']
+        && request.resource.data.planId in ['monthly', 'quarterly', 'half_yearly', 'yearly']
+        && request.resource.data.amountINR in [500, 1000, 1500, 2500];
+      allow delete: if admin();
+    }
+
     // All other collections are denied until their access model is explicitly implemented.
     match /{document=**} { allow read, write: if false; }
   }
