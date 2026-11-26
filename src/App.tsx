@@ -174,6 +174,10 @@ export default function App() {
               setToastMessage('We found your earlier profile saved on this device. Please review it and resubmit it for administrator review.');
             } else {
               setMyProfile(null);
+              // New accounts should land directly in the complete biodata
+              // onboarding flow instead of appearing signed in with an empty profile.
+              setIsRegisterOpen(true);
+              setActiveTab('profile');
             }
           }
         } catch (profileError) {
@@ -372,7 +376,7 @@ export default function App() {
       candidateConsentConfirmed: matrimonyProf.candidateConsentConfirmed === true,
       candidateConsentAt: matrimonyProf.candidateConsentAt || new Date().toISOString(),
       gender: matrimonyProf.gender,
-      dob: '',
+      dob: matrimonyProf.dob || '',
       age: matrimonyProf.age,
       height: matrimonyProf.height,
       maritalStatus: matrimonyProf.maritalStatus as any,
@@ -381,9 +385,9 @@ export default function App() {
         sect: matrimonyProf.sect,
         salah: (matrimonyProf.religiousPractice.salah || 'Not specified') as any,
         hijabOrBeard: (matrimonyProf.religiousPractice.hijabOrBeard || 'Not specified') as any,
-        quranRecitation: 'Not specified',
-        fastingRamadan: false,
-        halalDiet: false,
+        quranRecitation: (matrimonyProf.religiousPractice.quranRecitation || 'Not specified') as any,
+        fastingRamadan: matrimonyProf.religiousPractice.fastingRamadan === true,
+        halalDiet: matrimonyProf.religiousPractice.halalDiet === true,
       },
 
       education: matrimonyProf.education,
@@ -403,16 +407,17 @@ export default function App() {
         sistersCount: matrimonyProf.familyDetails.sistersCount,
         sistersMarried: matrimonyProf.familyDetails.sistersMarried,
         nativePlace: matrimonyProf.familyDetails.nativePlace,
-        familyStatus: 'Not specified',
+        familyStatus: (matrimonyProf.familyDetails.familyStatus || 'Not specified') as any,
         familyValues: (matrimonyProf.familyDetails.familyValues || 'Not specified') as any,
       },
 
       partnerPreferences: {
         minAge: matrimonyProf.partnerPreferences.minAge,
         maxAge: matrimonyProf.partnerPreferences.maxAge,
-        preferredDistricts: [
-          (matrimonyProf.city as DistrictAP) || 'Kakinada District',
-        ],
+        minHeight: matrimonyProf.partnerPreferences.minHeight || '',
+        preferredDistricts: (matrimonyProf.partnerPreferences.locationPreference.length
+          ? matrimonyProf.partnerPreferences.locationPreference
+          : [matrimonyProf.city]).map((location) => location as DistrictAP),
         educationPreference:
           matrimonyProf.partnerPreferences.educationPreference || '',
         maritalStatusPreference:
