@@ -81,6 +81,20 @@ beforeEach(async () => {
   await testEnv.clearStorage();
 });
 
+const seedActiveMembership = async (uid) => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `memberships/${uid}`), {
+      userId: uid,
+      planId: 'monthly',
+      amountINR: 500,
+      status: 'active',
+      startsAt: new Date().toISOString(),
+      endsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    });
+  });
+};
+
 after(async () => {
   await testEnv?.cleanup();
 });
@@ -289,6 +303,7 @@ test("Verified members can list only approved, verified public profiles", async 
       isVerified: false
     });
   });
+  await seedActiveMembership("member2");
   const db = testEnv.authenticatedContext("member2", { email_verified: true }).firestore();
   const approvedQuery = query(
     collection(db, "publicProfiles"),
@@ -333,7 +348,8 @@ test("A member can save an approved public profile to their own account", async 
     });
   });
 
-  const db = testEnv.authenticatedContext("member1").firestore();
+  await seedActiveMembership("member1");
+  const db = testEnv.authenticatedContext("member1", { email_verified: true }).firestore();
 
   await assertSucceeds(
     setDoc(doc(db, "users/member1/savedProfiles/profile1"), {
@@ -522,6 +538,7 @@ test("Other members can read approved and visible profile photos", async () => {
   });
 
   const ownerStorage = testEnv.authenticatedContext("member1").storage();
+  await seedActiveMembership("member2");
   const otherStorage = testEnv.authenticatedContext("member2", { email_verified: true }).storage();
 
   await uploadBytes(
@@ -587,7 +604,8 @@ test("Other members can read only published photos on approved visible profiles"
       createdAt: new Date()
     });
   });
-  const otherDb = testEnv.authenticatedContext("member2").firestore();
+  await seedActiveMembership("member2");
+  const otherDb = testEnv.authenticatedContext("member2", { email_verified: true }).firestore();
   await assertSucceeds(getDoc(doc(otherDb, "profilePhotos/member1/items/photo.webp")));
   await assertFails(getDoc(doc(otherDb, "profilePhotos/member1/items/unpublished.webp")));
 });
@@ -642,7 +660,8 @@ const seedApprovedProfiles = async () => {
 
 test("An approved member can send a private interest request to another approved member", async () => {
   await seedApprovedProfiles();
-  const db = testEnv.authenticatedContext("sender1").firestore();
+  await seedActiveMembership("sender1");
+  const db = testEnv.authenticatedContext("sender1", { email_verified: true }).firestore();
 
   await assertSucceeds(setDoc(doc(db, "interestRequests/request1"), {
     senderUserId: "sender1",
