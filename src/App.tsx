@@ -125,7 +125,7 @@ export default function App() {
 
       try {
         const token = await getIdTokenResult(firebaseUser, true);
-        const isAdmin = token.claims.admin === true || (firebaseUser.emailVerified && firebaseUser.email?.toLowerCase() === 'jafarmd0007@gmail.com');
+        const isAdmin = token.claims.admin === true;
 
         const user: UserAccount = {
           id: firebaseUser.uid,
