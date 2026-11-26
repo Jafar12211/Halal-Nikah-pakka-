@@ -58,6 +58,7 @@ import {
   getDocs,
   query,
   where,
+  onSnapshot,
 } from 'firebase/firestore';
 
 import { translations } from './utils/translations';
@@ -299,30 +300,40 @@ export default function App() {
   // Check membership from the authoritative Firestore record. Security rules
   // independently repeat this check, so client state never grants data access.
   useEffect(() => {
-    let cancelled = false;
-    const loadMembership = async () => {
-      if (!currentUser) {
-        setHasActiveMembership(false);
-        return;
+    if (!currentUser) {
+      setHasActiveMembership(false);
+      return;
+    }
+    if (isAdminUser(currentUser)) {
+      setHasActiveMembership(true);
+      return;
+    }
+    let expiryTimer: number | undefined;
+    const unsubscribe = onSnapshot(doc(db, 'memberships', currentUser.id), (membership) => {
+      const data = membership.exists() ? membership.data() : null;
+      const expiresAt = data?.expiresAt;
+      const expiryDate = expiresAt && typeof expiresAt.toDate === 'function' ? expiresAt.toDate() : null;
+      const active = currentUser.emailVerified && data?.status === 'active'
+        && expiryDate instanceof Date && expiryDate.getTime() > Date.now();
+      setHasActiveMembership(active);
+      if (expiryTimer !== undefined) window.clearTimeout(expiryTimer);
+      if (active && expiryDate) {
+        expiryTimer = window.setTimeout(() => {
+          setHasActiveMembership(false);
+          setProfiles([]);
+          setSelectedProfile(null);
+        }, Math.max(0, expiryDate.getTime() - Date.now()));
       }
-      if (isAdminUser(currentUser)) {
-        setHasActiveMembership(true);
-        return;
-      }
-      try {
-        const membership = await getDoc(doc(db, 'memberships', currentUser.id));
-        const data = membership.exists() ? membership.data() : null;
-        const expiresAt = data?.expiresAt;
-        const expiryDate = expiresAt && typeof expiresAt.toDate === 'function' ? expiresAt.toDate() : null;
-        const active = data?.status === 'active' && expiryDate instanceof Date && expiryDate.getTime() > Date.now();
-        if (!cancelled) setHasActiveMembership(active);
-      } catch (error) {
-        console.error('Could not verify membership status:', error);
-        if (!cancelled) setHasActiveMembership(false);
-      }
+    }, (error) => {
+      console.error('Could not verify membership status:', error);
+      setHasActiveMembership(false);
+      setProfiles([]);
+      setSelectedProfile(null);
+    });
+    return () => {
+      unsubscribe();
+      if (expiryTimer !== undefined) window.clearTimeout(expiryTimer);
     };
-    void loadMembership();
-    return () => { cancelled = true; };
   }, [currentUser?.id]);
 
   // Paid members/admins receive full approved biodata. Other signed-in users
@@ -852,7 +863,7 @@ export default function App() {
 
         {activeTab === 'matches' && (
           <div className="py-2">
-            {isAdminUser(currentUser) ? <ProfilesList
+            {(isAdminUser(currentUser) || hasActiveMembership) ? <ProfilesList
               profiles={filteredProfiles}
               filters={filters}
               setFilters={setFilters}
@@ -861,7 +872,11 @@ export default function App() {
               userInterests={userInterests}
               language={language}
               onStartChat={handleStartChatWithProfile}
-            /> : <div className="max-w-3xl mx-auto rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-sm"><h3 className="font-serif text-lg font-bold text-emerald-950">Member profile discovery</h3><p className="mt-2 text-sm text-stone-600">Candidate browsing will open with the five-profile free allowance and membership access controls once secure membership verification is enabled. Your private profile remains available in your account.</p></div>}
+            /> : currentUser ? <LockedProfilesList
+              previews={profilePreviews}
+              language={language}
+              onViewPlans={() => document.getElementById('membership-plans')?.scrollIntoView({ behavior: 'smooth' })}
+            /> : <div className="max-w-3xl mx-auto rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-sm"><h3 className="font-serif text-lg font-bold text-emerald-950">Member profile discovery</h3><p className="mt-2 text-sm text-stone-600">Sign in to see locked previews of administrator-approved profiles. Full biodata is available to active members and administrators.</p></div>}
           </div>
         )}
 
