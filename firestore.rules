@@ -302,7 +302,7 @@ function validUserDocument(item, uid) {
         && request.resource.data.approvalStatus == 'approved'
         && request.resource.data.isVerified == true
         && request.resource.data.updatedAt == request.time;
-      allow delete: if admin();
+      allow delete: if admin() || owner(uid);
     }
 
     // Full biodata is available only to administrators or active paid members.
