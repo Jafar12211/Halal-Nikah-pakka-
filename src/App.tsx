@@ -174,6 +174,10 @@ export default function App() {
               setToastMessage('We found your earlier profile saved on this device. Please review it and resubmit it for administrator review.');
             } else {
               setMyProfile(null);
+              // New accounts should land directly in the complete biodata
+              // onboarding flow instead of appearing signed in with an empty profile.
+              setIsRegisterOpen(true);
+              setActiveTab('profile');
             }
           }
         } catch (profileError) {
