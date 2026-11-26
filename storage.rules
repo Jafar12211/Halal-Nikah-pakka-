@@ -15,13 +15,12 @@ service firebase.storage {
     }
 
     function activePaidMember() {
-      let membershipPath = /databases/(default)/documents/memberships/$(request.auth.uid);
       return signedIn()
         && request.auth.token.get('email_verified', false) == true
-        && firestore.exists(membershipPath)
-        && firestore.get(membershipPath).data.status == 'active'
-        && firestore.get(membershipPath).data.expiresAt is timestamp
-        && firestore.get(membershipPath).data.expiresAt > request.time;
+        && firestore.exists(/databases/(default)/documents/memberships/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/memberships/$(request.auth.uid)).data.status == 'active'
+        && firestore.get(/databases/(default)/documents/memberships/$(request.auth.uid)).data.expiresAt is timestamp
+        && firestore.get(/databases/(default)/documents/memberships/$(request.auth.uid)).data.expiresAt > request.time;
     }
 
     function approvedPhotoVisible(uid) {
