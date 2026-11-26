@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { toPublicProfile } = require('../scripts/migrate-approved-public-profiles.cjs');
+const { toPublicProfile, toProfilePreview } = require('../scripts/migrate-approved-public-profiles.cjs');
 
 test('publishes only approved, verified profiles and strips private fields', () => {
   const source = {
@@ -66,4 +66,24 @@ test('does not publish pending, unverified, or invalid registrations', () => {
   assert.equal(toPublicProfile('candidate-1', { ...base, isVerified: false }), null);
   assert.equal(toPublicProfile('candidate-1', { ...base, age: 17 }), null);
   assert.equal(toPublicProfile('another-user', base), null);
+});
+
+test('locked previews contain only non-identifying teaser fields', () => {
+  const preview = toProfilePreview({
+    gender: 'bride', age: 27, district: 'Yanam (Puducherry)',
+    approvalStatus: 'approved', isVerified: true,
+    candidateName: 'Private Name', photos: ['profilePhotos/private/photo.webp'],
+    guardianWaliContact: { phone: '+910000000000' }, education: 'Private degree'
+  });
+  assert.deepEqual(preview, {
+    gender: 'bride',
+    ageBand: '25-29',
+    district: 'Yanam (Puducherry)',
+    approvalStatus: 'approved',
+    isVerified: true
+  });
+  for (const privateKey of ['candidateName', 'photos', 'guardianWaliContact', 'education', 'phone', 'userId']) {
+    assert.equal(Object.hasOwn(preview, privateKey), false);
+  }
+  assert.equal(toProfilePreview({ gender: 'bride', age: 17, approvalStatus: 'approved', isVerified: true }), null);
 });
