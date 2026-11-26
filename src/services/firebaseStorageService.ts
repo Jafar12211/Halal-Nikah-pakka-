@@ -58,8 +58,59 @@ function assertIdentityDocument(file: File): void {
   }
 }
 
+interface DecodedImageSource {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  close: () => void;
+}
+
+/**
+ * Some Android gallery images fail in createImageBitmap even when the browser's
+ * regular image decoder can read them. Fall back to an HTMLImageElement before
+ * reporting a decode failure.
+ */
+async function decodeImageSource(file: File, purpose: 'photograph' | 'ID image'): Promise<DecodedImageSource> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      close: () => bitmap.close(),
+    };
+  } catch {
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = objectUrl;
+      if (typeof image.decode === 'function') {
+        await image.decode();
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error('Image decode failed'));
+        });
+      }
+      if (!image.naturalWidth || !image.naturalHeight) throw new Error('Image has no dimensions');
+      return {
+        source: image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        close: () => URL.revokeObjectURL(objectUrl),
+      };
+    } catch {
+      URL.revokeObjectURL(objectUrl);
+      throw new Error(
+        `This ${purpose} could not be decoded by your phone's browser. Please open it in Gallery and save/share it as JPG or PNG, then select the saved copy.`
+      );
+    }
+  }
+}
+
 async function compressProfilePhoto(file: File): Promise<{ dataUrl: string; byteSize: number }> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await decodeImageSource(file, 'photograph');
   try {
     let width = bitmap.width;
     let height = bitmap.height;
@@ -75,7 +126,7 @@ async function compressProfilePhoto(file: File): Promise<{ dataUrl: string; byte
     if (!context) throw new Error('Your browser could not prepare this photograph.');
     canvas.width = width;
     canvas.height = height;
-    context.drawImage(bitmap, 0, 0, width, height);
+    context.drawImage(bitmap.source, 0, 0, width, height);
 
     let quality = 0.82;
     let blob: Blob | null = null;
@@ -86,7 +137,7 @@ async function compressProfilePhoto(file: File): Promise<{ dataUrl: string; byte
       if (attempt === 3 || attempt === 5) {
         canvas.width = Math.max(1, Math.round(canvas.width * 0.8));
         canvas.height = Math.max(1, Math.round(canvas.height * 0.8));
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap.source, 0, 0, canvas.width, canvas.height);
       }
     }
 
@@ -136,7 +187,7 @@ export async function uploadProfilePhoto(uid: string, file: File): Promise<strin
  * The image is never marked verified by the upload operation.
  */
 async function compressIdentityImage(file: File): Promise<{ dataUrl: string; byteSize: number }> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await decodeImageSource(file, 'ID image');
   try {
     let width = bitmap.width;
     let height = bitmap.height;
@@ -151,7 +202,7 @@ async function compressIdentityImage(file: File): Promise<{ dataUrl: string; byt
     if (!context) throw new Error('Your browser could not prepare this ID image.');
     canvas.width = width;
     canvas.height = height;
-    context.drawImage(bitmap, 0, 0, width, height);
+    context.drawImage(bitmap.source, 0, 0, width, height);
     let quality = 0.94;
     let blob: Blob | null = null;
     for (let attempt = 0; attempt < 7; attempt += 1) {
@@ -161,7 +212,7 @@ async function compressIdentityImage(file: File): Promise<{ dataUrl: string; byt
       if (attempt === 3) {
         canvas.width = Math.max(1, Math.round(canvas.width * 0.9));
         canvas.height = Math.max(1, Math.round(canvas.height * 0.9));
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap.source, 0, 0, canvas.width, canvas.height);
       }
     }
     if (!blob || blob.size > MAX_COMPRESSED_ID_BYTES) {
