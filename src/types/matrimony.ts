@@ -76,8 +76,9 @@ export interface MatrimonyProfile {
   interestsCount: number;
   documents?: {
     id: string;
-    type: 'Aadhaar Card' | 'PAN Card' | 'Passport' | 'Driving Licence';
+    type: 'Aadhaar Card' | 'PAN Card' | 'Passport' | 'Driving Licence' | 'Voter ID' | 'Other Government ID';
     fileName: string;
+    storagePath: string;
     maskedId: string;
     uploadedAt: string;
     verified: boolean;

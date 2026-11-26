@@ -32,6 +32,7 @@ import { getStorageFileBlob } from '../services/firebaseStorageService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 import { isAdminUser } from '../utils/admin';
 import { PaymentRequestsAdminPanel } from './PaymentRequestsAdminPanel';
+import { AdminCandidateFullDetails } from './AdminCandidateFullDetails';
 
 interface AdminDashboardModalProps {
   isOpen: boolean;
@@ -587,7 +588,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                           >
                             <Eye className="w-3.5 h-3.5 text-stone-600" />
-                            <span>Inspect Photo & ID</span>
+                            <span>Inspect Candidate & Proof</span>
                           </button>
 
                           {p.approvalStatus !== 'approved' && (
@@ -699,7 +700,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                           className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>Inspect Proof</span>
+                          <span>Inspect Full Details & Proof</span>
                         </button>
                       </div>
                     </div>
@@ -998,7 +999,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   </div>
                 </div>
 
-                {/* 3. REJECTION REASON DRAWER (If triggered) */}
+                {/* 3. COMPLETE PRIVATE BIODATA — visible only inside the admin console */}
+                <AdminCandidateFullDetails profile={selectedProfile} />
+
+                {/* 4. REJECTION REASON DRAWER (If triggered) */}
                 {showRejectDrawer && (
                   <div className="p-4 bg-rose-50 rounded-xl border border-rose-300 space-y-3">
                     <div className="flex items-center justify-between">
