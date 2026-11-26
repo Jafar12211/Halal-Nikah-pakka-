@@ -134,12 +134,6 @@ async function runMigration() {
   };
 
   for (const registration of registrations.docs) {
-    const publicProfile = toPublicProfile(registration.id, registration.data(), FieldValue.serverTimestamp());
-    if (!publicProfile) {
-      skipped += 1;
-      continue;
-    }
-    batch.set(db.doc(`publicProfiles/${registration.id}`), publicProfile, { merge: false });
     const preview = toProfilePreview(registration.data());
     if (preview) {
       batch.set(db.doc(`profilePreviews/${registration.id}`), {
@@ -147,9 +141,14 @@ async function runMigration() {
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: false });
       previewsPublished += 1;
+    } else {
+      // Remove only this derived teaser when its source registration is no
+      // longer eligible. Never modify the customer's registration/biodata.
+      batch.delete(db.doc(`profilePreviews/${registration.id}`));
+      skipped += 1;
     }
     batchCount += 1;
-    published += 1;
+    published += preview ? 1 : 0;
     if (batchCount >= 400) await commitBatch();
   }
   // Preserve existing membership records and add a Timestamp expiry derived
