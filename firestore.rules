@@ -99,7 +99,7 @@ function validUserDocument(item, uid) {
     // per image, avoiding Cloud Storage's hosted Blaze-plan requirement.
     function approvedPhotoVisible(uid, photoId) {
       let profilePath = /databases/$(database)/documents/publicProfiles/$(uid);
-      let photoPath = 'profilePhotos/' + uid + '/' + photoId;
+      let photoPath = 'profilePhotos/' + uid + '/items/' + photoId;
       return activePaidMember()
         && exists(profilePath)
         && get(profilePath).data.approvalStatus == 'approved'
