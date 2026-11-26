@@ -22,7 +22,8 @@ import {
   Check,
   ChevronRight,
   Phone,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CreditCard
 } from 'lucide-react';
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
 
@@ -30,6 +31,7 @@ import { fetchAllRegistrations, fetchAdminAuditLogs, updateProfileApprovalStatus
 import { getStorageFileBlob } from '../services/firebaseStorageService';
 import { VALID_GOVT_DOC_TYPES } from '../utils/matrimony';
 import { isAdminUser } from '../utils/admin';
+import { PaymentRequestsAdminPanel } from './PaymentRequestsAdminPanel';
 
 interface AdminDashboardModalProps {
   isOpen: boolean;
@@ -44,7 +46,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   currentUser,
   onProfileStatusChanged,
 }) => {
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all' | 'documents' | 'audits'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all' | 'documents' | 'audits' | 'payments'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
@@ -416,6 +418,18 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
             </button>
 
             <button
+              onClick={() => setActiveTab('payments')}
+              className={`py-3.5 border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                activeTab === 'payments'
+                  ? 'border-emerald-800 text-emerald-900 font-bold'
+                  : 'border-transparent text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Payments</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('audits')}
               className={`py-3.5 border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 activeTab === 'audits'
@@ -695,7 +709,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
             </div>
           )}
 
-          {/* AUDIT TRAIL TAB */}
+          {activeTab === 'payments' && <PaymentRequestsAdminPanel />}\n\n          {/* AUDIT TRAIL TAB */}
           {activeTab === 'audits' && (
             <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
               <div className="px-5 py-3.5 bg-stone-50 border-b border-stone-200 text-xs font-semibold text-stone-700 flex justify-between">
