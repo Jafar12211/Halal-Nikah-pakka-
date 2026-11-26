@@ -392,6 +392,22 @@ test("An administrator can create an audit log", async () => {
   );
 });
 
+test("A verified admin email without the admin custom claim cannot create audit logs", async () => {
+  const emailOnlyDb = testEnv.authenticatedContext(
+    "email-only-user",
+    { email_verified: true, email: "jafarmd0007@gmail.com" }
+  ).firestore();
+
+  await assertFails(
+    setDoc(doc(emailOnlyDb, "auditLogs/email-only-attempt"), {
+      performedBy: "jafarmd0007@gmail.com",
+      targetId: "member1",
+      action: "DOCUMENT_VERIFIED",
+      details: "Must be denied without the admin custom claim"
+    })
+  );
+});
+
 test("An administrator cannot forge another audit identity", async () => {
   const adminDb = testEnv.authenticatedContext(
     "admin1",
