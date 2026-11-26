@@ -576,7 +576,7 @@ test("Unpaid members cannot read photos even when a profile marks them visible",
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), "publicProfiles/member1"), {
       approvalStatus: "approved", isVerified: true, photoPrivacy: "visible",
-      photos: ["profilePhotos/member1/photo.webp"]
+      photos: ["profilePhotos/member1/items/photo.webp"]
     });
   });
   const ownerStorage = testEnv.authenticatedContext("member1").storage();
