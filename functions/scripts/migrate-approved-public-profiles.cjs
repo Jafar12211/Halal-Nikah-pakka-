@@ -90,6 +90,8 @@ function toProfilePreview(data) {
     data?.approvalStatus !== 'approved' ||
     data?.isVerified !== true ||
     !VALID_GENDERS.has(data?.gender) ||
+    typeof data?.candidateName !== 'string' || !data.candidateName.trim() ||
+    !VALID_MARITAL_STATUSES.has(data?.maritalStatus) ||
     !Number.isFinite(age) || age < 18 || age > 100
   ) return null;
   const ageBand = age < 25 ? '18-24' : age >= 60 ? '60+' : `${Math.floor(age / 5) * 5}-${Math.floor(age / 5) * 5 + 4}`;
