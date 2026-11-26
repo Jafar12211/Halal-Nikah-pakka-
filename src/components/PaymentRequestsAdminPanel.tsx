@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, doc, getDocs, limit, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { CheckCircle2, XCircle, RefreshCw, CreditCard } from 'lucide-react';
 import { auth, db } from '../services/firebase';
 
@@ -40,18 +40,23 @@ export const PaymentRequestsAdminPanel: React.FC = () => {
     setBusyId(request.id);
     setMessage('');
     try {
-      await updateDoc(doc(db, 'paymentRequests', request.id), {
-        status,
-        reviewedBy: auth.currentUser.email || auth.currentUser.uid,
-        reviewNote: status === 'approved' ? 'Payment manually verified by administrator.' : 'Payment not verified by administrator.',
-        updatedAt: serverTimestamp(),
-      });
       if (status === 'approved') {
-        const months = request.planId === 'monthly' ? 1 : request.planId === 'quarterly' ? 3 : request.planId === 'half_yearly' ? 6 : 12;
+        const months = request.planId === 'monthly' ? 1 : request.planId === 'quarterly' ? 3 : request.planId === 'half_yearly' ? 6 : request.planId === 'yearly' ? 12 : 0;
+        const expectedAmounts: Record<string, number> = { monthly: 500, quarterly: 1000, half_yearly: 1500, yearly: 2500 };
+        if (!months || expectedAmounts[request.planId] !== request.amountINR) {
+          throw new Error('The selected plan or amount is invalid. This request cannot be approved.');
+        }
         const startsAt = new Date();
         const endsAt = new Date(startsAt);
         endsAt.setMonth(endsAt.getMonth() + months);
-        await setDoc(doc(db, 'memberships', request.userId), {
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'paymentRequests', request.id), {
+          status: 'approved',
+          reviewedBy: auth.currentUser.email || auth.currentUser.uid,
+          reviewNote: 'Payment manually verified by administrator.',
+          updatedAt: serverTimestamp(),
+        });
+        batch.set(doc(db, 'memberships', request.userId), {
           userId: request.userId,
           planId: request.planId,
           planName: request.planName,
@@ -63,6 +68,14 @@ export const PaymentRequestsAdminPanel: React.FC = () => {
           endsAt: endsAt.toISOString(),
           approvedBy: auth.currentUser.email || auth.currentUser.uid,
           approvedAt: serverTimestamp(),
+        });
+        await batch.commit();
+      } else {
+        await updateDoc(doc(db, 'paymentRequests', request.id), {
+          status: 'rejected',
+          reviewedBy: auth.currentUser.email || auth.currentUser.uid,
+          reviewNote: 'Payment not verified by administrator.',
+          updatedAt: serverTimestamp(),
         });
       }
       setMessage(status === 'approved' ? 'Payment request approved and membership record activated.' : 'Payment request rejected.');
