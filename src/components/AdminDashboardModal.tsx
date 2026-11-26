@@ -49,6 +49,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all' | 'documents' | 'audits' | 'payments'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const [genderFilter, setGenderFilter] = useState<'all' | 'groom' | 'bride'>('all');
+  const [minAgeFilter, setMinAgeFilter] = useState('');
+  const [maxAgeFilter, setMaxAgeFilter] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('all');
+  const [maritalStatusFilter, setMaritalStatusFilter] = useState('all');
+  const [professionFilter, setProfessionFilter] = useState('all');
   const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [actionNotes, setActionNotes] = useState('');
@@ -111,22 +117,48 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     else if (activeTab === 'rejected') list = [...rejectedProfiles, ...suspendedProfiles];
     else list = profiles;
 
-    if (!searchQuery.trim()) return list;
-
     const q = searchQuery.toLowerCase().trim();
-    return list.filter(
-      (p) =>
+    return list.filter((p) => {
+      const matchesSearch = !q ||
         (p.candidateName || '').toLowerCase().includes(q) ||
         (p.district || '').toLowerCase().includes(q) ||
+        (p.mandalCity || '').toLowerCase().includes(q) ||
         (p.profession || '').toLowerCase().includes(q) ||
+        (p.education || '').toLowerCase().includes(q) ||
+        (p.employedIn || '').toLowerCase().includes(q) ||
+        (p.motherTongue || '').toLowerCase().includes(q) ||
+        (p.maritalStatus || '').toLowerCase().includes(q) ||
         (p.documents || []).some((d) =>
           (d.type || '').toLowerCase().includes(q) ||
           (d.maskedId || '').toLowerCase().includes(q)
-        )
-    );
+        );
+
+      const matchesGender = genderFilter === 'all' || p.gender === genderFilter;
+      const matchesMinAge = !minAgeFilter || (Number.isFinite(Number(minAgeFilter)) && p.age >= Number(minAgeFilter));
+      const matchesMaxAge = !maxAgeFilter || (Number.isFinite(Number(maxAgeFilter)) && p.age <= Number(maxAgeFilter));
+      const matchesDistrict = districtFilter === 'all' || p.district === districtFilter;
+      const matchesMaritalStatus = maritalStatusFilter === 'all' || p.maritalStatus === maritalStatusFilter;
+      const matchesProfession = professionFilter === 'all' || p.profession === professionFilter;
+
+      return matchesSearch && matchesGender && matchesMinAge && matchesMaxAge &&
+        matchesDistrict && matchesMaritalStatus && matchesProfession;
+    });
   };
 
   const filteredList = getFilteredList();
+  const availableDistricts = [...new Set(profiles.map((p) => p.district).filter(Boolean))].sort();
+  const availableProfessions = [...new Set(profiles.map((p) => p.profession).filter(Boolean))].sort();
+  const hasActiveFilters = genderFilter !== 'all' || minAgeFilter !== '' || maxAgeFilter !== '' ||
+    districtFilter !== 'all' || maritalStatusFilter !== 'all' || professionFilter !== 'all' || searchQuery.trim() !== '';
+  const resetFilters = () => {
+    setSearchQuery('');
+    setGenderFilter('all');
+    setMinAgeFilter('');
+    setMaxAgeFilter('');
+    setDistrictFilter('all');
+    setMaritalStatusFilter('all');
+    setProfessionFilter('all');
+  };
 
   const handleUpdateStatus = async (
     profileId: string,
@@ -448,15 +480,44 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
           </div>
 
           {(activeTab === 'pending' || activeTab === 'all' || activeTab === 'approved' || activeTab === 'rejected') && (
-            <div className="relative py-2 w-52 sm:w-64">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-              <input
-                type="text"
-                placeholder="Search candidate, district, or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-900 placeholder:text-stone-400"
-              />
+            <div className="flex flex-wrap items-center gap-2 py-2 w-full lg:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  type="text"
+                  placeholder="Search name, education, location..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search candidate biodata"
+                  className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-900 placeholder:text-stone-400"
+                />
+              </div>
+              <select aria-label="Filter by gender" value={genderFilter} onChange={(e) => setGenderFilter(e.target.value as 'all' | 'groom' | 'bride')} className="rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-xs text-stone-700">
+                <option value="all">All genders</option>
+                <option value="groom">Groom</option>
+                <option value="bride">Bride</option>
+              </select>
+              <input aria-label="Minimum age" type="number" min="18" max="100" placeholder="Age from" value={minAgeFilter} onChange={(e) => setMinAgeFilter(e.target.value)} className="w-20 rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-xs text-stone-700" />
+              <input aria-label="Maximum age" type="number" min="18" max="100" placeholder="Age to" value={maxAgeFilter} onChange={(e) => setMaxAgeFilter(e.target.value)} className="w-20 rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-xs text-stone-700" />
+              <select aria-label="Filter by district" value={districtFilter} onChange={(e) => setDistrictFilter(e.target.value)} className="max-w-44 rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-xs text-stone-700">
+                <option value="all">All districts</option>
+                {availableDistricts.map((district) => <option key={district} value={district}>{district}</option>)}
+              </select>
+              <select aria-label="Filter by marital status" value={maritalStatusFilter} onChange={(e) => setMaritalStatusFilter(e.target.value)} className="rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-xs text-stone-700">
+                <option value="all">All marital statuses</option>
+                <option value="Never Married">Never Married</option>
+                <option value="Divorced">Divorced</option>
+                <option value="Widowed">Widowed</option>
+              </select>
+              <select aria-label="Filter by profession" value={professionFilter} onChange={(e) => setProfessionFilter(e.target.value)} className="max-w-44 rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-xs text-stone-700">
+                <option value="all">All professions</option>
+                {availableProfessions.map((profession) => <option key={profession} value={profession}>{profession}</option>)}
+              </select>
+              {hasActiveFilters && (
+                <button type="button" onClick={resetFilters} className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-stone-100 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-200">
+                  <X className="h-3 w-3" /> Clear filters
+                </button>
+              )}
             </div>
           )}
         </div>
