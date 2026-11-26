@@ -22,7 +22,8 @@ import {
   Check,
   ChevronRight,
   Phone,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CreditCard
 } from 'lucide-react';
 import { UserProfile, AuditLog, UserAccount, ValidGovtDocType } from '../types/database';
 
