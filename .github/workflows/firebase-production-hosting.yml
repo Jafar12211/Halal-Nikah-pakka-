@@ -86,4 +86,4 @@ jobs:
         run: node functions/scripts/migrate-approved-public-profiles.cjs
 
       - name: Deploy Firebase Hosting and Firestore security rules
-        run: npx --yes firebase-tools@15.35.0 deploy --only hosting,firestore:rules --project nikah-pakka --non-interactive
+        run: npx --yes firebase-tools@15.35.0 deploy --only hosting,firestore:rules,storage --project nikah-pakka --non-interactive
