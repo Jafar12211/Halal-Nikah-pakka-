@@ -70,9 +70,10 @@ test('does not publish pending, unverified, or invalid registrations', () => {
 
 test('locked previews contain only non-identifying teaser fields', () => {
   const preview = toProfilePreview({
-    gender: 'bride', age: 27, district: 'Yanam (Puducherry)',
+    candidateName: 'Private Name', gender: 'bride', age: 27,
+    maritalStatus: 'Never Married', district: 'Yanam (Puducherry)',
     approvalStatus: 'approved', isVerified: true,
-    candidateName: 'Private Name', photos: ['profilePhotos/private/photo.webp'],
+    photos: ['profilePhotos/private/photo.webp'],
     guardianWaliContact: { phone: '+910000000000' }, education: 'Private degree'
   });
   assert.deepEqual(preview, {
