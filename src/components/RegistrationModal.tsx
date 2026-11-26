@@ -26,6 +26,7 @@ type RegistrationForm = {
   candidateName: string;
   gender: 'bride' | 'groom';
   age: string;
+  dob: string;
   height: string;
   maritalStatus: string;
   city: string;
@@ -41,6 +42,8 @@ type RegistrationForm = {
   hijabOrBeard: string;
   halalDiet: string;
   hajjUmrahDone: string;
+  fastingRamadan: string;
+  familyStatus: string;
   fatherNameAndOcc: string;
   motherNameAndOcc: string;
   brothersCount: string;
@@ -80,6 +83,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     candidateName: '',
     gender: 'bride',
     age: '',
+    dob: '',
     height: '',
     maritalStatus: 'Never Married',
     city: '',
@@ -95,6 +99,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     hijabOrBeard: '',
     halalDiet: 'true',
     hajjUmrahDone: 'false',
+    fastingRamadan: 'true',
+    familyStatus: '',
     fatherNameAndOcc: '',
     motherNameAndOcc: '',
     brothersCount: '0',
@@ -222,6 +228,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         candidateConsentAt: new Date().toISOString(),
         gender: formData.gender,
         age: Number(formData.age),
+        dob: formData.dob,
         height: formData.height,
         maritalStatus: formData.maritalStatus,
         city: formData.city.trim(),
@@ -235,6 +242,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           quranRecitation: formData.quranRecitation,
           halalDiet: formData.halalDiet === 'true',
           hajjUmrahDone: formData.hajjUmrahDone === 'true',
+          fastingRamadan: formData.fastingRamadan === 'true',
         },
         education: formData.education.trim(),
         profession: formData.profession.trim(),
@@ -249,6 +257,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           sistersMarried: Number(formData.sistersMarried) || 0,
           nativePlace: formData.nativePlace.trim() || formData.city.trim(),
           familyValues: formData.familyValues,
+          familyStatus: formData.familyStatus,
         },
         partnerPreferences: {
           minAge: Number(formData.preferredMinAge) || 18,
@@ -431,6 +440,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
+                      <label className={labelClass}>Date of Birth</label>
+                      <input type="date" max={new Date().toISOString().slice(0, 10)} value={formData.dob} onChange={(e) => updateField('dob', e.target.value)} className={inputClass} />
+                    </div>
+                    <div>
                       <label className={labelClass}>Age *</label>
                       <input
                         type="number"
@@ -566,6 +579,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       <div><label className={labelClass}>Hijab / Beard / Modesty</label><select value={formData.hijabOrBeard} onChange={(e) => updateField('hijabOrBeard', e.target.value)} className={inputClass}><option value="">Prefer not to say</option><option>Observes Hijab/Niqab</option><option>Full Beard</option><option>Trimmed Beard</option><option>Modest Dressing</option><option>Not strictly</option></select></div>
                       <div><label className={labelClass}>Halal Diet</label><select value={formData.halalDiet} onChange={(e) => updateField('halalDiet', e.target.value)} className={inputClass}><option value="true">Yes</option><option value="false">Prefer not to say</option></select></div>
                       <div><label className={labelClass}>Hajj / Umrah Completed</label><select value={formData.hajjUmrahDone} onChange={(e) => updateField('hajjUmrahDone', e.target.value)} className={inputClass}><option value="false">No / Prefer not to say</option><option value="true">Yes</option></select></div>
+                      <div><label className={labelClass}>Fasting in Ramadan</label><select value={formData.fastingRamadan} onChange={(e) => updateField('fastingRamadan', e.target.value)} className={inputClass}><option value="true">Yes</option><option value="false">Prefer not to say</option></select></div>
                     </div>
                   </div>
                   <div className="border-t border-stone-200 pt-4">
@@ -576,6 +590,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {([['brothersCount','Brothers'],['brothersMarried','Married brothers'],['sistersCount','Sisters'],['sistersMarried','Married sisters']] as const).map(([field,label]) => <div key={field}><label className={labelClass}>{label}</label><input type="number" min="0" max="20" value={formData[field]} onChange={(e) => updateField(field, e.target.value)} className={inputClass} /></div>)}
                       </div>
+                      <div><label className={labelClass}>Family Financial Status</label><select value={formData.familyStatus} onChange={(e) => updateField('familyStatus', e.target.value)} className={inputClass}><option value="">Prefer not to say</option><option>Affluent</option><option>Upper Middle Class</option><option>Middle Class</option></select></div>
                       <div><label className={labelClass}>Family Values</label><select value={formData.familyValues} onChange={(e) => updateField('familyValues', e.target.value)} className={inputClass}><option value="">Select family values</option><option>Traditional & Practicing</option><option>Moderate Religious</option><option>Modern Religious</option></select></div>
                       <div><label className={labelClass}>Native Place</label><input value={formData.nativePlace} onChange={(e) => updateField('nativePlace', e.target.value)} placeholder="Village / town / district" className={inputClass} /></div>
                     </div>
