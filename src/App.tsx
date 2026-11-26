@@ -302,8 +302,13 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) {
       setHasActiveMembership(false);
+      setProfiles([]);
+      setSelectedProfile(null);
       return;
     }
+    setHasActiveMembership(false);
+    setProfiles([]);
+    setSelectedProfile(null);
     if (isAdminUser(currentUser)) {
       setHasActiveMembership(true);
       return;
