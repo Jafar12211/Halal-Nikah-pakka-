@@ -131,19 +131,9 @@ export async function loginWithEmailPassword(
     password,
   );
 
-  if (!result.user.emailVerified) {
-    // Give existing accounts a fresh verification email so they are not locked
-    // out without a recovery path. Sign out after sending the message.
-    try {
-      await sendEmailVerification(result.user);
-    } finally {
-      await signOut(auth);
-    }
-    const error = new Error('Your email address is not verified yet. We have sent a new verification link. Open that email, verify your address, then sign in again.') as Error & { code?: string };
-    error.code = 'auth/email-not-verified';
-    throw error;
-  }
-
+  // Allow members to access their own private biodata draft before email
+  // verification. Firestore rules still restrict the public directory to
+  // verified members, so this does not grant access to other candidates.
   const isAdmin = await getIsAdmin(result.user);
 
   return createUserAccount(result.user, isAdmin);
