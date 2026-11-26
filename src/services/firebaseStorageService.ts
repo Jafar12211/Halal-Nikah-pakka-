@@ -137,7 +137,7 @@ async function compressProfilePhoto(file: File): Promise<{ dataUrl: string; byte
       if (attempt === 3 || attempt === 5) {
         canvas.width = Math.max(1, Math.round(canvas.width * 0.8));
         canvas.height = Math.max(1, Math.round(canvas.height * 0.8));
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap.source, 0, 0, canvas.width, canvas.height);
       }
     }
 
@@ -212,7 +212,7 @@ async function compressIdentityImage(file: File): Promise<{ dataUrl: string; byt
       if (attempt === 3) {
         canvas.width = Math.max(1, Math.round(canvas.width * 0.9));
         canvas.height = Math.max(1, Math.round(canvas.height * 0.9));
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap.source, 0, 0, canvas.width, canvas.height);
       }
     }
     if (!blob || blob.size > MAX_COMPRESSED_ID_BYTES) {
