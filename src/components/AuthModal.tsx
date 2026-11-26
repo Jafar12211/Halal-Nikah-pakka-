@@ -1,6 +1,6 @@
 import type { LanguageCode } from '../types/database';
 
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Lock,
@@ -21,7 +21,7 @@ import {
 } from '../services/firestoreService';
 
 import { auth } from '../services/firebase';
-import { ConfirmationResult, RecaptchaVerifier, linkWithPhoneNumber, sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
+import { sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
 import type { UserAccount } from '../types/database';
 
 interface AuthModalProps {
@@ -43,10 +43,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [mobile, setMobile] = useState('+91');
-  const [otp, setOtp] = useState('');
-  const [phoneConfirmation, setPhoneConfirmation] = useState<ConfirmationResult | null>(null);
-  const recaptchaVerifier = useRef<RecaptchaVerifier | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -117,43 +113,61 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (phoneConfirmation) {
-      if (!/^\d{6}$/.test(otp.trim())) { setError('Enter the 6-digit SMS verification code.'); return; }
-      try {
-        setLoading(true); setError(null);
-        const credential = await phoneConfirmation.confirm(otp.trim());
-        await sendEmailVerification(credential.user);
-        await signOut(auth);
-        setPhoneConfirmation(null); setOtp('');
-        recaptchaVerifier.current?.clear(); recaptchaVerifier.current = null;
-        setMode('login'); setPassword('');
-        setToast('Mobile number verified and account created. Verify your email using the link sent to your inbox, then sign in.');
-        setEmail(email.trim());
-      } catch (err: any) {
-        setError(err?.code === 'auth/invalid-verification-code' ? 'The OTP is incorrect. Please check the SMS and try again.' : err?.message || 'Phone verification failed. Please retry.');
-      } finally { setLoading(false); }
+
+    if (!name.trim() || !email.trim() || !password) {
+      setError(
+        isTelugu
+          ? 'దయచేసి అన్ని వివరాలను నమోదు చేయండి.'
+          : 'Please complete all required fields.'
+      );
       return;
     }
-    if (!name.trim() || !email.trim() || !password || !mobile.trim()) { setError('Please complete your name, email, mobile number and password.'); return; }
-    if (password.length < 6) { setError('Password must contain at least 6 characters.'); return; }
-    if (!/^\+[1-9]\d{7,14}$/.test(mobile.trim())) { setError('Enter your mobile number in international format, for example +919876543210.'); return; }
+
+    if (password.length < 6) {
+      setError('Password must contain at least 6 characters.');
+      return;
+    }
+
     try {
-      setLoading(true); setError(null); setToast(null);
-      await registerWithEmailPassword(email, password);
-      if (!auth.currentUser) throw new Error('Account was created, but the sign-in session is unavailable. Please sign in.');
-      await updateProfile(auth.currentUser, { displayName: name.trim() });
-      if (!recaptchaVerifier.current) recaptchaVerifier.current = new RecaptchaVerifier(auth, 'phone-otp-recaptcha', { size: 'invisible' });
-      const confirmation = await linkWithPhoneNumber(auth.currentUser, mobile.trim(), recaptchaVerifier.current);
-      setPhoneConfirmation(confirmation);
-      setToast('A verification code was sent to ' + mobile.trim() + '. Enter the 6-digit OTP to verify your mobile number.');
+      setLoading(true);
+      setError(null);
+      setToast(null);
+
+      const user = await registerWithEmailPassword(email, password);
+
+      if (!auth.currentUser) {
+        throw new Error('Account was created, but the sign-in session is unavailable. Please sign in.');
+      }
+
+      await updateProfile(auth.currentUser, {
+        displayName: name.trim(),
+      });
+      await sendEmailVerification(auth.currentUser);
+      await signOut(auth);
+
+      setMode('login');
+      setPassword('');
+      setToast('Account created. A verification link has been sent to your email. Verify your email, then sign in.');
+      setEmail(email.trim());
     } catch (err: any) {
-      if (err?.code === 'auth/email-already-in-use') { setEmail(email.trim()); setPassword(''); setMode('login'); setError('This email already has an account. Sign in with its existing password, or choose “Forgot password?” to reset it.'); }
-      else if (err?.code === 'auth/weak-password') setError('Please choose a stronger password.');
-      else if (err?.code === 'auth/invalid-email') setError('Please enter a valid email address.');
-      else if (err?.code === 'auth/invalid-phone-number') setError('Please enter a valid mobile number with country code.');
-      else if (err?.code === 'auth/operation-not-allowed') setError('Phone sign-in is not enabled in Firebase Authentication. Enable the Phone provider before accepting registrations.');
-      else { const code = typeof err?.code === 'string' ? ' (' + err.code + ')' : ''; const message = typeof err?.message === 'string' ? err.message : 'Please try again.'; setError('Registration failed' + code + ': ' + message); }
-    } finally { setLoading(false); }
+      if (err?.code === 'auth/email-already-in-use') {
+        // Move directly to the sign-in form and keep the email the user entered.
+        setEmail(email.trim());
+        setPassword('');
+        setMode('login');
+        setError('This email already has an account. Sign in with its existing password, or choose “Forgot password?” if you need to reset it.');
+      } else if (err?.code === 'auth/weak-password') {
+        setError('Please choose a stronger password.');
+      } else if (err?.code === 'auth/invalid-email') {
+        setError('Please enter a valid email address.');
+      } else {
+        const code = typeof err?.code === 'string' ? ` (${err.code})` : '';
+        const message = typeof err?.message === 'string' ? err.message : 'Please try again.';
+        setError(`Registration failed${code}: ${message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -383,16 +397,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">Mobile Number (with country code)</label>
-                <input type="tel" required disabled={Boolean(phoneConfirmation)} value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="+919876543210" className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900" />
-                <p className="text-[10px] text-stone-500 mt-1">We will send an SMS OTP to verify that this number belongs to you.</p>
-              </div>
-              {phoneConfirmation && <div>
-                <label className="block font-semibold text-stone-700 mb-1">6-digit SMS OTP</label>
-                <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Enter OTP" className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-lg text-stone-900 tracking-[0.3em]" />
-              </div>}
-              <div id="phone-otp-recaptcha" />
-              <div>
                 <label className="block font-semibold text-stone-700 mb-1">
                   Create Password
                 </label>
@@ -412,7 +416,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               <p className="text-stone-500 leading-relaxed">
-                {phoneConfirmation ? 'Verify your mobile number to finish creating your account.' : 'Your email/password account and mobile number will be linked. SMS verification is required before registration is completed.'}
+                Your account will be created using Firebase Authentication.
+                You can add your mobile number and profile details after signing in.
               </p>
 
               <button
@@ -421,7 +426,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                {phoneConfirmation ? 'Verify OTP & Finish' : 'Send OTP & Create Account'}
+                Create Account
               </button>
             </form>
           )}
