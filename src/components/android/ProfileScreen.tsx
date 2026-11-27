@@ -165,8 +165,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </div>
       )}
 
-      {/* Linked Candidate Biodata Card */}
-      {currentUser && (
+      {/* Linked Candidate Biodata Card: keep the administrator's own dashboard free of linked test-candidate details. The candidate record remains intact and visible in the candidate's own account. */}
+      {currentUser && !isAdmin && (
         <div className="bg-white rounded-2xl p-5 border border-stone-200/90 shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
