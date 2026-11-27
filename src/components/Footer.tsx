@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 interface FooterProps {
   onOpenRegister: () => void;
@@ -13,11 +13,12 @@ export const Footer: React.FC<FooterProps> = ({ onOpenRegister, onOpenShare }) =
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10 border-b border-stone-800">
           {/* Brand Info */}
           <div className="md:col-span-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold font-serif text-white flex items-center gap-1.5">
-                NIKAH PAKKA
-                <Heart className="w-4 h-4 fill-rose-500 text-rose-500 inline" />
-              </span>
+            <div className="flex items-center gap-3">
+              <img src="/brand-mark.svg" alt="" className="w-12 h-12" />
+              <div>
+                <div className="text-xl font-bold font-serif tracking-wide text-white">NIKAH PAKKA</div>
+                <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-300">Where Faith Meets Forever</div>
+              </div>
             </div>
             <p className="text-xs text-stone-400 leading-relaxed max-w-sm">
               Your Community. Your Connection. Your Nikah. Built to help Muslim brothers and sisters find their life partners with dignity, affordability, and family involvement.

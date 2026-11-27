@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Globe, Heart, ArrowLeft, Download, Bell } from 'lucide-react';
+import { Menu, Globe, ArrowLeft } from 'lucide-react';
 import { LanguageCode, UserAccount } from '../../types/database';
 import { translations } from '../../utils/translations';
 import { PWAInstallButton } from '../PWAInstallButton';
@@ -71,16 +71,13 @@ export const AndroidTopBar: React.FC<AndroidTopBarProps> = ({
             className="flex items-center gap-2 cursor-pointer select-none text-left"
             aria-label="Go to Nikah Pakka home"
           >
-            <div className="w-8 h-8 rounded-lg bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-sm shadow-xs border border-emerald-700">
-              🌙
-            </div>
+            <img src="/brand-mark.svg" alt="" className="w-9 h-9 shrink-0 drop-shadow-sm" />
             <div className="flex flex-col">
-              <span className="text-sm font-bold tracking-tight text-white font-serif flex items-center gap-1 leading-none">
+              <span className="text-[15px] font-extrabold tracking-wide text-white font-serif leading-none">
                 {t.brandTitle || 'NIKAH PAKKA'}
-                <Heart className="w-3 h-3 fill-rose-500 text-rose-500 inline" />
               </span>
-              <span className="text-[9px] uppercase tracking-wider text-emerald-300 font-medium leading-tight mt-0.5">
-                {isTelugu ? 'యానాం & గోదావరి' : 'Yanam & Godavari'}
+              <span className="text-[8px] uppercase tracking-[0.13em] text-amber-300 font-semibold leading-tight mt-1">
+                Where Faith Meets Forever
               </span>
             </div>
           </button>

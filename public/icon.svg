@@ -1,19 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#064e3b"/>
-      <stop offset="100%" stop-color="#022c22"/>
-    </linearGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fde047"/>
-      <stop offset="100%" stop-color="#eab308"/>
-    </linearGradient>
+    <linearGradient id="emerald" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#145344"/><stop offset="1" stop-color="#062d25"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f9e7ad"/><stop offset=".55" stop-color="#d8b56b"/><stop offset="1" stop-color="#b98a3d"/></linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#emeraldGrad)"/>
-  <!-- Gold outer circle ring -->
-  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#goldGrad)" stroke-width="8" opacity="0.4"/>
-  <!-- Islamic Crescent -->
-  <path d="M 285 140 A 130 130 0 1 0 355 350 A 110 110 0 1 1 285 140 Z" fill="url(#goldGrad)"/>
-  <!-- Central Heart representing Nikah & Love in Halal union -->
-  <path d="M 330 210 C 315 190, 285 190, 270 210 C 255 190, 225 190, 210 210 C 190 235, 200 270, 270 320 C 340 270, 350 235, 330 210 Z" fill="#f43f5e" opacity="0.95"/>
+  <rect width="512" height="512" rx="118" fill="url(#emerald)"/>
+  <circle cx="256" cy="256" r="205" fill="none" stroke="url(#gold)" stroke-width="5" opacity=".45"/>
+  <path d="M128 394V238a128 128 0 0 1 256 0v156" fill="none" stroke="url(#gold)" stroke-width="15" stroke-linecap="round"/>
+  <path d="M165 394V244a91 91 0 0 1 182 0v150" fill="none" stroke="url(#gold)" stroke-width="5" opacity=".55"/>
+  <path d="M257 95a66 66 0 1 0 67 103 57 57 0 1 1-67-103Z" fill="url(#gold)"/>
+  <path d="m359 119 10 20 22 3-16 15 4 22-20-11-20 11 4-22-16-15 22-3Z" fill="url(#gold)"/>
+  <path d="M184 394v-61a72 72 0 0 1 144 0v61" fill="none" stroke="url(#gold)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M145 394h222" stroke="url(#gold)" stroke-width="13" stroke-linecap="round"/>
 </svg>

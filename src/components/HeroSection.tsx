@@ -89,6 +89,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
         <div className="max-w-3xl">
+          <div className="flex items-center gap-3 mb-7">
+            <img src="/brand-mark.svg" alt="Nikah Pakka emblem" className="w-14 h-14 sm:w-16 sm:h-16 drop-shadow-lg" />
+            <div className="min-w-0">
+              <div className="font-serif text-2xl sm:text-3xl font-bold tracking-wide text-white">Nikah Pakka</div>
+              <div className="mt-1 text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Where Faith Meets Forever</div>
+            </div>
+          </div>
           {/* Spiritual Kicker without static pill enclosure */}
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-300 mb-4">
             <span>{t.bismillah || 'Bismillahir Rahmanir Raheem'}</span>
