@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  isFileUploadEnabled,
   isPhotoUploadEnabled,
   isFirebaseStorageEmulatorMode,
   isCloudAccountDeletionEnabled,
@@ -13,8 +14,9 @@ test("emulator mode accepts only the explicit true string", () => {
   assert.equal(isFirebaseStorageEmulatorMode(true), false);
 });
 
-test("profile photo uploads use the bounded no-billing Firestore path", () => {
-  assert.equal(isPhotoUploadEnabled(), true);
+test("hosted builds disable new media uploads unless local emulators are enabled", () => {
+  assert.equal(isFileUploadEnabled(), false);
+  assert.equal(isPhotoUploadEnabled(), false);
 });
 
 test("cloud account deletion stays disabled unless its backend is explicitly enabled", () => {

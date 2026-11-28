@@ -1,0 +1,362 @@
+// LOCAL EMULATOR TESTS ONLY. Never deploy this file to Firebase Hosting or Firestore.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    // Set this custom claim only from a trusted Admin SDK environment.
+    function admin() { return signedIn() && request.auth.token.get('admin', false) == true; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function verifiedMember() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+    function validUid(uid) { return uid is string && uid.size() > 0 && uid.size() <= 128; }
+
+function validUserDocument(item, uid) {
+  return item is map
+    && item.keys().hasAll([
+      'id', 'type', 'fileName', 'storagePath',
+      'maskedId', 'uploadedAt', 'verified', 'isRestricted'
+    ])
+    && item.keys().hasOnly([
+      'id', 'type', 'fileName', 'storagePath',
+      'maskedId', 'uploadedAt', 'verified', 'isRestricted'
+    ])
+    && item.id is string
+    && item.id.size() > 0
+    && item.id.size() <= 128
+    && item.type in [
+      'Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence', 'Voter ID', 'Other Government ID'
+    ]
+    && item.fileName is string
+    && item.fileName.size() > 0
+    && item.fileName.size() <= 180
+    && item.storagePath is string
+    && item.storagePath.matches('identityDocuments/' + uid + '/[^/]+')
+    && item.maskedId is string
+    && item.maskedId.size() > 0
+    && item.maskedId.size() <= 32
+    && item.uploadedAt is string
+    && item.uploadedAt.size() > 0
+    && item.verified == false
+    && item.isRestricted == true;
+}
+
+    // Admin verification may add verifiedBy, but all document metadata
+    // remains constrained and identity files stay restricted to the owner/admin.
+    function validAdminUserDocument(item, uid) {
+      return item is map
+        && item.keys().hasAll([
+          'id', 'type', 'fileName', 'storagePath',
+          'maskedId', 'uploadedAt', 'verified', 'isRestricted'
+        ])
+        && item.keys().hasOnly([
+          'id', 'type', 'fileName', 'storagePath',
+          'maskedId', 'uploadedAt', 'verified', 'isRestricted', 'verifiedBy'
+        ])
+        && item.id is string && item.id.size() > 0 && item.id.size() <= 128
+        && item.type in ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence', 'Voter ID', 'Other Government ID']
+        && item.fileName is string && item.fileName.size() > 0 && item.fileName.size() <= 180
+        && item.storagePath is string
+        && item.storagePath.matches('identityDocuments/' + uid + '/[^/]+')
+        && item.maskedId is string && item.maskedId.size() > 0 && item.maskedId.size() <= 32
+        && item.uploadedAt is string && item.uploadedAt.size() > 0
+        && item.verified is bool
+        && item.isRestricted == true
+        && ((!item.verified && !('verifiedBy' in item))
+          || (item.verified && 'verifiedBy' in item
+            && item.verifiedBy is string
+            && item.verifiedBy.size() > 0
+            && item.verifiedBy.size() <= 320));
+    }
+
+    function validAdminUserDocumentList(items, uid) {
+      return items is list && items.size() <= 5
+        && (items.size() == 0 || validAdminUserDocument(items[0], uid))
+        && (items.size() < 2 || validAdminUserDocument(items[1], uid))
+        && (items.size() < 3 || validAdminUserDocument(items[2], uid))
+        && (items.size() < 4 || validAdminUserDocument(items[3], uid))
+        && (items.size() < 5 || validAdminUserDocument(items[4], uid));
+    }
+
+    function validUserDocumentList(items, uid) {
+      return items is list && items.size() <= 5
+        && (items.size() == 0 || validUserDocument(items[0], uid))
+        && (items.size() < 2 || validUserDocument(items[1], uid))
+        && (items.size() < 3 || validUserDocument(items[2], uid))
+        && (items.size() < 4 || validUserDocument(items[3], uid))
+        && (items.size() < 5 || validUserDocument(items[4], uid));
+    }
+
+
+    // Compressed profile photographs are stored as one small Firestore document
+    // per image, avoiding Cloud Storage's hosted Blaze-plan requirement.
+    function approvedPhotoVisible(uid, photoId) {
+      let profilePath = /databases/$(database)/documents/publicProfiles/$(uid);
+      let photoPath = 'profilePhotos/' + uid + '/' + photoId;
+      return signedIn()
+        && exists(profilePath)
+        && get(profilePath).data.approvalStatus == 'approved'
+        && get(profilePath).data.isVerified == true
+        && get(profilePath).data.photoPrivacy == 'visible'
+        && get(profilePath).data.photos is list
+        && get(profilePath).data.photos.hasAny([photoPath]);
+    }
+
+    // Government ID images are stored as compressed private Firestore documents
+    // to keep staging on Spark. Only the candidate and authorized admins can read them.
+    match /identityDocuments/{uid}/items/{documentId} {
+      allow get, list: if owner(uid) || admin();
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasAll(['ownerUid', 'dataUrl', 'contentType', 'byteSize', 'documentType', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['ownerUid', 'dataUrl', 'contentType', 'byteSize', 'documentType', 'createdAt'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.contentType == 'image/webp'
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.matches('data:image/webp;base64,[A-Za-z0-9+/=]+')
+        && request.resource.data.dataUrl.size() <= 850000
+        && request.resource.data.byteSize is int
+        && request.resource.data.byteSize > 0
+        && request.resource.data.byteSize <= 614400
+        && request.resource.data.documentType in ['aadhaar', 'pan', 'passport', 'voter_id', 'driving_license', 'other']
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if owner(uid) || admin();
+    }
+
+    match /profilePhotos/{uid}/items/{photoId} {
+      allow get: if owner(uid) || admin() || approvedPhotoVisible(uid, photoId);
+      allow list: if owner(uid) || admin();
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasAll(['ownerUid', 'dataUrl', 'contentType', 'byteSize', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['ownerUid', 'dataUrl', 'contentType', 'byteSize', 'createdAt'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.contentType == 'image/webp'
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.matches('data:image/webp;base64,[A-Za-z0-9+/=]+')
+        && request.resource.data.dataUrl.size() <= 850000
+        && request.resource.data.byteSize is int
+        && request.resource.data.byteSize > 0
+        && request.resource.data.byteSize <= 614400
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if owner(uid) || admin();
+    }
+
+    // Private registration documents may contain guardian contacts and verification metadata.
+    // Never expose these documents to other members. Publish a separately sanitized publicProfiles
+    // document from a trusted backend before enabling public profile discovery.
+    match /registrations/{uid} {
+      allow get: if owner(uid) || admin();
+      allow list: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if owner(uid) && validUid(uid)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'candidateName', 'age', 'candidateConsentConfirmed', 'candidateConsentAt'])
+        && request.resource.data.candidateName is string
+        && request.resource.data.candidateName.size() > 0
+        && request.resource.data.candidateName.size() <= 100
+        && request.resource.data.age is number
+        && request.resource.data.age >= 18 && request.resource.data.age <= 100
+        && request.resource.data.candidateConsentConfirmed == true
+        && request.resource.data.candidateConsentAt is string
+        && request.resource.data.candidateConsentAt.size() > 0
+        && validUserDocumentList(request.resource.data.documents, uid)
+        && request.resource.data.gender in ['bride', 'groom']
+        && request.resource.data.maritalStatus in ['Never Married', 'Divorced', 'Widowed']
+        && (!('approvalStatus' in request.resource.data) || request.resource.data.approvalStatus == 'pending')
+        && (!('isVerified' in request.resource.data) || request.resource.data.isVerified == false);
+      allow update: if (
+        owner(uid)
+        && request.resource.data.userId == resource.data.userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verificationStatus', 'approvalNotes'])
+        && request.resource.data.candidateName is string
+        && request.resource.data.candidateName.size() > 0
+        && request.resource.data.candidateName.size() <= 100
+        && request.resource.data.age is number
+        && request.resource.data.age >= 18
+        && request.resource.data.age <= 100
+        && request.resource.data.candidateConsentConfirmed == true
+        && request.resource.data.candidateConsentAt is string
+        && request.resource.data.candidateConsentAt.size() > 0
+        && validUserDocumentList(request.resource.data.documents, uid)
+        && request.resource.data.gender in ['bride', 'groom']
+        && request.resource.data.maritalStatus in ['Never Married', 'Divorced', 'Widowed']
+        && request.resource.data.approvalStatus == 'pending'
+        && request.resource.data.isVerified == false
+      ) || (
+        admin()
+        && resource.data.userId == uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['approvalStatus', 'approvalNotes', 'updatedAt', 'isVerified', 'documents'])
+        && request.resource.data.approvalStatus in ['pending', 'approved', 'rejected', 'suspended']
+        && request.resource.data.isVerified == (request.resource.data.approvalStatus == 'approved')
+        && (!('documents' in request.resource.data)
+          || validAdminUserDocumentList(request.resource.data.documents, uid))
+        && (request.resource.data.approvalStatus != 'approved'
+          || (
+            resource.data.age is number
+            && resource.data.age >= 18
+            && resource.data.photos is list
+            && resource.data.photos.size() > 0
+            && resource.data.documents is list
+            && resource.data.documents.size() > 0
+          ))
+      );
+      allow delete: if owner(uid) || admin();
+    }
+
+    // Public profile documents have a strict allowlist. This prevents private
+    // registration fields (guardian contacts, family details, identity metadata,
+    // email, phone, etc.) from being published by an administrator write.
+    function validPublicProfile(uid) {
+      let data = request.resource.data;
+      return data is map
+        && data.keys().hasAll([
+          'userId', 'candidateName', 'gender', 'age', 'height', 'maritalStatus',
+          'religion', 'education', 'profession', 'employedIn', 'annualIncomeRange',
+          'district', 'mandalCity', 'motherTongue', 'partnerPreferences',
+          'mustHaves', 'dealBreakers', 'aboutCandidate', 'photos', 'photoPrivacy',
+          'avatarInitials', 'avatarBgColor', 'documents', 'isVerified',
+          'approvalStatus', 'createdAt', 'updatedAt', 'favoritesCount',
+          'interestsReceivedCount'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'candidateName', 'gender', 'age', 'height', 'maritalStatus',
+          'religion', 'education', 'profession', 'employedIn', 'annualIncomeRange',
+          'district', 'mandalCity', 'motherTongue', 'partnerPreferences',
+          'mustHaves', 'dealBreakers', 'aboutCandidate', 'photos', 'photoPrivacy',
+          'avatarInitials', 'avatarBgColor', 'documents', 'isVerified',
+          'approvalStatus', 'createdAt', 'updatedAt', 'favoritesCount',
+          'interestsReceivedCount'
+        ])
+        && data.userId == uid
+        && data.approvalStatus == 'approved'
+        && data.isVerified == true
+        && data.candidateName is string
+        && data.candidateName.size() > 0
+        && data.candidateName.size() <= 100
+        && data.gender in ['bride', 'groom']
+        && data.age is number
+        && data.age >= 18 && data.age <= 100
+        && data.height is string
+        && data.maritalStatus in ['Never Married', 'Divorced', 'Widowed']
+        && data.religion is map
+        && data.religion.keys().hasOnly([
+          'sect', 'salah', 'hijabOrBeard', 'quranRecitation',
+          'fastingRamadan', 'halalDiet'
+        ])
+        && data.education is string
+        && data.profession is string
+        && data.employedIn is string
+        && data.annualIncomeRange is string
+        && data.district is string
+        && data.mandalCity is string
+        && data.motherTongue is string
+        && data.partnerPreferences is map
+        && data.partnerPreferences.keys().hasOnly([
+          'minAge', 'maxAge', 'minHeight', 'preferredDistricts',
+          'educationPreference', 'maritalStatusPreference', 'religiosityPreference'
+        ])
+        && data.mustHaves is list
+        && data.mustHaves.size() <= 30
+        && data.dealBreakers is list
+        && data.dealBreakers.size() <= 30
+        && data.aboutCandidate is string
+        && data.photos is list
+        && data.photos.size() <= 10
+        && data.photoPrivacy in ['visible', 'avatar_only']
+        && data.avatarInitials is string
+        && data.avatarBgColor is string
+        && data.documents is list
+        && data.documents.size() == 0
+        && data.favoritesCount is number
+        && data.favoritesCount >= 0
+        && data.interestsReceivedCount is number
+        && data.interestsReceivedCount >= 0;
+    }
+
+    // Only approved, sanitized documents can be read by the public.
+    // Admin writes are schema-constrained; owners may remove their own listing.
+    match /publicProfiles/{uid} {
+      // Only verified signed-in members can read approved, sanitized listings.
+      // Private registration records and identity documents remain restricted.
+      allow read: if verifiedMember()
+        && resource.data.approvalStatus == 'approved'
+        && resource.data.isVerified == true;
+      allow create, update: if admin() && validPublicProfile(uid);
+      allow delete: if admin() || owner(uid);
+    }
+
+    // Member-owned saved-profile bookmarks. Only approved public profiles may be saved.
+    function approvedPublicProfile(profileId) {
+      let profilePath = /databases/$(database)/documents/publicProfiles/$(profileId);
+      return exists(profilePath)
+        && get(profilePath).data.approvalStatus == 'approved'
+        && get(profilePath).data.isVerified == true;
+    }
+
+    match /users/{uid}/savedProfiles/{profileId} {
+      allow get, list: if owner(uid);
+      allow create: if owner(uid)
+        && validUid(profileId)
+        && profileId != uid
+        && request.resource.data.keys().hasAll(['profileId', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['profileId', 'createdAt'])
+        && request.resource.data.profileId == profileId
+        && request.resource.data.createdAt == request.time
+        && approvedPublicProfile(profileId);
+      allow update: if false;
+      allow delete: if owner(uid);
+    }
+
+    // Interest requests are private to their sender and recipient. Both profiles
+    // must be approved before a request can be created. Names and private contacts
+    // are deliberately not copied into this document.
+    match /interestRequests/{requestId} {
+      allow get, list: if signedIn()
+        && (resource.data.senderUserId == request.auth.uid
+          || resource.data.receiverUserId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll([
+          'senderUserId', 'receiverUserId', 'status', 'message', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'senderUserId', 'receiverUserId', 'status', 'message', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.senderUserId == request.auth.uid
+        && validUid(request.resource.data.receiverUserId)
+        && request.resource.data.receiverUserId != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 500
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && approvedPublicProfile(request.auth.uid)
+        && approvedPublicProfile(request.resource.data.receiverUserId);
+      allow update: if signedIn()
+        && resource.data.receiverUserId == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status in ['accepted', 'declined']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if signedIn()
+        && (resource.data.senderUserId == request.auth.uid
+          || resource.data.receiverUserId == request.auth.uid);
+    }
+
+    // Immutable administrator audit trail.
+    match /auditLogs/{logId} {
+      allow read, list: if admin();
+      allow create: if admin()
+        && request.resource.data.performedBy == request.auth.token.email
+        && request.resource.data.targetId is string
+        && request.resource.data.action in ['PROFILE_APPROVED', 'PROFILE_REJECTED', 'PROFILE_SUSPENDED', 'DOCUMENT_VERIFIED']
+        && request.resource.data.details is string;
+      allow update, delete: if false;
+    }
+
+    // All other collections are denied until their access model is explicitly implemented.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

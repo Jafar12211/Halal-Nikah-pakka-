@@ -8,11 +8,18 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { isFileUploadEnabled } from '../utils/featureFlags';
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_COMPRESSED_PHOTO_BYTES = 600 * 1024;
 const MAX_ID_DOCUMENT_BYTES = 5 * 1024 * 1024;
 const MAX_COMPRESSED_ID_BYTES = 600 * 1024;
+
+function requireEmulatorUploads(): void {
+  if (!isFileUploadEnabled()) {
+    throw new Error('New photo and identity-document uploads are disabled on hosted staging. Use the local Firebase Emulators for upload testing.');
+  }
+}
 
 export type GovernmentDocumentType =
   | 'aadhaar'
@@ -114,6 +121,7 @@ async function compressProfilePhoto(file: File): Promise<{ dataUrl: string; byte
  */
 export async function uploadProfilePhoto(uid: string, file: File): Promise<string> {
   requireOwner(uid);
+  requireEmulatorUploads();
   assertImage(file, MAX_PROFILE_PHOTO_BYTES);
 
   const { dataUrl, byteSize } = await compressProfilePhoto(file);
@@ -186,6 +194,7 @@ export async function uploadGovernmentId(
   documentType: GovernmentDocumentType,
 ): Promise<UploadedIdentityDocument> {
   requireOwner(uid);
+  requireEmulatorUploads();
   assertIdentityDocument(file);
   const { dataUrl, byteSize } = await compressIdentityImage(file);
   const fileName = createFileName('webp');

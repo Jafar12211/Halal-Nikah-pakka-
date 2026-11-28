@@ -1,4 +1,4 @@
-import { isPhotoUploadEnabled } from '../utils/featureFlags';
+import { isFileUploadEnabled, isPhotoUploadEnabled } from '../utils/featureFlags';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -232,7 +232,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
 
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!isPhotoUploadEnabled()) {
-      setErrorMsg('Profile photo uploads are temporarily unavailable in staging.');
+      setErrorMsg('Profile photo uploads are disabled on hosted staging. Use the local Firebase Emulators for upload testing.');
       return;
     }
     const files = Array.from(event.target.files || []);
@@ -257,6 +257,10 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!currentUser || !file) return;
+    if (!isFileUploadEnabled()) {
+      setErrorMsg('Government ID uploads are disabled on hosted staging. Use the local Firebase Emulators for upload testing.');
+      return;
+    }
     if (!maskedDocumentId.trim()) { setErrorMsg('Enter a masked ID reference only. Do not enter the full ID number.'); return; }
     setUploadingDocument(true); setErrorMsg('');
     try {
@@ -1036,7 +1040,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   <div>
                     <strong className="text-emerald-950">Your privacy matters</strong>
                     <p className="text-stone-600 mt-1">
-                      Government ID files are uploaded to private Firebase Storage for administrator review. Never enter a full Aadhaar, PAN, or passport number here; provide only a masked reference.
+                      Government ID images are stored as private Firestore records only during local Firebase Emulator testing. Hosted staging does not accept new ID uploads. Never enter a full Aadhaar, PAN, or passport number here; provide only a masked reference.
                     </p>
                   </div>
                 </div>
@@ -1048,7 +1052,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   </div>
 
                   <p className="text-stone-600">
-                    Upload up to five JPG, PNG or WEBP photographs (maximum 5 MB each). Photos are compressed and stored in private Firestore records. Other signed-in members can view them only after approval and when you select visible.
+                    During local Firebase Emulator testing, up to five JPG, PNG or WEBP photographs (maximum 5 MB each) are compressed into private Firestore Emulator records. Hosted staging does not accept new photo uploads. Existing saved photos remain subject to profile approval and your privacy settings.
                   </p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -1086,8 +1090,8 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     </label>
                   ) : (
                     <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
-                      <p className="font-semibold">Photo uploads are available on staging.</p>
-                      <p className="text-[11px] text-amber-800 mt-0.5">Choose up to five photos. Each is compressed before being saved securely.</p>
+                      <p className="font-semibold">Photo uploads are disabled on hosted staging.</p>
+                      <p className="text-[11px] text-amber-800 mt-0.5">To test uploads, run the app with the local Firebase Emulators enabled.</p>
                     </div>
                   )}
                 </div>
@@ -1101,11 +1105,18 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     </select>
                     <input className={inputClass} value={maskedDocumentId} onChange={(e) => setMaskedDocumentId(e.target.value)} placeholder="Masked ID (e.g. XXXX-1234)" maxLength={32} />
                   </div>
-                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-800 text-white font-semibold cursor-pointer">
-                    <Lock className="w-4 h-4" /> {uploadingDocument ? 'Uploading...' : 'Upload private ID image'}
-                    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingDocument} onChange={handleDocumentUpload} className="sr-only" />
-                  </label>
-                  <p className="text-[11px] text-stone-500">JPG, PNG or WEBP image up to 5 MB. It is compressed and stored privately in Firestore; PDF uploads are not supported on the free plan.</p>
+                  {isFileUploadEnabled() ? (
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-800 text-white font-semibold cursor-pointer">
+                      <Lock className="w-4 h-4" /> {uploadingDocument ? 'Uploading...' : 'Upload private ID image'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingDocument} onChange={handleDocumentUpload} className="sr-only" />
+                    </label>
+                  ) : (
+                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
+                      <p className="font-semibold">Government ID uploads are disabled on hosted staging.</p>
+                      <p className="text-[11px] text-amber-800 mt-0.5">Use the local Firebase Emulators for upload testing.</p>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-stone-500">JPG, PNG or WEBP image up to 5 MB. During local emulator testing, the compressed image is stored in private Firestore Emulator records. Hosted staging does not accept new ID uploads.</p>
                   {documents.map((item) => <div key={item.id} className="text-xs rounded bg-stone-50 p-2 flex justify-between gap-2"><span>{item.type} · {item.maskedId} · {item.fileName}</span><strong className={item.verified ? 'text-emerald-700' : 'text-amber-700'}>{item.verified ? 'Verified' : 'Pending review'}</strong></div>)}
                 </div>
 

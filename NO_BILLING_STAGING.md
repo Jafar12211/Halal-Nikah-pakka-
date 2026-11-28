@@ -5,8 +5,8 @@ This document outlines the strict no-billing architecture and isolation safeguar
 ## 1. No-Billing Safeguards & Plan Restrictions
 - **No Cloud Billing**: The staging Firebase project operates under the Spark (Free) plan.
 - **No Cloud Functions Deployment**: Google Cloud requires an active billing account (Blaze plan) to deploy 2nd-gen Cloud Functions. In accordance with strict no-billing directives, Cloud Functions (`deleteOwnAccount`) are tested via the local Firebase Functions Emulator and are not deployed to live Cloud Functions without billing authorization. The hosted staging account-deletion control is therefore disabled with an explanation; it can be enabled only after the callable is deployed and verified.
-- **Fail-Closed Storage Uploads**: Profile-photo and private identity-document uploads are permitted only when `VITE_USE_FIREBASE_EMULATORS=true` connects the app to the local Firebase Storage Emulator. Hosted staging rejects both upload paths in the service layer, even if a UI control is bypassed. Candidate profiles display secure SVG placeholder avatars.
-- **No Base64 in Firestore**: No binary or image base64 payloads are stored in Firestore documents.
+- **Fail-Closed Media Uploads**: New profile-photo and private identity-document writes are blocked by deployed Firestore rules on hosted staging, hidden in the UI, and rejected by the service layer. Local emulator tests use `firestore.emulator.rules` and require `VITE_USE_FIREBASE_EMULATORS=true`. Existing media records are not deleted or migrated; their existing read and delete permissions remain unchanged.
+- **No Live Firestore Media Writes**: Compressed image payloads may be stored only in the local Firestore Emulator for testing. Hosted staging does not accept new photo or identity-document image writes.
 
 ## 2. Firebase Emulators
 - Firebase Emulators (Auth, Firestore, Storage, Functions) are configured in `firebase.json` for reproducible testing and security rule verification.

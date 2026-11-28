@@ -31,6 +31,8 @@ import {
 } from "firebase/storage";
 
 let testEnv;
+let emulatorFirestoreRules;
+let hostedFirestoreRules;
 
 const projectId = process.env.GCLOUD_PROJECT || "nikah-pakka-staging";
 
@@ -61,12 +63,15 @@ const validRegistration = (uid) => ({
 });
 
 before(async () => {
+  const fs = await import("node:fs");
+  emulatorFirestoreRules = fs.readFileSync("firestore.emulator.rules", "utf8");
+  hostedFirestoreRules = fs.readFileSync("firestore.rules", "utf8");
   testEnv = await initializeTestEnvironment({
     projectId,
     firestore: {
       host: "127.0.0.1",
       port: 8080,
-      rules: (await import("node:fs")).readFileSync("firestore.rules", "utf8")
+      rules: emulatorFirestoreRules
     },
     storage: {
       host: "127.0.0.1",
@@ -735,4 +740,38 @@ test("An unrelated member cannot delete an interest request", async () => {
   await assertFails(
     (await import("firebase/firestore")).deleteDoc(doc(outsiderDb, "interestRequests/request1"))
   );
+});
+
+test("Hosted staging Firestore rules reject new profile-photo and identity-document uploads", async () => {
+  const hostedRulesEnv = await initializeTestEnvironment({
+    projectId,
+    firestore: {
+      host: "127.0.0.1",
+      port: 8080,
+      rules: hostedFirestoreRules
+    }
+  });
+
+  try {
+    const db = hostedRulesEnv.authenticatedContext("member1").firestore();
+
+    await assertFails(setDoc(doc(db, "profilePhotos/member1/items/photo.webp"), {
+      ownerUid: "member1",
+      dataUrl: "data:image/webp;base64,AQID",
+      contentType: "image/webp",
+      byteSize: 3,
+      createdAt: serverTimestamp()
+    }));
+
+    await assertFails(setDoc(doc(db, "identityDocuments/member1/items/id.webp"), {
+      ownerUid: "member1",
+      dataUrl: "data:image/webp;base64,AQID",
+      contentType: "image/webp",
+      byteSize: 3,
+      documentType: "aadhaar",
+      createdAt: serverTimestamp()
+    }));
+  } finally {
+    await hostedRulesEnv.cleanup();
+  }
 });
