@@ -82,7 +82,6 @@ before(async () => {
 });
 
 beforeEach(async () => {
-  await testEnv.loadFirestoreRules({ rules: emulatorFirestoreRules });
   await testEnv.clearFirestore();
   await testEnv.clearStorage();
 });
@@ -744,23 +743,35 @@ test("An unrelated member cannot delete an interest request", async () => {
 });
 
 test("Hosted staging Firestore rules reject new profile-photo and identity-document uploads", async () => {
-  await testEnv.loadFirestoreRules({ rules: hostedFirestoreRules });
-  const db = testEnv.authenticatedContext("member1").firestore();
+  const hostedRulesEnv = await initializeTestEnvironment({
+    projectId,
+    firestore: {
+      host: "127.0.0.1",
+      port: 8080,
+      rules: hostedFirestoreRules
+    }
+  });
 
-  await assertFails(setDoc(doc(db, "profilePhotos/member1/items/photo.webp"), {
-    ownerUid: "member1",
-    dataUrl: "data:image/webp;base64,AQID",
-    contentType: "image/webp",
-    byteSize: 3,
-    createdAt: serverTimestamp()
-  }));
+  try {
+    const db = hostedRulesEnv.authenticatedContext("member1").firestore();
 
-  await assertFails(setDoc(doc(db, "identityDocuments/member1/items/id.webp"), {
-    ownerUid: "member1",
-    dataUrl: "data:image/webp;base64,AQID",
-    contentType: "image/webp",
-    byteSize: 3,
-    documentType: "aadhaar",
-    createdAt: serverTimestamp()
-  }));
+    await assertFails(setDoc(doc(db, "profilePhotos/member1/items/photo.webp"), {
+      ownerUid: "member1",
+      dataUrl: "data:image/webp;base64,AQID",
+      contentType: "image/webp",
+      byteSize: 3,
+      createdAt: serverTimestamp()
+    }));
+
+    await assertFails(setDoc(doc(db, "identityDocuments/member1/items/id.webp"), {
+      ownerUid: "member1",
+      dataUrl: "data:image/webp;base64,AQID",
+      contentType: "image/webp",
+      byteSize: 3,
+      documentType: "aadhaar",
+      createdAt: serverTimestamp()
+    }));
+  } finally {
+    await hostedRulesEnv.cleanup();
+  }
 });
