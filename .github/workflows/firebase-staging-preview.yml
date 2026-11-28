@@ -85,6 +85,8 @@ jobs:
         run: npm run test:admin
 
       - name: Build production assets
+        env:
+          VITE_USE_FIREBASE_EMULATORS: 'false'
         run: npm run build
 
       - name: Set up Node.js 22 for Cloud Functions

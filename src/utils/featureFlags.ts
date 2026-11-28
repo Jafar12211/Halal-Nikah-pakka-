@@ -18,8 +18,11 @@ export const isFirebaseStorageEmulatorEnabled = (): boolean => {
   }
 };
 
-/** Profile photos use bounded Firestore documents and do not require Storage billing. */
-export const isPhotoUploadEnabled = (): boolean => true;
+/** New media uploads are allowed only when the app is connected to local Firebase Emulators. */
+export const isFileUploadEnabled = (): boolean => isFirebaseStorageEmulatorEnabled();
+
+/** Profile-photo upload controls follow the same emulator-only policy. */
+export const isPhotoUploadEnabled = (): boolean => isFileUploadEnabled();
 
 /**
  * Account deletion needs the trusted deleteOwnAccount callable. In no-billing
